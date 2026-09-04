@@ -317,5 +317,16 @@
     "status": "Estado",
     "created_at": "Fecha de creacion",
     "executed_at": "Fecha de ejecucion"
-  }
+  },
+  "confirm_delete_proposal": "Eliminar esta propuesta?",
+  "view_details": "Ver detalles",
+  "close_session_btn": "Cerrar asamblea",
+  "no_proposals": "No hay propuestas.",
+  "create_proposal_hint": "Crea una propuesta para que la asamblea la revise.",
+  "no_member_levels": "No hay niveles de miembro configurados.",
+  "no_board": "No hay junta directiva configurada.",
+  "assign_board_hint": "Asigna miembros a los cargos de la junta directiva.",
+  "no_sessions": "No hay sesiones programadas.",
+  "create_session_hint": "Crea una sesion para discutir propuestas.",
+  "no_config_loaded": "No hay configuracion cargada."
 }

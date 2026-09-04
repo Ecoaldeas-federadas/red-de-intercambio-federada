@@ -26,7 +26,7 @@ interface Member {
 }
 
 export default function DepartmentDetail() {
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { currency } = useConfig()

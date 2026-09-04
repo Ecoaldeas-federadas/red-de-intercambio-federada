@@ -13,7 +13,7 @@ interface ScopedAssemblyProps {
 }
 
 export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOwned, meetingType = 'assembly' }: ScopedAssemblyProps) {
-  const { t: tr } = useTranslation('assembly')
+  const { t: tr } = useTranslation(['assembly', 'common'])
   const [tab, setTab] = useState<'config' | 'proposals' | 'sessions' | 'reports'>('proposals')
   const [error, setError] = useState('')
   const [sessions, setSessions] = useState<any[]>([])

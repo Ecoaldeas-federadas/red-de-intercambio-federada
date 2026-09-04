@@ -8,7 +8,7 @@ import { fmtTQ } from '../lib/format'
 
 export default function Dashboard() {
   const { currency } = useConfig()
-  const { t } = useTranslation('dashboard')
+  const { t } = useTranslation(['dashboard', 'common'])
   const navigate = useNavigate()
   const [balance, setBalance] = useState<number | null>(null)
   const [creditLimit, setCreditLimit] = useState<number | null>(null)

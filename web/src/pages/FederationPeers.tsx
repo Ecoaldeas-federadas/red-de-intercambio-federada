@@ -55,7 +55,7 @@ interface Sponsorship {
 }
 
 export default function FederationPeers() {
-  const { t } = useTranslation('federation')
+  const { t } = useTranslation(['federation', 'common'])
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
   const [peers, setPeers] = useState<Peer[]>([])
@@ -296,7 +296,7 @@ export default function FederationPeers() {
           <p><strong>Como usar esta pagina:</strong> Copia tu clave publica y enviasela al admin del otro nodo. Pide la clave publica del otro nodo. Registra el otro nodo aqui (dominio + clave publica). Pide al otro nodo que te registre a ti. Cuando ambos se han registrado, la federacion esta activa.</p>
           <p><strong>Federacion automatica global (NUEVO):</strong> Cuando un nodo nuevo se federa con un sponsor via verificacion de 4 opciones, el sponsor propaga automaticamente la info del nuevo nodo a todos sus peers en cadena exponencial. Cada nodo establece una relacion 1-a-1 individual con el nuevo nodo. No necesitas federarte manualmente con cada nodo — al federarte con uno, entras a toda la red. Los nodos marcados como <strong>Auto-registrado</strong> fueron agregados via propagacion automatica.</p>
           <p><strong>Bloqueo unilateral (NUEVO):</strong> Puedes bloquear comercio con un nodo especifico sin necesidad de acuerdo. Solo afecta a tu nodo — los demas siguen comerciando. Util para dejar de comerciar con un nodo problematico sin afectar a la red.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('peers_help_close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('peers_help_close', t('common.close'))}</button>
         </div>
       )}
 

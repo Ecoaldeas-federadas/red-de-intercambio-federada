@@ -69,7 +69,7 @@ const categoryColors: Record<string, string> = {
 }
 
 export default function FederatedServices() {
-  const { t } = useTranslation('services')
+  const { t } = useTranslation(['services', 'common'])
   const { node_domain: nodeDomain } = useConfig()
   const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
   const [services, setServices] = useState<ServiceItem[]>([])
@@ -786,7 +786,7 @@ export default function FederatedServices() {
                 onClick={() => setConfirmUninstall(null)}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
               >
-                {t('cancel', 'Cancelar')}
+                {t('cancel', t('common.cancel'))}
               </button>
               <button
                 onClick={doUninstall}
@@ -814,7 +814,7 @@ export default function FederatedServices() {
                     onClick={closeServiceUpdateConsole}
                     className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
                   >
-                    {t('close', 'Cerrar')}
+                    {t('close', t('common.close'))}
                   </button>
                 )}
               </div>
@@ -1070,7 +1070,7 @@ export default function FederatedServices() {
 
 // === Panel de VoIP ===
 function VoIPPanel() {
-  const { t } = useTranslation('services')
+  const { t } = useTranslation(['services', 'common'])
   const [config, setConfig] = useState<VoIPConfig | null>(null)
   const [extensions, setExtensions] = useState<VoIPExtension[]>([])
   const [routes, setRoutes] = useState<VoIPRoute[]>([])
@@ -1301,7 +1301,7 @@ function VoIPPanel() {
         </div>
       )}
 
-      <button onClick={saveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('save', 'Guardar')}</button>
+      <button onClick={saveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('save', t('common.save'))}</button>
 
       {/* Extensiones */}
       <div className="border-t pt-3">

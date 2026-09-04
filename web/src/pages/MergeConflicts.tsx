@@ -6,7 +6,7 @@ import { AlertTriangle, Users, ArrowRight, Check, X, Search, Vote } from 'lucide
 import { fmtTQ } from '../lib/format'
 
 export default function MergeConflicts() {
-  const { t } = useTranslation('federation')
+  const { t } = useTranslation(['federation', 'common'])
   const { currency } = useConfig()
   const [conflicts, setConflicts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -292,7 +292,7 @@ export default function MergeConflicts() {
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setSelectedConflict(null)} className="btn-secondary">Cancelar</button>
+              <button onClick={() => setSelectedConflict(null)} className="btn-secondary">{t('common.cancel')}</button>
               <button onClick={() => propose(selectedConflict.id)} className="btn-primary">Enviar Propuesta</button>
             </div>
           </div>

@@ -317,5 +317,16 @@
     "status": "Status",
     "created_at": "Creation date",
     "executed_at": "Execution date"
-  }
+  },
+  "confirm_delete_proposal": "Delete this proposal?",
+  "view_details": "View details",
+  "close_session_btn": "Close assembly",
+  "no_proposals": "No proposals.",
+  "create_proposal_hint": "Create a proposal for the assembly to review.",
+  "no_member_levels": "No member levels configured.",
+  "no_board": "No board of directors configured.",
+  "assign_board_hint": "Assign members to board positions.",
+  "no_sessions": "No sessions scheduled.",
+  "create_session_hint": "Create a session to discuss proposals.",
+  "no_config_loaded": "No configuration loaded."
 }

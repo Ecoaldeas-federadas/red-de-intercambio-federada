@@ -291,7 +291,7 @@ export default function Calculator() {
           <p><strong>Que es la energia de insumos:</strong> {t('calculator.help_inputs', 'Es la energia incorporada en los materiales y materias primas usadas. Cada insumo tiene un costo energetico por unidad. <strong>Ejemplo:</strong> 1 kg de harina = 1.8 kWh, 0.5 kg de sal = 0.35 kWh.')}</p>
           <p><strong>Que es el factor de esfuerzo:</strong> {t('calculator.help_effort', 'Es un multiplicador que ajusta el costo si el trabajo es especialmente dificil o facil. 1.0 = normal, 1.5 = 50% mas esfuerzo, 0.8 = 20% menos. <strong>Ejemplo:</strong> Cavar tierra a 40°C tiene factor 1.5.')}</p>
           <p><strong>Como se calcula el precio final:</strong> {t('calculator.help_final', `Precio = (Energia directa + Energia humana + Energia de insumos + Amortizacion) x Factor de esfuerzo x Tarifa. El resultado es el precio sugerido en ${currency}.`, { currency })}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close', t('common.close'))}</button>
         </div>
       )}
 

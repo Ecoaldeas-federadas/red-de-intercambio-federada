@@ -47,7 +47,7 @@ interface SigningKey {
 type Tab = 'installed' | 'available' | 'keys'
 
 export default function NFCDrivers() {
-  const { t } = useTranslation('nfc')
+  const { t } = useTranslation(['nfc', 'common'])
   const [tab, setTab] = useState<Tab>('installed')
   const [drivers, setDrivers] = useState<DriverInfo[]>([])
   const [available, setAvailable] = useState<AvailableDriver[]>([])
@@ -277,7 +277,7 @@ export default function NFCDrivers() {
 
 // ===== Upload Modal =====
 function UploadModal({ onClose, onInstalled, onError }: { onClose: () => void; onInstalled: (msg: string) => void; onError: (e: string) => void }) {
-  const { t } = useTranslation('nfc')
+  const { t } = useTranslation(['nfc', 'common'])
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState('')
@@ -339,7 +339,7 @@ function UploadModal({ onClose, onInstalled, onError }: { onClose: () => void; o
         {progress && <div className="mt-3 text-sm text-blue-600">{progress}</div>}
 
         <div className="flex gap-2 mt-4 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800">{t('cancel', 'Cancelar')}</button>
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800">{t('cancel', t('common.cancel'))}</button>
           <button
             onClick={handleUpload}
             disabled={!file || uploading}
@@ -360,7 +360,7 @@ function SigningKeysTab({ keys, onRemove, onAdded, onError }: {
   onAdded: () => void
   onError: (e: string) => void
 }) {
-  const { t } = useTranslation('nfc')
+  const { t } = useTranslation(['nfc', 'common'])
   const [showAdd, setShowAdd] = useState(false)
   const [label, setLabel] = useState('')
   const [pubKey, setPubKey] = useState('')
@@ -403,7 +403,7 @@ function SigningKeysTab({ keys, onRemove, onAdded, onError }: {
             </select>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowAdd(false)} className="px-3 py-1 text-gray-600">{t('cancel', 'Cancelar')}</button>
+            <button onClick={() => setShowAdd(false)} className="px-3 py-1 text-gray-600">{t('cancel', t('common.cancel'))}</button>
             <button onClick={handleAdd} className="px-3 py-1 bg-blue-600 text-white rounded">{t('add_btn', 'Agregar')}</button>
           </div>
         </div>

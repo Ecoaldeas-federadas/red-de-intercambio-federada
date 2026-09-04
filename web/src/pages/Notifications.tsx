@@ -7,7 +7,7 @@ import { Bell, Check, CheckCheck, Trash2, Filter } from 'lucide-react'
 
 export default function Notifications() {
   const navigate = useNavigate()
-  const { t } = useTranslation('notifications')
+  const { t } = useTranslation(['notifications', 'common'])
   const [notifications, setNotifications] = useState<any[]>([])
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
   const [loading, setLoading] = useState(true)
@@ -98,7 +98,7 @@ export default function Notifications() {
 
       {/* Lista */}
       {loading ? (
-        <div className="card p-8 text-center text-gray-400">{t('loading', 'Cargando...')}</div>
+        <div className="card p-8 text-center text-gray-400">{t('loading', t('common.loading'))}</div>
       ) : filtered.length === 0 ? (
         <div className="card p-8 text-center text-gray-400">
           <Bell size={32} className="mx-auto mb-2 opacity-30" />

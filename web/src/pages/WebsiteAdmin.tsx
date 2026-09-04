@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
@@ -409,7 +409,7 @@ const BLOCK_DEFINITIONS: {
 ]
 
 export default function WebsiteAdmin() {
-  const { t } = useTranslation('website')
+  const { t } = useTranslation(['website', 'common'])
   const { hasPermission } = usePermissions()
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -2027,7 +2027,7 @@ export default function WebsiteAdmin() {
                                 onClick={() => setEditingFieldIndex(isEditing ? null : idx)}
                                 className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-gray-200 hover:bg-gray-100 text-gray-700"
                               >
-                                {isEditing ? t('close', 'Cerrar') : t('edit', 'Editar')}
+                                {isEditing ? t('close', t('common.close')) : t('edit', t('common.edit'))}
                               </button>
                               <button
                                 onClick={() => moveFormField(idx, 'up')}
@@ -2278,7 +2278,7 @@ export default function WebsiteAdmin() {
 // LINK PICKER - Selector de enlaces con paginas internas, externas y anclas
 // -------------------------------------------------------------
 function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
-  const { t } = useTranslation('website')
+  const { t } = useTranslation(['website', 'common'])
   const [pages, setPages] = useState<any[]>([])
   const [mode, setMode] = useState<'internal' | 'external' | 'anchor'>('internal')
 
@@ -2388,7 +2388,7 @@ function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: s
 // DYNAMIC BLOCK CUSTOMIZER
 // -------------------------------------------------------------
 function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (updated: SiteBlock) => void }) {
-  const { t } = useTranslation('website')
+  const { t } = useTranslation(['website', 'common'])
   const updateField = (field: string, val: any) => {
     onChange({ ...block, [field]: val } as SiteBlock)
   }

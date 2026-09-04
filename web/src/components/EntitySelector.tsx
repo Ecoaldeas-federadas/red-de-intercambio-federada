@@ -21,7 +21,7 @@ export function EntitySelector({
   label, helpText, placeholder, value, onChange,
   endpoint, valueKey, labelKey, subLabelKey, filterFn, emptyMessage
 }: EntitySelectorProps) {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['common'])
   const [items, setItems] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [showList, setShowList] = useState(false)

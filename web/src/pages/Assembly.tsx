@@ -693,6 +693,7 @@ function MemberSearchAndPerms({
   badgeLabel: string | ((m: any) => string)
   badgeColor: string | ((m: any) => string)
 }) {
+  const { t } = useTranslation(['assembly', 'common'])
   const getBadgeLabel = (m: any) => typeof badgeLabel === 'function' ? badgeLabel(m) : badgeLabel
   const getBadgeColor = (m: any) => typeof badgeColor === 'function' ? badgeColor(m) : badgeColor
 
@@ -754,7 +755,7 @@ function MemberSearchAndPerms({
               <KeyRound size={16} />
               Permisos de {selectedMember.display_name || selectedMember.username}
             </h3>
-            <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">Cerrar</button>
+            <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common.close')}</button>
           </div>
 
           {selectedMember.is_super_admin && selectedMember.super_admin_enabled && (
@@ -847,7 +848,7 @@ function MemberSearchAndPerms({
 }
 
 export default function Assembly() {
-  const { t } = useTranslation('assembly')
+  const { t } = useTranslation(['assembly', 'common'])
   const { hasPermission, isSuperAdmin, superAdminEnabled } = usePermissions()
   const { currency } = useConfig()
   const canManageBoard = hasPermission('assembly.manage_board')
@@ -1439,7 +1440,7 @@ export default function Assembly() {
           <p><strong>Sesiones:</strong> Reuniones de asamblea (ordinarias, extraordinarias, urgentes). Las propuestas se discuten en sesiones.</p>
           <p><strong>Propuestas:</strong> Decisiones que se someten a votacion. Cada miembro con voto puede votar a favor, en contra o abstenerse. Cuando todos han votado, se ejecuta si hay mas votos a favor.</p>
           <p><strong>Impuestos:</strong> La asamblea decide la tasa de impuesto sobre transacciones. El dinero recaudado va a una cuenta de impuestos. La asamblea decide que hacer con ese dinero.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('help_close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('help_close', t('common.close'))}</button>
         </div>
       )}
 
@@ -1554,8 +1555,8 @@ export default function Assembly() {
 
           {proposals.length === 0 && !showNewProposal ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>No hay propuestas.</p>
-              <p className="text-xs mt-2">Crea una propuesta para que la asamblea la revise.</p>
+              <p>{t('no_proposals', 'No hay propuestas.')}</p>
+              <p className="text-xs mt-2">{t('create_proposal_hint', 'Crea una propuesta para que la asamblea la revise.')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -1582,13 +1583,13 @@ export default function Assembly() {
                           <>
                             <button
                               onClick={() => {
-                                if (confirm('Eliminar esta propuesta?')) {
+                                if (confirm(t('confirm_delete_proposal', 'Eliminar esta propuesta?'))) {
                                   api.delete(`/assembly/proposals/${p.id}`).then(() => load()).catch(() => {})
                                 }
                               }}
                               className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
                             >
-                              Eliminar
+                              {t('common.delete')}
                             </button>
                           </>
                         )}
@@ -1596,7 +1597,7 @@ export default function Assembly() {
                           onClick={() => setShowProposalDetail(p)}
                           className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                         >
-                          Ver detalles
+                          {t('view_details', 'Ver detalles')}
                         </button>
                         {/* Solo el secretario/autorizado puede abrir votacion */}
                         {canApproveProposals && (
@@ -2012,7 +2013,7 @@ export default function Assembly() {
                 </div>
               ) : (
                 <div className="card text-center text-gray-500 py-8">
-                  <p>No hay niveles de miembro configurados.</p>
+                  <p>{t('no_member_levels', 'No hay niveles de miembro configurados.')}</p>
                 </div>
               )}
             </div>
@@ -2128,7 +2129,7 @@ export default function Assembly() {
                       <KeyRound size={16} />
                       Permisos de {selectedOrg.display_name || selectedOrg.username}
                     </h3>
-                    <button onClick={() => setSelectedOrg(null)} className="text-gray-400 hover:text-gray-600 text-sm">Cerrar</button>
+                    <button onClick={() => setSelectedOrg(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common.close')}</button>
                   </div>
 
                   {/* Permisos actuales */}
@@ -2253,8 +2254,8 @@ export default function Assembly() {
 
           {board.length === 0 && !showAddBoard ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>No hay junta directiva configurada.</p>
-              <p className="text-xs mt-2">Asigna miembros a los cargos de la junta directiva.</p>
+              <p>{t('no_board', 'No hay junta directiva configurada.')}</p>
+              <p className="text-xs mt-2">{t('assign_board_hint', 'Asigna miembros a los cargos de la junta directiva.')}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -2397,8 +2398,8 @@ export default function Assembly() {
 
           {sessions.length === 0 && !showNewSession ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>No hay sesiones programadas.</p>
-              <p className="text-xs mt-2">Crea una sesion para discutir propuestas.</p>
+              <p>{t('no_sessions', 'No hay sesiones programadas.')}</p>
+              <p className="text-xs mt-2">{t('create_session_hint', 'Crea una sesion para discutir propuestas.')}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -2461,13 +2462,13 @@ export default function Assembly() {
                           onClick={() => saveSessionEdit(s.id)}
                           className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                         >
-                          Guardar
+                          {t('common.save')}
                         </button>
                         <button
                           onClick={() => { setEditingSessionId(null); setEditTitle(''); setEditDescription('') }}
                           className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
                         >
-                          Cancelar
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </div>
@@ -2534,7 +2535,7 @@ export default function Assembly() {
                           onClick={() => closeAssemblySession(s.id)}
                           className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 ml-2"
                         >
-                          Cerrar asamblea
+                          {t('close_session_btn', 'Cerrar asamblea')}
                         </button>
                       )}
                     </div>
@@ -2606,7 +2607,7 @@ export default function Assembly() {
                   )}
 
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setSelectedSessionForAttendance(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                    <button onClick={() => setSelectedSessionForAttendance(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.close')}</button>
                   </div>
                 </div>
               </div>
@@ -2645,7 +2646,7 @@ export default function Assembly() {
                     </div>
                   )}
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.close')}</button>
                     {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' && (
                       <a
                         href={`${(window as any).__BASE_PATH__ ? (window as any).__BASE_PATH__ + '/api' : '/api'}/assembly/sessions/${selectedSessionForMinutes}/acta-pdf`}
@@ -2658,13 +2659,13 @@ export default function Assembly() {
                     )}
                     {minutesEditMode ? (
                       <>
-                        <button onClick={() => { setMinutesEditMode(false) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar edicion</button>
-                        <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">Guardar</button>
+                        <button onClick={() => { setMinutesEditMode(false) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.cancel')}</button>
+                        <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">{t('common.save')}</button>
                       </>
                     ) : (
                       (canManageBoard || sessions.find(s => s.id === selectedSessionForMinutes)?.status !== 'completed') && (
                         <button onClick={() => setMinutesEditMode(true)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">
-                          {minutesText ? 'Editar' : 'Escribir'}
+                          {minutesText ? t('common.edit') : 'Escribir'}
                         </button>
                       )
                     )}
@@ -2709,7 +2710,7 @@ export default function Assembly() {
                     </div>
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setRescheduleSession(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                    <button onClick={() => setRescheduleSession(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.cancel')}</button>
                     <button
                       onClick={() => doReschedule(rescheduleSession.id)}
                       className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
@@ -3042,7 +3043,7 @@ export default function Assembly() {
                     </>
                   )}
                 </div>
-                <button onClick={() => setFreqEditing(true)} className="btn-primary">Editar</button>
+                <button onClick={() => setFreqEditing(true)} className="btn-primary">{t('common.edit')}</button>
               </div>
             ) : (
               /* Modo edicion */
@@ -3103,9 +3104,9 @@ export default function Assembly() {
                 )}
                 <div className="flex gap-2">
                   <button onClick={saveFreqConfig} disabled={freqSaving} className="btn-primary">
-                    {freqSaving ? 'Guardando...' : 'Guardar'}
+                    {freqSaving ? t('common.loading') : t('common.save')}
                   </button>
-                  <button onClick={() => { setFreqEditing(false); loadFreqConfig() }} className="btn-secondary">Cancelar</button>
+                  <button onClick={() => { setFreqEditing(false); loadFreqConfig() }} className="btn-secondary">{t('common.cancel')}</button>
                 </div>
               </div>
             )}
@@ -3143,7 +3144,7 @@ export default function Assembly() {
 
           {assemblyConfigs.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>No hay configuracion cargada.</p>
+              <p>{t('no_config_loaded', 'No hay configuracion cargada.')}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -3629,9 +3630,9 @@ export default function Assembly() {
                           }}
                           className="btn-primary text-sm"
                         >
-                          Guardar
+                          {t('common.save')}
                         </button>
-                        <button onClick={() => { setEditingConfig(null); setNewSignerId('') }} className="btn-secondary text-sm">Cancelar</button>
+                        <button onClick={() => { setEditingConfig(null); setNewSignerId('') }} className="btn-secondary text-sm">{t('common.cancel')}</button>
                       </div>
                     </div>
                   )}
@@ -3708,7 +3709,7 @@ export default function Assembly() {
 
               <div className="flex gap-2 justify-end pt-2">
                 <button onClick={() => setVotingModal(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => openVoting(votingModal.id)}
@@ -3845,7 +3846,7 @@ export default function Assembly() {
 
             <div className="flex justify-end mt-6">
               <button onClick={() => setShowProposalDetail(null)} className="btn-secondary">
-                Cerrar
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -3857,6 +3858,7 @@ export default function Assembly() {
 
 // Componente para editar configuracion de quorum por tipo de asamblea
 function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionType: string, data: any) => void }) {
+  const { t } = useTranslation(['assembly', 'common'])
   const [editing, setEditing] = useState(false)
   const [firstCall, setFirstCall] = useState(config.quorum_first_call)
   const [secondCall, setSecondCall] = useState(config.quorum_second_call)
@@ -3888,7 +3890,7 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
           </div>
         </div>
         <button onClick={() => setEditing(!editing)} className="text-blue-500 hover:bg-blue-50 p-2 rounded text-sm">
-          {editing ? 'Cerrar' : 'Editar'}
+          {editing ? t('common.close') : t('common.edit')}
         </button>
       </div>
       {editing && (
@@ -3934,7 +3936,7 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
             }}
             className="btn-primary text-sm"
           >
-            Guardar
+            {t('common.save')}
           </button>
         </div>
       )}

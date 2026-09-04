@@ -305,7 +305,7 @@ export default function Payments() {
           <p><strong>Que es el monto:</strong> {t('payments.help_amount', 'Es la cantidad de saldo que se transfiere. Se mide en la moneda local del nodo. Puede ser fijo (lo defines al generar el QR) o libre (el que paga decide cuanto).')}</p>
           <p><strong>Quien recibe:</strong> {t('payments.help_recipient', 'La cuenta del destinatario. En QR viene dentro del codigo. En NFC se obtiene del UID de la tarjeta. En manual debes ingresar su ID (UUID).')}</p>
           <p><strong>Que es la nota / etiqueta / referencia:</strong> {t('payments.help_note', 'Un texto opcional que describe el motivo del pago (ej: "Compra de pan"). Aparece en el historial de ambos para que recuerden de que fue el pago.')}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close', t('common.close'))}</button>
         </div>
       )}
 
@@ -393,7 +393,7 @@ export default function Payments() {
               <div className="space-y-2">
                 <div id="qr-reader" className="w-full" />
                 <button onClick={stopCamera} className="btn-secondary w-full flex items-center justify-center gap-2">
-                  <X size={20} /> {t('common.cancel', 'Cancelar')}
+                  <X size={20} /> {t('common.cancel', t('common.cancel'))}
                 </button>
               </div>
             )}
@@ -418,7 +418,7 @@ export default function Payments() {
                   </div>
                 )}
                 <button onClick={confirmPayment} className="btn-primary w-full">{t('payments.confirm_payment', 'Confirmar Pago')}</button>
-                <button onClick={() => setScanResult(null)} className="btn-secondary w-full">{t('common.cancel', 'Cancelar')}</button>
+                <button onClick={() => setScanResult(null)} className="btn-secondary w-full">{t('common.cancel', t('common.cancel'))}</button>
               </div>
             )}
           </div>

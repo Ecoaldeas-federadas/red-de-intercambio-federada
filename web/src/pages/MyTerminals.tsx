@@ -30,7 +30,7 @@ interface Transaction {
 }
 
 export default function MyTerminals() {
-  const { t } = useTranslation('nfc')
+  const { t } = useTranslation(['nfc', 'common'])
   const { hasPermission } = usePermissions()
   const [terminals, setTerminals] = useState<MyTerminal[]>([])
   const [selectedTerminal, setSelectedTerminal] = useState<MyTerminal | null>(null)
@@ -397,7 +397,7 @@ export default function MyTerminals() {
       )}
 
       {loading ? (
-        <div className="text-center py-8 text-gray-500">{t('loading', 'Cargando...')}</div>
+        <div className="text-center py-8 text-gray-500">{t('loading', t('common.loading'))}</div>
       ) : terminals.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <Smartphone className="mx-auto mb-3 text-gray-300" size={48} />
@@ -586,7 +586,7 @@ export default function MyTerminals() {
                                 }}
                                 className="btn-secondary"
                               >
-                                {t('cancel', 'Cancelar')}
+                                {t('cancel', t('common.cancel'))}
                               </button>
                             </div>
                           </div>
@@ -723,13 +723,13 @@ export default function MyTerminals() {
                 disabled={shiftPinValue.length < 4 || shiftPinSaving}
                 className="btn-primary flex-1 disabled:opacity-50"
               >
-                {shiftPinSaving ? t('saving', 'Guardando...') : t('save_pin', 'Guardar PIN')}
+                {shiftPinSaving ? t('saving', t('common.loading')) : t('save_pin', 'Guardar PIN')}
               </button>
               <button
                 onClick={() => { setShiftPinModal(null); setShiftPinValue('') }}
                 className="btn-secondary"
               >
-                {t('cancel', 'Cancelar')}
+                {t('cancel', t('common.cancel'))}
               </button>
             </div>
           </div>
@@ -749,7 +749,7 @@ export default function MyTerminals() {
                 onClick={() => { setShiftHistoryModal(null); setShifts([]); setFromDate(''); setToDate('') }}
                 className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                {t('close', 'Cerrar')}
+                {t('close', t('common.close'))}
               </button>
             </div>
 
@@ -797,7 +797,7 @@ export default function MyTerminals() {
 
             {/* Lista de turnos */}
             {shiftsLoading ? (
-              <div className="text-center py-8 text-gray-500">{t('loading', 'Cargando...')}</div>
+              <div className="text-center py-8 text-gray-500">{t('loading', t('common.loading'))}</div>
             ) : shifts.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 {t('no_shifts', 'No hay turnos en el rango seleccionado')}
@@ -868,13 +868,13 @@ export default function MyTerminals() {
                 disabled={!renameLabel.trim() || renameSaving}
                 className="btn-primary flex-1 disabled:opacity-50"
               >
-                {renameSaving ? t('saving', 'Guardando...') : t('save', 'Guardar')}
+                {renameSaving ? t('saving', t('common.loading')) : t('save', t('common.save'))}
               </button>
               <button
                 onClick={() => { setRenaming(null); setRenameLabel('') }}
                 className="btn-secondary"
               >
-                {t('cancel', 'Cancelar')}
+                {t('cancel', t('common.cancel'))}
               </button>
             </div>
           </div>

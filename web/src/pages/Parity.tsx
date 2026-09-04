@@ -6,7 +6,7 @@ import { Scale, HelpCircle, ArrowDownCircle, ArrowUpCircle, TrendingUp, Trending
 import { fmtNumber } from '../lib/format'
 
 export default function Parity() {
-  const { t } = useTranslation('federation')
+  const { t } = useTranslation(['federation', 'common'])
   const { currency } = useConfig()
   const [reports, setReports] = useState<any[]>([])
   const [showHelp, setShowHelp] = useState(false)

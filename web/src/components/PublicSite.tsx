@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
@@ -117,7 +117,7 @@ function getShortLabel(p: { slug: string; title: string }): string {
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, username, logout } = useAuth()
-  const { t: tpub } = useTranslation('public')
+  const { t: tpub } = useTranslation(['public', 'common'])
   const location = useLocation()
   const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [pages, setPages] = useState<PublicPageData[]>([])
@@ -2082,7 +2082,7 @@ export function PublicPageView() {
   const [page, setPage] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isLiveEditing, setIsLiveEditing] = useState(false)
-  const { i18n: pageI18n } = useTranslation('public')
+  const { i18n: pageI18n } = useTranslation(['public', 'common'])
 
   const loadPageData = () => {
     setLoading(true)

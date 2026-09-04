@@ -48,7 +48,7 @@ type ProductTab = 'federated' | 'mynode' | 'composite'
 type MyNodeSubTab = 'allowed' | 'disallowed'
 
 export default function Products() {
-  const { t } = useTranslation('products')
+  const { t } = useTranslation(['products', 'common'])
   const { hasPermission } = usePermissions()
   const { currency } = useConfig()
   const canManage = hasPermission('products.manage')
@@ -587,7 +587,7 @@ export default function Products() {
         </button>
         <button onClick={() => { cancelEdit(); setShowForm(false) }} className="btn-secondary flex items-center gap-2">
           <X size={16} />
-          {t('form_cancel', 'Cancelar')}
+          {t('form_cancel', t('common.cancel'))}
         </button>
       </div>
     </div>
@@ -714,7 +714,7 @@ export default function Products() {
           <p><strong>3. Compuestos:</strong> Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Si todos los ingredientes ya están permitidos, el compuesto aparece directamente aquí sin necesidad de aprobación. Si algún ingrediente es nuevo o no está aprobado, el compuesto pasa a "Pendientes de Aprobación". Un compuesto se puede promover a producto base con el botón "Solicitar como base" para que aparezca en toda la federación y pueda usarse como ingrediente de otros compuestos.</p>
           <p><strong>Búsqueda:</strong> Escribe parte del nombre en el campo de búsqueda para encontrar productos rápidamente.</p>
           <p><strong>Página pública:</strong> Los productos aprobados aparecen automáticamente en la página pública si usas el bloque "Catálogo desde Backend".</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common.close'))}</button>
         </div>
       )}
 
@@ -922,7 +922,7 @@ export default function Products() {
           {/* Productos filtrados */}
           {filteredProducts.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>{loading ? t('loading', 'Cargando...') : t('no_products_in_category', 'No hay productos en esta categoría.')}</p>
+              <p>{loading ? t('loading', t('common.loading')) : t('no_products_in_category', 'No hay productos en esta categoría.')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1132,7 +1132,7 @@ export default function Products() {
                                 className="text-[10px] font-bold text-red-900 bg-red-200 px-2 py-0.5 rounded-full hover:bg-red-300 transition flex items-center gap-1"
                                 title={t('tooltip_propose_delete', 'Proponer ELIMINAR producto en la Asamblea (permanente)')}
                               >
-                                <Trash2 size={10} /> {t('delete', 'Eliminar')}
+                                <Trash2 size={10} /> {t('delete', t('common.delete'))}
                               </button>
                             )}
                           </div>

@@ -137,7 +137,7 @@ export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
 ]
 
 export function DynamicAdmissionForm() {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const [fields, setFields] = useState<FormFieldSchema[]>(DEFAULT_ADMISSION_FIELDS)
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')

@@ -8,7 +8,7 @@ import { EntitySelector } from '../components/EntitySelector'
 import { toCents, fmtNumber } from '../lib/format'
 
 export default function ExternalBridge() {
-  const { t } = useTranslation('external')
+  const { t } = useTranslation(['external', 'common'])
   const { currency } = useConfig()
   const [searchParams, setSearchParams] = useSearchParams()
   const [fc, setFc] = useState<any>(null)
@@ -302,7 +302,7 @@ export default function ExternalBridge() {
           <p><strong>Ventas (Export):</strong> Se registra que producto se vendio, cuanto, a que precio, y a que banco entro el dinero.</p>
           <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa y el {currency}. Se calcula comparando el costo de la canasta basica alla y aca. Despues de compras reales, el sistema sugiere un recalculo del FC basado en los precios reales pagados.</p>
           <p><strong>Junta Directiva:</strong> El DEX puede requerir multi-firma para aprobar compras/ventas (ej: 2 firmas). Se configura en la pestana Cuentas Bancarias.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common.close'))}</button>
         </div>
       )}
 
@@ -489,7 +489,7 @@ export default function ExternalBridge() {
               </div>
               <div className="flex gap-2">
                 <button onClick={createBankAccount} className="btn-primary">{editingBankId ? t('bank_save_changes', 'Guardar Cambios') : t('bank_create', 'Crear Cuenta')}</button>
-                <button onClick={() => { setShowBankForm(false); setEditingBankId(null) }} className="btn-secondary">{t('cancel', 'Cancelar')}</button>
+                <button onClick={() => { setShowBankForm(false); setEditingBankId(null) }} className="btn-secondary">{t('cancel', t('common.cancel'))}</button>
               </div>
             </div>
           )}
@@ -530,10 +530,10 @@ export default function ExternalBridge() {
                       <Info size={14} /> {viewingMovements === ba.id ? t('bank_hide_movements', 'Ocultar movimientos') : t('bank_view_movements', 'Ver movimientos')}
                     </button>
                     <button onClick={() => editBankAccount(ba)} className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
-                      <Edit3 size={14} /> {t('bank_edit', 'Editar')}
+                      <Edit3 size={14} /> {t('bank_edit', t('common.edit'))}
                     </button>
                     <button onClick={() => deleteBankAccount(ba.id)} className="text-sm text-red-500 hover:text-red-700 flex items-center gap-1">
-                      <X size={14} /> {t('bank_delete', 'Eliminar')}
+                      <X size={14} /> {t('bank_delete', t('common.delete'))}
                     </button>
                   </div>
                   {viewingMovements === ba.id && (
@@ -884,12 +884,12 @@ export default function ExternalBridge() {
                       {t('fc_new_fc', 'Nuevo FC:')} <b className="text-blue-700">1 {fcForm.external_currency} = {fmtNumber(fcPreview)} {currency}</b>
                     </span>
                     <button onClick={saveFC} disabled={fcSaving} className="btn-primary flex items-center gap-1 text-sm">
-                      <Save size={16} /> {fcSaving ? t('fc_saving', 'Guardando...') : t('fc_save', 'Guardar FC')}
+                      <Save size={16} /> {fcSaving ? t('fc_saving', t('common.loading')) : t('fc_save', 'Guardar FC')}
                     </button>
                   </>
                 )}
                 <button onClick={() => { setShowFCForm(false); setFcPreview(null); setFcMsg(null) }} className="text-gray-500 text-sm">
-                  {t('cancel', 'Cancelar')}
+                  {t('cancel', t('common.cancel'))}
                 </button>
               </div>
 
@@ -1294,7 +1294,7 @@ export default function ExternalBridge() {
             </div>
 
             <button onClick={() => setSelectedProduct(null)} className="w-full px-4 py-2 bg-gray-200 rounded-lg text-sm">
-              {t('modal_close', 'Cerrar')}
+              {t('modal_close', t('common.close'))}
             </button>
           </div>
         </div>

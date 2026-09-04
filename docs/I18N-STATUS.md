@@ -2,7 +2,7 @@
 
 ## Resumen ejecutivo
 
-Sistema de internacionalización del proyecto "red de intercambio federada". Infraestructura completa (Fases 1-8), 47/48 páginas traducidas (97.9%), 3/14 componentes traducidos (21%). Todos los namespaces es/en tienen claves idénticas. Build compila sin errores.
+Sistema de internacionalización del proyecto "red de intercambio federada". Infraestructura completa (Fases 1-8). Auditoría del 4 Sep 2026: aunque 47/48 páginas tienen `useTranslation` importado, quedan **~356+ strings hardcoded en español** en prácticamente todas las páginas. Trabajo en progreso para eliminar todos los strings restantes.
 
 ---
 
@@ -52,7 +52,7 @@ Sistema de internacionalización del proyecto "red de intercambio federada". Inf
 
 | Namespace | Claves | Estado |
 |-----------|--------|--------|
-| assembly | 96 | ✅ |
+| assembly | 96+ | ✅ (expandido con proposal_type.*, proposal_help.*) |
 | audit | 0 | ✅ (vacío, sin uso aún) |
 | common | 407 | ✅ |
 | dashboard | 20 | ✅ |
@@ -67,20 +67,45 @@ Sistema de internacionalización del proyecto "red de intercambio federada". Inf
 | public | 29 | ✅ |
 | satellite | 42 | ✅ |
 | services | 162 | ✅ |
-| settings | 156 | ✅ |
-| transfer | 128 | ✅ |
+| settings | 156+ | ✅ (expandido con tabs) |
+| transfer | 128+ | ✅ (expandido con wallet.*) |
 | translations | 34 | ✅ |
 | website | 172 | ✅ |
 | **TOTAL** | **2,597** | |
 
 ---
 
-## 3. Páginas traducidas (47/48) ✅
+## 3. Estado real de traducción de páginas (Sep 4, 2026)
 
-### Traducidas ✅
-Admission, AdmissionStatus, Assembly, Audit, Calculator, CalculatorParams, ClusterStatus, CommunityFund, Dashboard, DepartmentDetail, Departments, ExternalBridge, FederatedServices, Federation, FederationGov, FederationLimits, FederationPeers, Governance, History, LicensePage, Login, MergeConflicts, MyServices, MyTerminals, NFCDrivers, NFCTerminals, NetworkConfig, NodeDiscovery, NodeSettings, NotificationSettings, Notifications, Organizations, Parity, Pay, Payments, Products, Profile, Recovery, SatelliteSetup, Settings, Setup, SoftwareAdaptations, Store, Transfer, TranslationEditor, Wallet, WebsiteAdmin
+### Auditoría de strings hardcoded restantes
 
-### NO traducida ❌
+| Palabra clave | Matches | Archivos afectados |
+|---------------|---------|-------------------|
+| "No hay" | 109 | 38 páginas + 3 componentes |
+| "Guardar" | 64 | 16 páginas + 5 componentes |
+| "Eliminar" | 52 | 15 páginas |
+| "Cancelar" | 49 | 19 páginas |
+| "Cerrar" | 45 | 26 páginas |
+| "Cargando" | 37 | 20 páginas |
+| **Subtotal** | **~356** | **Prácticamente todos** |
+
+### Páginas con más strings pendientes
+
+| Página | Strings aprox | Estado |
+|--------|---------------|--------|
+| Assembly.tsx | ~50+ | Parcial (PROPOSAL_LABELS traducido, queda config/help/status) |
+| NodeSettings.tsx | ~40+ | Parcial (tabs traducidos, queda contenido) |
+| ExternalBridge.tsx | ~20+ | Parcial |
+| NFCTerminals.tsx | ~15+ | Parcial |
+| Products.tsx | ~15+ | Parcial |
+| Profile.tsx | ~15+ | Parcial |
+| FederatedServices.tsx | ~15+ | Parcial |
+| WebsiteAdmin.tsx | ~15+ | Parcial |
+| NodeDiscovery.tsx | ~12+ | Parcial |
+| NotificationSettings.tsx | ~10+ | Parcial |
+| Resto de páginas | ~100+ | Parcial |
+
+### Página NO traducida ❌
 | Página | Líneas | Namespace sugerido | Descripción |
 |--------|--------|-------------------|-------------|
 | `OrganizationDetail.tsx` | 1049 | `organizations` | Detalle de organización con tabs: info, board, members, departments, services, wallet, assembly, boardmeetings, terminals |
@@ -144,35 +169,33 @@ Admission, AdmissionStatus, Assembly, Audit, Calculator, CalculatorParams, Clust
 
 ---
 
-## 7. Tareas pendientes (en orden)
+## 7. Plan de trabajo (Sep 4, 2026)
 
-### Tarea 1: Traducir `OrganizationDetail.tsx`
-- 1049 líneas, 9 tabs
-- Namespace: `organizations` (152 claves existentes, puede necesitar más)
-- Agregar `useTranslation` + reemplazar strings硬
+### Fase 1: Traducir páginas con más strings (Lote A)
+1. Assembly.tsx — config tabs, quorum help, status labels, botones
+2. NodeSettings.tsx — tab content, botones, mensajes
+3. ExternalBridge.tsx — strings restantes
+4. NFCTerminals.tsx — strings restantes
+5. Products.tsx — strings restantes
+6. Profile.tsx — strings restantes
 
-### Tarea 2: Traducir componentes públicos (prioridad alta)
-- `PublicBlocks.tsx` (1906 líneas, ~389 strings) → namespace `public`
-- `PublicFederationPage.tsx` (1286 líneas, ~312 strings) → namespace `public`
-- `PublicGovernancePage.tsx` (571 líneas, ~143 strings) → namespace `public`
+### Fase 2: Traducir páginas medianas (Lote B)
+7. FederatedServices.tsx
+8. WebsiteAdmin.tsx
+9. NodeDiscovery.tsx
+10. NotificationSettings.tsx
+11. MyTerminals.tsx
+12. NetworkConfig.tsx
 
-### Tarea 3: Traducir componentes admin (prioridad media)
-- `ThemeCustomizer.tsx` → namespace `website`
-- `ScopedAssembly.tsx` → namespace `assembly`
-- `LivePageEditor.tsx` → namespace `website`
-- `DynamicAdmissionForm.tsx` → namespace `website`
-- `LoginModal.tsx` → namespace `common`
+### Fase 3: Traducir páginas pequeñas (Lote C)
+13-38. Resto de páginas con <5 strings cada una
 
-### Tarea 4: Traducir componentes menores (prioridad baja)
-- `InlineEditable.tsx` → namespace `common`
-- `SessionExpiredModal.tsx` → namespace `common`
-- `EntitySelector.tsx` → namespace `common`
+### Fase 4: Traducir componentes
+- LivePageEditor, ThemeCustomizer, PublicBlocks, PublicSite, DynamicAdmissionForm
 
-### Tarea 5: Verificación final
-- Ejecutar migraciones 163-169 en BD (cuando Docker esté disponible)
-- Verificar que las tablas existen: `languages`, `translations`, `public_page_translations`, etc.
-- Ejecutar `npm run build` final
-- Probar selector de idioma en runtime
+### Fase 5: Verificación final
+- Build, commit, push
+- Actualizar este documento
 
 ---
 
@@ -185,4 +208,4 @@ Si se pierde el historial de trabajo, este documento contiene:
 4. **Historial de commits** para reconstruir contexto
 5. **Información de infraestructura** completa
 
-Última actualización: Sep 3, 2026 21:41
+Última actualización: Sep 4, 2026 02:45

@@ -33,7 +33,7 @@ interface FederationConstant {
 }
 
 export default function FederationGov() {
-  const { t } = useTranslation('federation')
+  const { t } = useTranslation(['federation', 'common'])
   const { currency } = useConfig()
   const [constants, setConstants] = useState<FederationConstant[]>([])
   const [proposals, setProposals] = useState<FederationProposal[]>([])

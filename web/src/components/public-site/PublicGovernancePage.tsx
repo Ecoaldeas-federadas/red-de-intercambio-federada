@@ -47,7 +47,7 @@ export function PublicGovernancePage({
   pageSubtitle?: string
   onFieldChange?: (field: string, value: any) => void
 } = {}) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const [rules, setRules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

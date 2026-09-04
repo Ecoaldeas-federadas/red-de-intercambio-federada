@@ -179,5 +179,8 @@
   "tab_frne": "FRNE",
   "tab_biodynamic": "Biodynamics",
   "tab_public_pages": "Public Pages",
-  "tab_backup": "Backup"
+  "tab_backup": "Backup",
+  "propose_change": "Propose change",
+  "save_tariff": "Save Tariff",
+  "save_config": "Save configuration"
 }

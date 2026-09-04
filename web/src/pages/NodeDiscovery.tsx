@@ -14,7 +14,7 @@ import { fmtDate } from '../lib/format'
 // El sistema solo muestra info de contacto (pais, ubicacion, gobernanza, web)
 // para que la gente se contacte fisicamente.
 export default function NodeDiscovery() {
-  const { t } = useTranslation('federation')
+  const { t } = useTranslation(['federation', 'common'])
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as 'discovered' | 'requests' | 'config') || 'discovered'
   const [tab, setTab] = useState<'discovered' | 'requests' | 'config'>(initialTab)
@@ -400,7 +400,7 @@ export default function NodeDiscovery() {
                           <RefreshCw size={12} /> {t('discover_verify', 'Verificar')}
                         </button>
                         <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline flex items-center gap-1">
-                          <Trash2 size={12} /> {t('discover_remove', 'Eliminar')}
+                          <Trash2 size={12} /> {t('discover_remove', t('common.delete'))}
                         </button>
                       </div>
                     )}
@@ -428,7 +428,7 @@ export default function NodeDiscovery() {
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => handleCheckNode(n.node_domain)} className="text-xs text-blue-600 hover:underline">{t('discover_retry', 'Reintentar')}</button>
-                      <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline">{t('discover_remove', 'Eliminar')}</button>
+                      <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline">{t('discover_remove', t('common.delete'))}</button>
                     </div>
                   </div>
                 ))}
@@ -507,7 +507,7 @@ export default function NodeDiscovery() {
                             <button
                               onClick={() => { setFedApprovingId(''); setFedPairingOptions([]); setFedSelectedCode(''); setFedOptionsError('') }}
                               className="btn-secondary">
-                              {t('discover_cancel', 'Cancelar')}
+                              {t('discover_cancel', t('common.cancel'))}
                             </button>
                           </div>
                         </div>
@@ -695,7 +695,7 @@ export default function NodeDiscovery() {
 
             <div className="flex gap-2 pt-2">
               <button onClick={handleSendRequest} className="flex-1 px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('discover_send_request', 'Enviar solicitud')}</button>
-              <button onClick={() => setShowRequestModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">{t('discover_cancel', 'Cancelar')}</button>
+              <button onClick={() => setShowRequestModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">{t('discover_cancel', t('common.cancel'))}</button>
             </div>
           </div>
         </div>
@@ -742,7 +742,7 @@ export default function NodeDiscovery() {
               <button onClick={handleRespond} className={`flex-1 px-4 py-2 text-white rounded-lg text-sm ${respondData.status === 'interested' ? 'bg-green-600' : 'bg-gray-500'}`}>
                 {respondData.status === 'interested' ? t('discover_send_and_contact', 'Enviar y contactar despues') : t('discover_send_response', 'Enviar respuesta')}
               </button>
-              <button onClick={() => setShowRespondModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">{t('discover_cancel', 'Cancelar')}</button>
+              <button onClick={() => setShowRespondModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">{t('discover_cancel', t('common.cancel'))}</button>
             </div>
           </div>
         </div>

@@ -63,7 +63,7 @@ const HELP_SECTIONS = [
 ]
 
 export default function Organizations() {
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
   const navigate = useNavigate()
   const { currency } = useConfig()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -181,7 +181,7 @@ export default function Organizations() {
           <button
             onClick={() => setShowHelp(false)}
             className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-            title={t('close', 'Cerrar')}
+            title={t('close', t('common.close'))}
           >
             <X size={18} />
           </button>

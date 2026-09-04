@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
@@ -11,7 +11,7 @@ import { fmtTQ, toCents, fmtDateTime } from '../lib/format'
 export default function OrganizationDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -819,7 +819,7 @@ export default function OrganizationDetail() {
 // ===== Componente: Terminales POS de la organizacion =====
 
 function OrgTerminals({ orgID }: { orgID: string }) {
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
   const [terminals, setTerminals] = useState<any[]>([])
   const [members, setMembers] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])

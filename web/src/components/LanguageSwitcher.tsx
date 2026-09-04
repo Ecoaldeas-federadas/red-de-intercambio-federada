@@ -22,7 +22,7 @@ interface LanguageSwitcherProps {
 }
 
 export function LanguageSwitcher({ variant = 'light', compact = true, className = '' }: LanguageSwitcherProps) {
-  const { i18n } = useTranslation('common')
+  const { i18n } = useTranslation(['common'])
   const { isAuthenticated } = useAuth()
   const [languages, setLanguages] = useState<LanguageOption[]>([])
   const [open, setOpen] = useState(false)

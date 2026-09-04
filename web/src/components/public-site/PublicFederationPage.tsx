@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api'
 import { fmtDate } from '../../lib/format'
@@ -12,7 +12,7 @@ import {
 const SHARE_MESSAGE_KEY = 'fed_share_message'
 
 export function PublicFederationPage() {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const SHARE_MESSAGE = t(SHARE_MESSAGE_KEY)
   const [proposals, setProposals] = useState<any[]>([])
   const [showProposalForm, setShowProposalForm] = useState(false)
@@ -955,7 +955,7 @@ export function PublicFederationPage() {
 const FAQ_COUNT = 18
 
 function FederationFaq() {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const [openIdx, setOpenIdx] = useState<number | null>(0)
   return (
     <div className="max-w-3xl mx-auto space-y-3">

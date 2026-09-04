@@ -57,7 +57,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { username, logout } = useAuth()
   const { hasPermission } = usePermissions()
   const navigate = useNavigate()
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['common'])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showNotif, setShowNotif] = useState(false)

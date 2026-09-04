@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -267,7 +267,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
 // 2. CAROUSEL / PHOTO ALBUM BLOCK
 // -------------------------------------------------------------
 export function CarouselBlock({ data }: { data: CarouselBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const [current, setCurrent] = useState(0)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const items = data.items || []
@@ -407,7 +407,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
 // 3. FEATURES GRID BLOCK (Cards / Pillars)
 // -------------------------------------------------------------
 export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const cols =
     data.columns === 2
       ? 'md:grid-cols-2'
@@ -477,7 +477,7 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
 // 4. SPLIT STORY / ABOUT SECTION BLOCK
 // -------------------------------------------------------------
 export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const isLeft = data.image_position === 'left'
 
   return (
@@ -545,7 +545,7 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
 // 5. STATS BLOCK
 // -------------------------------------------------------------
 export function StatsBlock({ data }: { data: StatsBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const isPrimary = data.bg_theme !== 'light'
 
   return (
@@ -595,7 +595,7 @@ export function StatsBlock({ data }: { data: StatsBlockData }) {
 // 6. EVENT SCHEDULE BLOCK
 // -------------------------------------------------------------
 export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   return (
     <section className="my-8 sm:my-10 bg-gradient-to-br from-emerald-50 via-amber-50 to-orange-50 rounded-3xl p-5 sm:p-10 border border-amber-200/60 shadow-md">
       <div className="grid lg:grid-cols-12 gap-6 sm:gap-8 items-center">
@@ -676,7 +676,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
 // 7. PRODUCTS SHOWCASE BLOCK
 // -------------------------------------------------------------
 export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const [selectedParent, setSelectedParent] = useState<string>('all')
   const [selectedCat, setSelectedCat] = useState<string>('all')
   const [backendProducts, setBackendProducts] = useState<any[]>([])
@@ -1022,7 +1022,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
 // 8. TESTIMONIALS BLOCK
 // -------------------------------------------------------------
 export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   return (
     <section className="my-8 sm:my-12 space-y-6">
       {(data.title || data.subtitle) && (
@@ -1074,7 +1074,7 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
 // 9. TRUEQUE EXPLAINER BLOCK
 // -------------------------------------------------------------
 export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   return (
     <section className="my-8 sm:my-12 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       <div className="text-center space-y-2 max-w-3xl mx-auto">
@@ -1153,7 +1153,7 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
 // 10. NEWS / ARTICLES FEED BLOCK (Inspired by FAO / Mincyt / BiodiversidadLA)
 // -------------------------------------------------------------
 export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   return (
     <section className="my-8 sm:my-12 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-gray-200 pb-3">
@@ -1223,7 +1223,7 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
 // 11. TIMELINE HISTORY BLOCK
 // -------------------------------------------------------------
 export function TimelineHistoryBlock({ data }: { data: TimelineHistoryBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   return (
     <section className="my-8 sm:my-12 bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       <div className="text-center space-y-1.5 max-w-2xl mx-auto mb-6">
@@ -1300,7 +1300,7 @@ export function InstitutionsPartnersBlock({ data }: { data: InstitutionsPartners
 // 13. RESOURCE DOWNLOADS / GUIDES BLOCK
 // -------------------------------------------------------------
 export function ResourceDownloadsBlock({ data }: { data: ResourceDownloadsBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   return (
     <section className="my-8 sm:my-12 bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       <div className="space-y-1">
@@ -1343,7 +1343,7 @@ export function ResourceDownloadsBlock({ data }: { data: ResourceDownloadsBlockD
 // 14. INTERACTIVE CALCULATOR PREVIEW BLOCK
 // -------------------------------------------------------------
 export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const [hours, setHours] = useState(4)
   const [effort, setEffort] = useState(1.0)
   const [kwhRate, setKwhRate] = useState(0.19)
@@ -1454,7 +1454,7 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
 // 15. FAQ ACCORDION BLOCK
 // -------------------------------------------------------------
 export function FaqBlock({ data }: { data: FaqBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const [openIdx, setOpenIdx] = useState<number | null>(0)
 
   return (
@@ -1575,7 +1575,7 @@ export function RichTextBlock({ data }: { data: RichTextBlockData }) {
 // 18. CONTACT & LOCATION BLOCK
 // -------------------------------------------------------------
 export function ContactLocationBlock({ data }: { data: ContactLocationBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   return (
     <section className="my-8 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       {(data.title || data.subtitle) && (
@@ -1667,7 +1667,7 @@ const SERVICE_CATEGORY_LABELS: Record<string, string> = {
 }
 
 export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData }) {
-  const { t } = useTranslation('public')
+  const { t } = useTranslation(['public', 'common'])
   const { editMode, updateField } = useInlineEdit()
   const [services, setServices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

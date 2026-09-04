@@ -30,7 +30,7 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ open, onClose }: LoginModalProps) {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['common'])
   const { login } = useAuth()
   const { currency } = useConfig()
   const [username, setUsername] = useState('')

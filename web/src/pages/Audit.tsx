@@ -5,7 +5,7 @@ import { HelpCircle, FileSearch } from 'lucide-react'
 import { fmtDateTime } from '../lib/format'
 
 export default function Audit() {
-  const { t } = useTranslation('audit')
+  const { t } = useTranslation(['audit', 'common'])
   const [entries, setEntries] = useState<any[]>([])
   const [filter, setFilter] = useState('')
   const [showHelp, setShowHelp] = useState(false)
@@ -120,7 +120,7 @@ export default function Audit() {
             <li><strong>{t('col_details', 'Detalles:')}</strong> {t('col_details_desc', 'Informacion adicional: monto, origen, destino, descripcion, etc.')}</li>
           </ul>
           <p><strong>{t('help_usage', 'Como se usa:')}</strong> {t('help_usage_desc', 'Selecciona un filtro de tipo de accion para ver solo los registros que te interesan. Por ejemplo, pulsa "Transferencias" para ver solo envios y recepciones de unidades.')}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common.close'))}</button>
         </div>
       )}
 

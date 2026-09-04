@@ -5,7 +5,7 @@ import { api } from '../api'
 import { fmtDateTime } from '../lib/format'
 
 export default function SatelliteSetup() {
-  const { t } = useTranslation('satellite')
+  const { t } = useTranslation(['satellite', 'common'])
   const [status, setStatus] = useState<any>(null)
   const [cachedUsers, setCachedUsers] = useState<any[]>([])
   const [pendingTx, setPendingTx] = useState<any[]>([])

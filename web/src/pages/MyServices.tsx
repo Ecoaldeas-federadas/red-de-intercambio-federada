@@ -6,7 +6,7 @@ import { Plug, CheckCircle, XCircle, Calendar, RefreshCw } from 'lucide-react'
 import { fmtTQ, fmtDate } from '../lib/format'
 
 export default function MyServices() {
-  const { t } = useTranslation('services')
+  const { t } = useTranslation(['services', 'common'])
   const { currency } = useConfig()
   const [assemblyServices, setAssemblyServices] = useState<any[]>([])
   const [voluntaryServices, setVoluntaryServices] = useState<any[]>([])
@@ -147,7 +147,7 @@ export default function MyServices() {
                           onClick={() => handleUnsubscribe(svc.id)}
                           className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium"
                         >
-                          {t('my_services_cancel', 'Cancelar')}
+                          {t('my_services_cancel', t('common.cancel'))}
                         </button>
                       ) : (
                         <button

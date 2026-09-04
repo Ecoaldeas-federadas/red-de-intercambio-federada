@@ -45,12 +45,12 @@ export default function History() {
           <p><strong>Como filtrar:</strong> {t('history.help_filter', 'Actualmente el historial muestra todas tus transacciones ordenadas por fecha. Si necesitas buscar una en concreto, usa la funcion de busqueda del navegador (Ctrl+F) para encontrar por nombre de usuario, monto o referencia.')}</p>
           <p><strong>Que es el hash de integridad:</strong> {t('history.help_hash', 'Cada transaccion tiene un identificador criptografico (hash) que la hace unica e inalterable. Esto significa que una vez registrada, nadie puede modificar sus datos (monto, remitente, destinatario) sin que se detecte. El hash garantiza que el historial es confiable y que las transacciones no han sido manipuladas.')}</p>
           <p><strong>Nota importante:</strong> {t('history.help_note', `El sistema suma cero. Si alguien envio 50 ${currency}, su saldo bajo 50 y el del destinatario subio 50 (menos el impuesto si aplica). El total de todos los saldos de la red siempre es cero: no se crea ni se destruye dinero.`, { currency })}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close', t('common.close'))}</button>
         </div>
       )}
 
       {loading ? (
-        <p className="text-gray-500">{t('history.loading', 'Cargando...')}</p>
+        <p className="text-gray-500">{t('history.loading', t('common.loading'))}</p>
       ) : txs.length === 0 ? (
         <div className="card text-center text-gray-500 py-8">
           <p>{t('history.empty', 'No hay transacciones todavia.')}</p>

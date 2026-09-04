@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { Lock, X } from 'lucide-react'
 
 export function SessionExpiredProvider({ children }: { children: React.ReactNode }) {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['common'])
   const [showModal, setShowModal] = useState(false)
   const { login, logout } = useAuth()
   const [username, setUsername] = useState('')

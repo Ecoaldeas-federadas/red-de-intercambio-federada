@@ -18,7 +18,7 @@ import SatelliteSetup from './SatelliteSetup'
 // 5. Gobernanza: propuestas, votacion, constantes federadas
 // 6. Satelite: configurar nodo satelite para ferias offline
 export default function Federation() {
-  const { t } = useTranslation('federation')
+  const { t } = useTranslation(['federation', 'common'])
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'network'
   const [tab, setTab] = useState<'network' | 'peers' | 'nodes' | 'discover' | 'gov' | 'satellite'>(initialTab)

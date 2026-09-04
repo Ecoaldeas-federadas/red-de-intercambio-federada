@@ -4,7 +4,7 @@ import { api } from '../api'
 import { Languages, Download, Upload, CheckCircle, AlertCircle, Loader2, Save, Plus, Network } from 'lucide-react'
 
 export default function TranslationEditor() {
-  const { t, i18n } = useTranslation('translations')
+  const { t, i18n } = useTranslation(['translations', 'common'])
   const [languages, setLanguages] = useState<any[]>([])
   const [selectedLang, setSelectedLang] = useState('en')
   const [status, setStatus] = useState<any[]>([])
