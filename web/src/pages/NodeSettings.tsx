@@ -3479,40 +3479,59 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   }
 
   // Al cargar, verificar si ya hay una actualizacion en curso.
-  // Esto permite restaurar la consola despues de una recarga de pagina.
-  // Tambien detecta estado stale (status=running pero proceso murio).
-  // IMPORTANTE: Siempre consultamos el updater-controller directamente porque
-  // es la fuente de verdad. El nodo puede tener estado stale o no saber
-  // de una actualizacion iniciada desde otro navegador/usuario.
-  useEffect(() => {
-    // Consultar el updater-controller SIEMPRE (no solo como fallback)
-    fetch(`/updater/status`).then(resp => resp.json()).then((res: any) => {
+  // Se reintenta varias veces porque despues de un F5 el nodo puede
+  // estar momentaneamente inaccesible (reiniciandose).
+  // Siempre consultamos el updater-controller primero (fuente de verdad).
+  const checkExistingUpdate = async (attempt = 0): Promise<boolean> => {
+    try {
+      const resp = await fetch(`/updater/status`)
+      const res = await resp.json()
       if (res && res.status === 'running') {
         setUpdating(true)
         setUpdateStatus(res)
         setMsg({ type: 'info', text: 'Actualizacion en curso (detectada via updater-controller).' })
         startPolling(true)
+        return true
       } else if (res && res.status === 'error') {
         setUpdateStatus(res)
         setMsg({ type: 'error', text: res.message || 'La ultima actualizacion fallo.' })
+        return true
       } else if (res && res.status === 'cancelled') {
         setUpdateStatus(res)
         setMsg({ type: 'info', text: 'La ultima actualizacion fue cancelada. Presiona Reset para reintentar.' })
+        return true
       }
-    }).catch(() => {
-      // Si el updater-controller no responde via Caddy, intentar via nodo
-      api.get('/node/update-status').then((res: any) => {
+      return false
+    } catch {
+      // Intentar via nodo como fallback
+      try {
+        const res: any = await api.get('/node/update-status')
         if (res && res.status === 'running') {
           setUpdating(true)
           setUpdateStatus(res)
           setMsg({ type: 'info', text: 'Actualizacion en curso (restaurada despues de recargar).' })
           startPolling(true)
+          return true
         } else if (res && res.status === 'error') {
           setUpdateStatus(res)
           setMsg({ type: 'error', text: res.message || 'La ultima actualizacion fallo.' })
+          return true
         }
-      }).catch(() => {})
-    })
+        return false
+      } catch {
+        // Ambos fallaron. Reintentar hasta 3 veces con 2s de delay.
+        // Esto cubre el caso de F5 justo cuando el nodo se reinicia.
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 2000))
+          return checkExistingUpdate(attempt + 1)
+        }
+        return false
+      }
+    }
+  }
+
+  useEffect(() => {
+    checkExistingUpdate()
   }, [])
 
   const startPolling = (initialSawRunning = false) => {
@@ -3720,6 +3739,16 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       setMsg({ type: 'info', text: 'Actualizacion iniciada. El nodo se reiniciara automaticamente.' })
       startPolling()
     } catch (e: any) {
+      // Si el error es 409 "ya hay actualizacion en curso", no es un error real:
+      // significa que una actualizacion ya está corriendo (posiblemente iniciada
+      // desde otra pestaña o navegador, o detectada tras un F5). Iniciar polling
+      // para mostrar el progreso en lugar de mostrar un error.
+      const errText = e?.message || String(e)
+      if (errText.includes('actualizacion en curso') || errText.includes('409')) {
+        setMsg({ type: 'info', text: 'Actualizacion en curso. Mostrando progreso...' })
+        startPolling(true)
+        return
+      }
       // Si el nodo no responde, intentar directamente via updater-controller
       try {
         const host = window.location.hostname
@@ -3729,6 +3758,13 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           setMsg({ type: 'info', text: 'Actualizacion iniciada via updater-controller. El nodo se reiniciara automaticamente.' })
           startPolling()
         } else {
+          // El updater-controller tambien dice que ya hay actualizacion en curso
+          const resultText = result.message || ''
+          if (resultText.includes('actualizacion en curso')) {
+            setMsg({ type: 'info', text: 'Actualizacion en curso. Mostrando progreso...' })
+            startPolling(true)
+            return
+          }
           setUpdating(false)
           setMsg({ type: 'error', text: result.message || 'El updater-controller rechazo la solicitud' })
         }
