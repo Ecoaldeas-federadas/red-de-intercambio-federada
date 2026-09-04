@@ -416,24 +416,24 @@ export default function Profile() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Mi Perfil - Ayuda</strong></p>
-          <p><strong>Que es esta pagina:</strong> Es tu panel personal dentro de la red de intercambio. Aqui ves quien eres dentro del sistema, que puedes hacer y que dispositivos de seguridad tienes asociados.</p>
-          <p><strong>Para que sirve:</strong> Muestra tu informacion personal, tu nivel de miembro, tus dispositivos de seguridad (Passkeys), tus tarjetas NFC y tu historial de transacciones recientes. Tambien te permite verificar si puedes ascender de nivel automaticamente.</p>
-          <p><strong>Como se usa:</strong> Solo lectura. No hay formularios aqui. Para cambiar el PIN de una tarjeta NFC usa el boton "Cambiar PIN" junto a cada tarjeta. Para pedir que la asamblea revise tu ascenso de nivel, pulsa "Pedir ascenso".</p>
-          <p><strong>Informacion que se muestra:</strong></p>
+          <p><strong>{t('help_title', 'Mi Perfil - Ayuda')}</strong></p>
+          <p><strong>{t('help_what_label', 'Que es esta pagina:')}</strong> {t('help_what', 'Es tu panel personal dentro de la red de intercambio. Aqui ves quien eres dentro del sistema, que puedes hacer y que dispositivos de seguridad tienes asociados.')}</p>
+          <p><strong>{t('help_purpose_label', 'Para que sirve:')}</strong> {t('help_purpose', 'Muestra tu informacion personal, tu nivel de miembro, tus dispositivos de seguridad (Passkeys), tus tarjetas NFC y tu historial de transacciones recientes. Tambien te permite verificar si puedes ascender de nivel automaticamente.')}</p>
+          <p><strong>{t('help_usage_label', 'Como se usa:')}</strong> {t('help_usage', 'Solo lectura. No hay formularios aqui. Para cambiar el PIN de una tarjeta NFC usa el boton Cambiar PIN junto a cada tarjeta. Para pedir que la asamblea revise tu ascenso de nivel, pulsa Pedir ascenso.')}</p>
+          <p><strong>{t('help_info_label', 'Informacion que se muestra:')}</strong></p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li><strong>Usuario:</strong> tu nombre de inicio de sesion.</li>
-            <li><strong>Nombre:</strong> nombre para mostrar (puede estar vacio).</li>
-            <li><strong>Tipo:</strong> tipo de cuenta (persona u organizacion).</li>
-            <li><strong>Balance:</strong> cuanto tienes disponible en tu moneda local.</li>
-            <li><strong>Estado:</strong> estado de tu membresia (activa, suspendida, etc.).</li>
+            <li><strong>{t('help_info_user_label', 'Usuario:')}</strong> {t('help_info_user', 'tu nombre de inicio de sesion.')}</li>
+            <li><strong>{t('help_info_name_label', 'Nombre:')}</strong> {t('help_info_name', 'nombre para mostrar (puede estar vacio).')}</li>
+            <li><strong>{t('help_info_type_label', 'Tipo:')}</strong> {t('help_info_type', 'tipo de cuenta (persona u organizacion).')}</li>
+            <li><strong>{t('help_info_balance_label', 'Balance:')}</strong> {t('help_info_balance', 'cuanto tienes disponible en tu moneda local.')}</li>
+            <li><strong>{t('help_info_status_label', 'Estado:')}</strong> {t('help_info_status', 'estado de tu membresia (activa, suspendida, etc.).')}</li>
           </ul>
-          <p><strong>Nivel de miembro:</strong> Es la categoria que define tus limites de credito/debito, tus derechos (voz, voto, quorum) y tus permisos (crear organizaciones, comerciar entre nodos, recibir tarjeta NFC, ver auditoria, usar puente externo). Cuanto mas participes, mas subiras de nivel.</p>
-          <p><strong>Limites de credito y debito:</strong> El limite de credito es el maximo que puedes deber (saldo negativo). El limite de debito es el maximo que puedes tener a favor (saldo positivo). Los define tu nivel de miembro.</p>
-          <p><strong>Passkeys:</strong> Son dispositivos con los que puedes iniciar sesion sin contrasena: huella, FaceID, PIN del movil, llaves de seguridad USB. Usa el boton "Registrar dispositivo" para anadir uno nuevo. Si pierdes uno, puedes eliminarlo aqui o pedir al admin que lo elimine.</p>
-          <p><strong>Tarjetas NFC:</strong> Tarjetas fisicas asociadas a tu cuenta para pagar en terminales NFC de los comercios. Cada tarjeta tiene un UID unico. Si la pierdes, avisa al admin para desactivarla.</p>
-          <p><strong>PIN de NFC:</strong> Es un codigo de 4 digitos que protege tu tarjeta NFC. Se pide al hacer pagos en terminales con teclado. Cambialo con el boton "Cambiar PIN" si crees que alguien lo sabe.</p>
-          <p><strong>Actividad reciente:</strong> Tus ultimas 10 transacciones (ingresos en verde, egresos en rojo).</p>
+          <p><strong>{t('help_level_label', 'Nivel de miembro:')}</strong> {t('help_level', 'Es la categoria que define tus limites de credito/debito, tus derechos (voz, voto, quorum) y tus permisos. Cuanto mas participes, mas subiras de nivel.')}</p>
+          <p><strong>{t('help_limits_label', 'Limites de credito y debito:')}</strong> {t('help_limits', 'El limite de credito es el maximo que puedes deber (saldo negativo). El limite de debito es el maximo que puedes tener a favor (saldo positivo). Los define tu nivel de miembro.')}</p>
+          <p><strong>{t('help_passkeys_label', 'Passkeys:')}</strong> {t('help_passkeys', 'Son dispositivos con los que puedes iniciar sesion sin contrasena: huella, FaceID, PIN del movil, llaves de seguridad USB. Usa el boton Registrar dispositivo para anadir uno nuevo.')}</p>
+          <p><strong>{t('help_nfc_label', 'Tarjetas NFC:')}</strong> {t('help_nfc', 'Tarjetas fisicas asociadas a tu cuenta para pagar en terminales NFC de los comercios. Cada tarjeta tiene un UID unico. Si la pierdes, avisa al admin para desactivarla.')}</p>
+          <p><strong>{t('help_pin_label', 'PIN de NFC:')}</strong> {t('help_pin', 'Es un codigo de 4 digitos que protege tu tarjeta NFC. Se pide al hacer pagos en terminales con teclado. Cambialo con el boton Cambiar PIN si crees que alguien lo sabe.')}</p>
+          <p><strong>{t('help_activity_label', 'Actividad reciente:')}</strong> {t('help_activity', 'Tus ultimas 10 transacciones (ingresos en verde, egresos en rojo).')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common:close')}</button>
         </div>
       )}
