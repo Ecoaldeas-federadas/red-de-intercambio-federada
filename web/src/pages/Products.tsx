@@ -89,21 +89,27 @@ export default function Products() {
     const offset = reset ? 0 : apiOffset
     let url = `/products?limit=${PAGE_SIZE}&offset=${offset}`
     if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`
+    // Enviar filtro de sub-tab al backend para filtrado server-side
+    // Esto evita el bug de scroll infinito cuando se filtran todos los items
+    if (mynodeSubTab === 'disallowed') url += `&is_allowed=false`
     api.get(url).then((d: any) => {
       const newItems = Array.isArray(d) ? d : d?.products ?? []
       setApiOffset(offset + newItems.length)
-      // Filtrar por sub-tab (permitido / no permitido)
+      // Doble filtrado client-side por si el backend no soporta is_allowed
       const filtered = newItems.filter((p: any) => {
         if (mynodeSubTab === 'allowed') return p.is_allowed !== false
         return p.is_allowed === false
       })
       if (reset) {
         setProducts(filtered)
-        setHasMore(newItems.length >= PAGE_SIZE)
       } else {
         setProducts(prev => [...prev, ...filtered])
-        setHasMore(newItems.length >= PAGE_SIZE)
       }
+      // hasMore basado en si la API devolvio una pagina completa
+      // Si el backend filtra, filtered.length sera > 0 y funciona correctamente
+      // Si el backend no filtra y todo se filtra client-side, puede haber problemas
+      // pero al menos no sera infinito porque el offset avanza
+      setHasMore(newItems.length >= PAGE_SIZE && filtered.length > 0)
     }).catch(() => {
       if (reset) setProducts([])
     }).finally(() => setLoading(false))
