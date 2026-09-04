@@ -87,13 +87,13 @@ export default function CommunityFund() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Fondo Comunitario - Ayuda</strong></p>
-          <p><strong>Que es:</strong> El Fondo Comunitario ES la cuenta de la Asamblea General. No son cuentas separadas: es una sola cuenta que recibe los impuestos y sirve como tesoro comunitario.</p>
-          <p><strong>Como transferirle:</strong> Puedes transferir a esta cuenta usando cualquiera de estos 3 nombres (todos llegan a la misma cuenta): <b>@asamblea</b>, <b>@impuestos</b> o <b>@fondo_comunitario</b>.</p>
-          <p><strong>De donde viene el dinero:</strong> Cada vez que alguien hace una transferencia, el sistema aplica un porcentaje de impuesto automatico que va a parar a esta cuenta. Por ejemplo, si el impuesto es 2% y se transfieren 100 unidades, 2 unidades van al fondo. Nadie necesita depositar manualmente: se acumula solo con el uso.</p>
-          <p><strong>Para que se usa:</strong> El dinero del fondo se destina a infraestructura del nodo, servicios publicos, ayuda mutua entre miembros, y proyectos aprobados por la asamblea. No puede gastarse libremente: cada gasto requiere aprobacion colectiva.</p>
-          <p><strong>Como se distribuye:</strong> Para gastar dinero del fondo hay que crear una propuesta de distribucion indicando el destinatario, el monto y la razon. Luego los miembros votan a favor o en contra. Si la propuesta se aprueba, se puede ejecutar y el dinero se transfiere al destinatario.</p>
-          <p><strong>Quien lo administra:</strong> Nadie individualmente. El balance es visible para todos, pero los gastos solo se realizan mediante votacion de la asamblea. Esto garantiza que el fondo no pueda ser mal utilizado por una sola persona.</p>
+          <p><strong>{t('fund.help_title', 'Fondo Comunitario - Ayuda')}</strong></p>
+          <p><strong>{t('fund.help_what_label', 'Que es:')}</strong> {t('fund.help_what', 'El Fondo Comunitario ES la cuenta de la Asamblea General. No son cuentas separadas: es una sola cuenta que recibe los impuestos y sirve como tesoro comunitario.')}</p>
+          <p><strong>{t('fund.help_transfer_label', 'Como transferirle:')}</strong> {t('fund.help_transfer', 'Puedes transferir a esta cuenta usando cualquiera de estos 3 nombres (todos llegan a la misma cuenta): @asamblea, @impuestos o @fondo_comunitario.')}</p>
+          <p><strong>{t('fund.help_source_label', 'De donde viene el dinero:')}</strong> {t('fund.help_source', 'Cada vez que alguien hace una transferencia, el sistema aplica un porcentaje de impuesto automatico que va a parar a esta cuenta. Por ejemplo, si el impuesto es 2% y se transfieren 100 unidades, 2 unidades van al fondo. Nadie necesita depositar manualmente: se acumula solo con el uso.')}</p>
+          <p><strong>{t('fund.help_usage_label', 'Para que se usa:')}</strong> {t('fund.help_usage', 'El dinero del fondo se destina a infraestructura del nodo, servicios publicos, ayuda mutua entre miembros, y proyectos aprobados por la asamblea. No puede gastarse libremente: cada gasto requiere aprobacion colectiva.')}</p>
+          <p><strong>{t('fund.help_distribute_label', 'Como se distribuye:')}</strong> {t('fund.help_distribute', 'Para gastar dinero del fondo hay que crear una propuesta de distribucion indicando el destinatario, el monto y la razon. Luego los miembros votan a favor o en contra. Si la propuesta se aprueba, se puede ejecutar y el dinero se transfiere al destinatario.')}</p>
+          <p><strong>{t('fund.help_admin_label', 'Quien lo administra:')}</strong> {t('fund.help_admin', 'Nadie individualmente. El balance es visible para todos, pero los gastos solo se realizan mediante votacion de la asamblea. Esto garantiza que el fondo no pueda ser mal utilizado por una sola persona.')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common:close')}</button>
         </div>
       )}

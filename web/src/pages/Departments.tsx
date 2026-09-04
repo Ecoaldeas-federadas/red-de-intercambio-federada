@@ -239,17 +239,17 @@ export default function Departments() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Departamentos - Ayuda</strong></p>
-          <p><strong>Que son:</strong> Los departamentos son grupos internos de trabajo de la comunidad. Permiten organizar a los miembros por areas (ej: produccion, distribucion, administracion) y asignar roles y permisos especificos a cada grupo.</p>
-          <p><strong>Para que sirven:</strong> Sirven para estructurar la comunidad en areas funcionales, delegar responsabilidades y controlar quien puede hacer que dentro de cada area. Sin departamentos, todos los miembros tendrian los mismos permisos.</p>
-          <p><strong>Como se usan:</strong> 1) Creas un departamento con nombre, descripcion y tipo. 2) Creas roles dentro del departamento (ej: coordinador, miembro). 3) Asignas permisos a cada rol. 4) Asignas miembros a los roles. Los miembros heredan los permisos del rol asignado.</p>
-          <p><strong>Diferencia con Organizaciones:</strong> Las organizaciones son grupos que tienen cuenta propia y pueden transar. Los departamentos son areas funcionales internas para gestionar permisos y responsabilidades; no tienen cuenta propia.</p>
-          <p><strong>Tipo de grupo:</strong> Define la naturaleza del grupo. <em>Departamento</em> = area permanente de trabajo (ej: Produccion). <em>Consejo</em> = grupo de decision (ej: Consejo de Administracion). <em>Comision</em> = grupo temporal para una tarea especifica (ej: Comision de Eventos).</p>
-          <p><strong>Jefe del departamento:</strong> Es el usuario responsable de coordinar el departamento. Aparece como referente y puede tener permisos adicionales de gestion.</p>
-          <p><strong>Roles:</strong> Cada departamento tiene roles (ej: coordinador, miembro, tesorero). Cada rol define un conjunto de permisos. Un usuario con rol "coordinador" puede tener mas permisos que uno con rol "miembro".</p>
-          <p><strong>Permisos:</strong> Controlan que acciones puede realizar cada rol. Algunos permisos requieren multi-firma (varias aprobaciones de distintos miembros antes de ejecutarse), lo que se indica con una etiqueta amarilla "multisig".</p>
-          <p><strong>Como se asignan permisos:</strong> Despliega un departamento, haz clic en "Permisos" junto a un rol, y marca o desmarca los permisos. Los cambios se guardan automaticamente.</p>
-          <p><strong>Miembros:</strong> Usuarios asignados a un departamento con un rol especifico. Para asignar un miembro necesitas su nombre de usuario (username) y elegir un rol existente en el departamento.</p>
+          <p><strong>{t('help_title', 'Departamentos - Ayuda')}</strong></p>
+          <p><strong>{t('help_what_label', 'Que son:')}</strong> {t('help_what', 'Los departamentos son grupos internos de trabajo de la comunidad. Permiten organizar a los miembros por areas (ej: produccion, distribucion, administracion) y asignar roles y permisos especificos a cada grupo.')}</p>
+          <p><strong>{t('help_purpose_label', 'Para que sirven:')}</strong> {t('help_purpose', 'Sirven para estructurar la comunidad en areas funcionales, delegar responsabilidades y controlar quien puede hacer que dentro de cada area. Sin departamentos, todos los miembros tendrian los mismos permisos.')}</p>
+          <p><strong>{t('help_usage_label', 'Como se usan:')}</strong> {t('help_usage', '1) Creas un departamento con nombre, descripcion y tipo. 2) Creas roles dentro del departamento (ej: coordinador, miembro). 3) Asignas permisos a cada rol. 4) Asignas miembros a los roles. Los miembros heredan los permisos del rol asignado.')}</p>
+          <p><strong>{t('help_diff_label', 'Diferencia con Organizaciones:')}</strong> {t('help_diff', 'Las organizaciones son grupos que tienen cuenta propia y pueden transar. Los departamentos son areas funcionales internas para gestionar permisos y responsabilidades; no tienen cuenta propia.')}</p>
+          <p><strong>{t('help_type_label', 'Tipo de grupo:')}</strong> {t('help_type', 'Define la naturaleza del grupo. Departamento = area permanente de trabajo. Consejo = grupo de decision. Comision = grupo temporal para una tarea especifica.')}</p>
+          <p><strong>{t('help_head_label', 'Jefe del departamento:')}</strong> {t('help_head', 'Es el usuario responsable de coordinar el departamento. Aparece como referente y puede tener permisos adicionales de gestion.')}</p>
+          <p><strong>{t('help_roles_label', 'Roles:')}</strong> {t('help_roles', 'Cada departamento tiene roles (ej: coordinador, miembro, tesorero). Cada rol define un conjunto de permisos. Un usuario con rol coordinador puede tener mas permisos que uno con rol miembro.')}</p>
+          <p><strong>{t('help_perms_label', 'Permisos:')}</strong> {t('help_perms', 'Controlan que acciones puede realizar cada rol. Algunos permisos requieren multi-firma (varias aprobaciones de distintos miembros antes de ejecutarse), lo que se indica con una etiqueta amarilla multisig.')}</p>
+          <p><strong>{t('help_assign_label', 'Como se asignan permisos:')}</strong> {t('help_assign', 'Despliega un departamento, haz clic en Permisos junto a un rol, y marca o desmarca los permisos. Los cambios se guardan automaticamente.')}</p>
+          <p><strong>{t('help_members_label', 'Miembros:')}</strong> {t('help_members', 'Usuarios asignados a un departamento con un rol especifico. Para asignar un miembro necesitas su nombre de usuario (username) y elegir un rol existente en el departamento.')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common:close'))}</button>
         </div>
       )}

@@ -177,5 +177,22 @@
     "manual_ref_label": "Reference (optional)",
     "manual_ref_hint": "A brief note describing the reason for the payment. Appears in both histories. E.g: \"Product payment\" or \"Week 3 debt\".",
     "send": "Send"
-  }
+  },
+  "help_title": "Transferir - Ayuda",
+  "help_what_label": "Que es una transferencia:",
+  "help_what": "Es el envio directo de Trueques desde tu cuenta a la cuenta de otro usuario de la red federada. Es la operacion basica del sistema: una persona entrega valor a otra.",
+  "help_purpose_label": "Para que sirve:",
+  "help_purpose": "Para pagar a otra persona por un bien, servicio o favor, saldar una deuda, regalar Trueques, o realizar cualquier intercambio economico entre dos participantes de la red.",
+  "help_recipient_label": "Quien puede recibir:",
+  "help_recipient": "Cualquier usuario registrado en la red federada. Se identifica con el formato @usuario@nodo (ej: @maria@localhost). Si la persona esta en tu mismo nodo, basta con @usuario. No puedes transferirte a ti mismo.",
+  "help_amount_label": "Que es el monto:",
+  "help_amount": "Es la cantidad de Trueques que vas a enviar. 1 TQ equivale a 1 kWh de energia. El monto siempre es un numero entero positivo (ej: 50, 100, 250).",
+  "help_note_label": "Que es la nota/mensaje (Referencia):",
+  "help_note": "Es un texto opcional que acompana la transferencia para que el destinatario sepa el motivo. Aparece en el historial de ambos.",
+  "help_tax_label": "Como funciona el impuesto:",
+  "help_tax": "El sistema puede aplicar un pequeno impuesto (comision) sobre cada transferencia. Este impuesto se descuenta del monto que recibe el destinatario y se envia a la cuenta del nodo o comunidad. El remitente no paga extra: envia el monto indicado y el destinatario recibe ese monto menos el impuesto. El porcentaje lo define la configuracion del nodo.",
+  "help_limits_label": "Que son los limites de credito y debito:",
+  "help_limits": "El sistema permite que tu saldo sea negativo (credito) o positivo (debito). Credito significa que debes Trueques a la comunidad (saldo negativo). Debito significa que la comunidad te debe a ti (saldo positivo). Hay un limite maximo de credito definido por el nodo para evitar abusos.",
+  "help_zero_sum_label": "Importante - El sistema suma cero:",
+  "help_zero_sum": "Por cada transferencia, lo que sale de una cuenta entra en otra. No se crea dinero de la nada ni desaparece: el total de todos los saldos de la red siempre es cero."
 }
