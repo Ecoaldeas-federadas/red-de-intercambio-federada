@@ -91,7 +91,7 @@ export function EntitySelector({
           <input
             type="text"
             className="input pl-9"
-            placeholder={placeholder || t('common.search_placeholder')}
+            placeholder={placeholder || t('common:search_placeholder')}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setShowList(true) }}
             onFocus={() => setShowList(true)}
@@ -99,9 +99,9 @@ export function EntitySelector({
           {showList && (
             <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
               {loading ? (
-                <div className="p-3 text-sm text-gray-400">{t('common.loading')}</div>
+                <div className="p-3 text-sm text-gray-400">{t('common:loading')}</div>
               ) : filtered.length === 0 ? (
-                <div className="p-3 text-sm text-gray-400">{emptyMessage || t('common.no_results')}</div>
+                <div className="p-3 text-sm text-gray-400">{emptyMessage || t('common:no_results')}</div>
               ) : (
                 filtered.map((item, i) => (
                   <button

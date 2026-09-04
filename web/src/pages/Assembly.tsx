@@ -755,7 +755,7 @@ function MemberSearchAndPerms({
               <KeyRound size={16} />
               Permisos de {selectedMember.display_name || selectedMember.username}
             </h3>
-            <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common.close')}</button>
+            <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common:close')}</button>
           </div>
 
           {selectedMember.is_super_admin && selectedMember.super_admin_enabled && (
@@ -1440,7 +1440,7 @@ export default function Assembly() {
           <p><strong>Sesiones:</strong> Reuniones de asamblea (ordinarias, extraordinarias, urgentes). Las propuestas se discuten en sesiones.</p>
           <p><strong>Propuestas:</strong> Decisiones que se someten a votacion. Cada miembro con voto puede votar a favor, en contra o abstenerse. Cuando todos han votado, se ejecuta si hay mas votos a favor.</p>
           <p><strong>Impuestos:</strong> La asamblea decide la tasa de impuesto sobre transacciones. El dinero recaudado va a una cuenta de impuestos. La asamblea decide que hacer con ese dinero.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('help_close', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('help_close', t('common:close'))}</button>
         </div>
       )}
 
@@ -1589,7 +1589,7 @@ export default function Assembly() {
                               }}
                               className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
                             >
-                              {t('common.delete')}
+                              {t('common:delete')}
                             </button>
                           </>
                         )}
@@ -2129,7 +2129,7 @@ export default function Assembly() {
                       <KeyRound size={16} />
                       Permisos de {selectedOrg.display_name || selectedOrg.username}
                     </h3>
-                    <button onClick={() => setSelectedOrg(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common.close')}</button>
+                    <button onClick={() => setSelectedOrg(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common:close')}</button>
                   </div>
 
                   {/* Permisos actuales */}
@@ -2462,13 +2462,13 @@ export default function Assembly() {
                           onClick={() => saveSessionEdit(s.id)}
                           className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                         >
-                          {t('common.save')}
+                          {t('common:save')}
                         </button>
                         <button
                           onClick={() => { setEditingSessionId(null); setEditTitle(''); setEditDescription('') }}
                           className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
                         >
-                          {t('common.cancel')}
+                          {t('common:cancel')}
                         </button>
                       </div>
                     </div>
@@ -2607,7 +2607,7 @@ export default function Assembly() {
                   )}
 
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setSelectedSessionForAttendance(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.close')}</button>
+                    <button onClick={() => setSelectedSessionForAttendance(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common:close')}</button>
                   </div>
                 </div>
               </div>
@@ -2646,7 +2646,7 @@ export default function Assembly() {
                     </div>
                   )}
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.close')}</button>
+                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common:close')}</button>
                     {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' && (
                       <a
                         href={`${(window as any).__BASE_PATH__ ? (window as any).__BASE_PATH__ + '/api' : '/api'}/assembly/sessions/${selectedSessionForMinutes}/acta-pdf`}
@@ -2659,13 +2659,13 @@ export default function Assembly() {
                     )}
                     {minutesEditMode ? (
                       <>
-                        <button onClick={() => { setMinutesEditMode(false) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.cancel')}</button>
-                        <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">{t('common.save')}</button>
+                        <button onClick={() => { setMinutesEditMode(false) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common:cancel')}</button>
+                        <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">{t('common:save')}</button>
                       </>
                     ) : (
                       (canManageBoard || sessions.find(s => s.id === selectedSessionForMinutes)?.status !== 'completed') && (
                         <button onClick={() => setMinutesEditMode(true)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">
-                          {minutesText ? t('common.edit') : 'Escribir'}
+                          {minutesText ? t('common:edit') : 'Escribir'}
                         </button>
                       )
                     )}
@@ -2710,7 +2710,7 @@ export default function Assembly() {
                     </div>
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setRescheduleSession(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common.cancel')}</button>
+                    <button onClick={() => setRescheduleSession(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{t('common:cancel')}</button>
                     <button
                       onClick={() => doReschedule(rescheduleSession.id)}
                       className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
@@ -3043,7 +3043,7 @@ export default function Assembly() {
                     </>
                   )}
                 </div>
-                <button onClick={() => setFreqEditing(true)} className="btn-primary">{t('common.edit')}</button>
+                <button onClick={() => setFreqEditing(true)} className="btn-primary">{t('common:edit')}</button>
               </div>
             ) : (
               /* Modo edicion */
@@ -3104,9 +3104,9 @@ export default function Assembly() {
                 )}
                 <div className="flex gap-2">
                   <button onClick={saveFreqConfig} disabled={freqSaving} className="btn-primary">
-                    {freqSaving ? t('common.loading') : t('common.save')}
+                    {freqSaving ? t('common:loading') : t('common:save')}
                   </button>
-                  <button onClick={() => { setFreqEditing(false); loadFreqConfig() }} className="btn-secondary">{t('common.cancel')}</button>
+                  <button onClick={() => { setFreqEditing(false); loadFreqConfig() }} className="btn-secondary">{t('common:cancel')}</button>
                 </div>
               </div>
             )}
@@ -3630,9 +3630,9 @@ export default function Assembly() {
                           }}
                           className="btn-primary text-sm"
                         >
-                          {t('common.save')}
+                          {t('common:save')}
                         </button>
-                        <button onClick={() => { setEditingConfig(null); setNewSignerId('') }} className="btn-secondary text-sm">{t('common.cancel')}</button>
+                        <button onClick={() => { setEditingConfig(null); setNewSignerId('') }} className="btn-secondary text-sm">{t('common:cancel')}</button>
                       </div>
                     </div>
                   )}
@@ -3709,7 +3709,7 @@ export default function Assembly() {
 
               <div className="flex gap-2 justify-end pt-2">
                 <button onClick={() => setVotingModal(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                  {t('common.cancel')}
+                  {t('common:cancel')}
                 </button>
                 <button
                   onClick={() => openVoting(votingModal.id)}
@@ -3846,7 +3846,7 @@ export default function Assembly() {
 
             <div className="flex justify-end mt-6">
               <button onClick={() => setShowProposalDetail(null)} className="btn-secondary">
-                {t('common.close')}
+                {t('common:close')}
               </button>
             </div>
           </div>
@@ -3890,7 +3890,7 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
           </div>
         </div>
         <button onClick={() => setEditing(!editing)} className="text-blue-500 hover:bg-blue-50 p-2 rounded text-sm">
-          {editing ? t('common.close') : t('common.edit')}
+          {editing ? t('common:close') : t('common:edit')}
         </button>
       </div>
       {editing && (
@@ -3936,7 +3936,7 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
             }}
             className="btn-primary text-sm"
           >
-            {t('common.save')}
+            {t('common:save')}
           </button>
         </div>
       )}

@@ -258,7 +258,7 @@ export default function NetworkConfig() {
     }
   }
 
-  if (loading) return <div className="card p-4 text-center text-gray-500">{t('net_loading', t('common.loading'))}</div>
+  if (loading) return <div className="card p-4 text-center text-gray-500">{t('net_loading', t('common:loading'))}</div>
 
   return (
     <div className="space-y-4">
@@ -560,7 +560,7 @@ Puerto WireGuard: ${myInfo.wireguard_port}`}</pre>
 
           <div className="flex gap-2 pt-3 border-t">
             <button onClick={saveConfig} disabled={saving} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50">
-              {saving ? t('saving', t('common.loading')) : t('save', t('common.save'))}
+              {saving ? t('saving', t('common:loading')) : t('save', t('common:save'))}
             </button>
             {config.openwrt_address && config.ipv6_ula && (
               <button onClick={registerOpenWrt} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-50">

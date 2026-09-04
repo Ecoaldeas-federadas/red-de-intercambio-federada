@@ -181,7 +181,7 @@ export default function Organizations() {
           <button
             onClick={() => setShowHelp(false)}
             className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-            title={t('close', t('common.close'))}
+            title={t('close', t('common:close'))}
           >
             <X size={18} />
           </button>

@@ -250,7 +250,7 @@ export default function Departments() {
           <p><strong>Permisos:</strong> Controlan que acciones puede realizar cada rol. Algunos permisos requieren multi-firma (varias aprobaciones de distintos miembros antes de ejecutarse), lo que se indica con una etiqueta amarilla "multisig".</p>
           <p><strong>Como se asignan permisos:</strong> Despliega un departamento, haz clic en "Permisos" junto a un rol, y marca o desmarca los permisos. Los cambios se guardan automaticamente.</p>
           <p><strong>Miembros:</strong> Usuarios asignados a un departamento con un rol especifico. Para asignar un miembro necesitas su nombre de usuario (username) y elegir un rol existente en el departamento.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common:close'))}</button>
         </div>
       )}
 

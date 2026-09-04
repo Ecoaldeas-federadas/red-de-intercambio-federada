@@ -434,7 +434,7 @@ export default function Profile() {
           <p><strong>Tarjetas NFC:</strong> Tarjetas fisicas asociadas a tu cuenta para pagar en terminales NFC de los comercios. Cada tarjeta tiene un UID unico. Si la pierdes, avisa al admin para desactivarla.</p>
           <p><strong>PIN de NFC:</strong> Es un codigo de 4 digitos que protege tu tarjeta NFC. Se pide al hacer pagos en terminales con teclado. Cambialo con el boton "Cambiar PIN" si crees que alguien lo sabe.</p>
           <p><strong>Actividad reciente:</strong> Tus ultimas 10 transacciones (ingresos en verde, egresos en rojo).</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common:close')}</button>
         </div>
       )}
 
@@ -473,7 +473,7 @@ export default function Profile() {
             )}
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">{t('common.loading')}</p>
+          <p className="text-gray-500 text-sm">{t('common:loading')}</p>
         )}
       </div>
 
@@ -580,9 +580,9 @@ export default function Profile() {
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => { setShowDocModal(false); setNewDoc({ document_type: '', document_number: '', country_iso2: '' }); setDocPhoto(null); setDocMsg('') }} className="btn-secondary">{t('common.cancel')}</button>
+              <button onClick={() => { setShowDocModal(false); setNewDoc({ document_type: '', document_number: '', country_iso2: '' }); setDocPhoto(null); setDocMsg('') }} className="btn-secondary">{t('common:cancel')}</button>
               <button onClick={addDocument} disabled={savingDoc} className="btn-primary">
-                {savingDoc ? t('common.loading') : 'Guardar documento'}
+                {savingDoc ? t('common:loading') : 'Guardar documento'}
               </button>
             </div>
           </div>
@@ -728,7 +728,7 @@ export default function Profile() {
               onKeyDown={(e) => e.key === 'Enter' && registerPasskey()}
             />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowPasskeyModal(false)} className="btn-secondary text-sm">{t('common.cancel')}</button>
+              <button onClick={() => setShowPasskeyModal(false)} className="btn-secondary text-sm">{t('common:cancel')}</button>
               <button
                 onClick={registerPasskey}
                 className="btn-primary text-sm flex items-center gap-2"
@@ -899,7 +899,7 @@ export default function Profile() {
             {/* Botones */}
             <div className="flex gap-2 justify-end">
               <button onClick={closeCardModal} className="btn-secondary text-sm">
-                {cardActionMsg ? t('common.close') : t('common.cancel')}
+                {cardActionMsg ? t('common:close') : t('common:cancel')}
               </button>
               {!cardActionMsg && (
                 <button

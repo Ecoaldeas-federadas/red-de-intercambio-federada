@@ -289,7 +289,7 @@ export default function Pay() {
               fontSize: 14, cursor: 'pointer',
             }}
           >
-            {t('pay.cancel', t('common.cancel'))}
+            {t('pay.cancel', t('common:cancel'))}
           </button>
         </div>
       </div>
@@ -430,7 +430,7 @@ export default function Pay() {
             fontSize: 14, cursor: 'pointer',
           }}
         >
-          {t('pay.cancel', t('common.cancel'))}
+          {t('pay.cancel', t('common:cancel'))}
         </button>
       </div>
     </div>

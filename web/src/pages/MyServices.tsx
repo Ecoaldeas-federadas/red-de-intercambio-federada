@@ -147,7 +147,7 @@ export default function MyServices() {
                           onClick={() => handleUnsubscribe(svc.id)}
                           className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium"
                         >
-                          {t('my_services_cancel', t('common.cancel'))}
+                          {t('my_services_cancel', t('common:cancel'))}
                         </button>
                       ) : (
                         <button

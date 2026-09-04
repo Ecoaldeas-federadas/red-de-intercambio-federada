@@ -189,7 +189,7 @@ export default function CalculatorParams() {
           <p><strong>{t('calculator_params.help_approval', 'Como se aprueban los parametros:')}</strong> {t('calculator_params.help_approval_desc', 'Todo parametro nuevo o modificado queda en estado "Pendiente" y debe ser aprobado por asamblea. Los parametros no aprobados no aparecen en la calculadora. Un usuario con permiso de gestion (calculator.manage_params) puede aprobarlos con el boton de check verde. Esto asegura que la comunidad valide cada cambio en el sistema de precios.')}</p>
           <p><strong>{t('calculator_params.help_who', 'Quien los puede cambiar:')}</strong> {t('calculator_params.help_who_desc', 'Solo los usuarios con el permiso "calculator.manage_params" pueden crear, editar, aprobar y eliminar parametros. El resto de usuarios puede verlos pero no modificarlos. La aprobacion final requiere decision asamblearia.')}</p>
           <p><strong>{t('calculator_params.help_currency', 'Moneda local:')}</strong> {t('calculator_params.help_currency_desc', 'Los costos se expresan en kWh (1')} {currency} = 1 kWh). {t('calculator_params.help_currency_desc2', 'El simbolo de tu moneda local es "')}{currency}{t('calculator_params.help_currency_desc3', '" y aparece en los textos de ayuda de los campos.')}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('calculator_params.close', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('calculator_params.close', t('common:close'))}</button>
         </div>
       )}
 
@@ -369,8 +369,8 @@ export default function CalculatorParams() {
                     {canManage && (
                       <div className="flex gap-1">
                         {!p.approved && <button onClick={() => approve(p.id)} className="text-green-600 hover:bg-green-50 p-1 rounded" title={t('calculator_params.approve', 'Aprobar')}><Check size={16} /></button>}
-                        <button onClick={() => edit(p)} className="text-blue-500 hover:bg-blue-50 p-1 rounded" title={t('calculator_params.edit', t('common.edit'))}><Edit size={16} /></button>
-                        <button onClick={() => remove(p.id)} className="text-red-500 hover:bg-red-50 p-1 rounded" title={t('calculator_params.delete', t('common.delete'))}><Trash2 size={16} /></button>
+                        <button onClick={() => edit(p)} className="text-blue-500 hover:bg-blue-50 p-1 rounded" title={t('calculator_params.edit', t('common:edit'))}><Edit size={16} /></button>
+                        <button onClick={() => remove(p.id)} className="text-red-500 hover:bg-red-50 p-1 rounded" title={t('calculator_params.delete', t('common:delete'))}><Trash2 size={16} /></button>
                       </div>
                     )}
                   </div>

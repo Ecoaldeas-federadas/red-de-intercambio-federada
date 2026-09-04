@@ -374,7 +374,7 @@ export default function Governance() {
                   Cancelar
                 </button>
                 <button type="submit" className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">
-                  {editingRule ? t('common.save') : 'Crear'}
+                  {editingRule ? t('common:save') : 'Crear'}
                 </button>
               </div>
             </form>

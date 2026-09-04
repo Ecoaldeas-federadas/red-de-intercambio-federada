@@ -2027,7 +2027,7 @@ export default function WebsiteAdmin() {
                                 onClick={() => setEditingFieldIndex(isEditing ? null : idx)}
                                 className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-gray-200 hover:bg-gray-100 text-gray-700"
                               >
-                                {isEditing ? t('close', t('common.close')) : t('edit', t('common.edit'))}
+                                {isEditing ? t('close', t('common:close')) : t('edit', t('common:edit'))}
                               </button>
                               <button
                                 onClick={() => moveFormField(idx, 'up')}

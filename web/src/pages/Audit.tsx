@@ -120,7 +120,7 @@ export default function Audit() {
             <li><strong>{t('col_details', 'Detalles:')}</strong> {t('col_details_desc', 'Informacion adicional: monto, origen, destino, descripcion, etc.')}</li>
           </ul>
           <p><strong>{t('help_usage', 'Como se usa:')}</strong> {t('help_usage_desc', 'Selecciona un filtro de tipo de accion para ver solo los registros que te interesan. Por ejemplo, pulsa "Transferencias" para ver solo envios y recepciones de unidades.')}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common:close'))}</button>
         </div>
       )}
 

@@ -184,7 +184,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl z-10"
-          aria-label={t('common.close')}
+          aria-label={t('common:close')}
         >
           <X size={22} />
         </button>

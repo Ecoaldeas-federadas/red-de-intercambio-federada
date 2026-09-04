@@ -113,7 +113,7 @@ export default function FederationLimits() {
           <p><strong>Base bilateral:</strong> Limite inicial igual para todos los pares (ej: 50% del global). Se puede personalizar despues nodo por nodo.</p>
           <p><strong>Umbrales de aviso:</strong> Porcentajes del limite (ej: 50%/75%/90%) que disparan notificaciones cuando el saldo se acerca al limite.</p>
           <p><strong>Como usar esta pagina:</strong> Revisa la configuracion global. Para personalizar el limite con un nodo especifico, haz clic en "Proponer Bilateral", selecciona el nodo e ingresa los nuevos limites. El otro nodo debe confirmar la propuesta para que aplique.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('limits_close_help', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('limits_close_help', t('common:close'))}</button>
         </div>
       )}
 
@@ -257,7 +257,7 @@ export default function FederationLimits() {
             <p className="text-xs text-gray-500">{t('limits_change_hint', 'Esta solicitud pasara a la asamblea para votacion. Los miembros decidiran si aprueban el cambio.')}</p>
 
             <div className="flex gap-2">
-              <button onClick={() => setChangeRequest(null)} className="btn-secondary flex-1">{t('limits_cancel', t('common.cancel'))}</button>
+              <button onClick={() => setChangeRequest(null)} className="btn-secondary flex-1">{t('limits_cancel', t('common:cancel'))}</button>
               <button onClick={submitChangeRequest} className="btn-primary flex-1">{t('limits_send_assembly', 'Enviar a Asamblea')}</button>
             </div>
           </div>

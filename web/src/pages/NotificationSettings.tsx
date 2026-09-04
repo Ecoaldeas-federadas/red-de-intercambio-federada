@@ -585,12 +585,12 @@ export default function NotificationSettings() {
         })}
         <div className="flex gap-2 pt-2">
           <button onClick={() => saveGateway(channel)} className="btn-primary text-sm flex items-center gap-1">
-            <Save size={14} /> {t('gateway_save', t('common.save'))}
+            <Save size={14} /> {t('gateway_save', t('common:save'))}
           </button>
           <button onClick={() => testGateway(channel)} disabled={testingChannel === channel} className="btn-secondary text-sm flex items-center gap-1">
             <TestTube size={14} /> {testingChannel === channel ? t('gateway_testing', 'Enviando...') : t('gateway_test', 'Probar')}
           </button>
-          <button onClick={() => setEditingGateway(null)} className="btn-secondary text-sm">{t('gateway_cancel', t('common.cancel'))}</button>
+          <button onClick={() => setEditingGateway(null)} className="btn-secondary text-sm">{t('gateway_cancel', t('common:cancel'))}</button>
         </div>
         {testResults[channel] && (
           <div className={`text-sm p-2 rounded mt-2 ${testResults[channel]!.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
@@ -878,7 +878,7 @@ export default function NotificationSettings() {
                       {isActive ? t('gateway_active', 'Activa') : t('gateway_inactive', 'Inactiva')}
                     </span>
                     <button onClick={() => setEditingGateway(editingGateway === code ? null : code)} className="btn-secondary text-sm">
-                      {editingGateway === code ? t('gateway_close', t('common.close')) : t('gateway_configure', 'Configurar')}
+                      {editingGateway === code ? t('gateway_close', t('common:close')) : t('gateway_configure', 'Configurar')}
                     </button>
                   </div>
                 </div>

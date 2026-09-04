@@ -522,7 +522,7 @@ export default function NFCTerminals() {
           <p><strong>Que es el token de registro:</strong> Es un codigo secreto que genera el servidor al registrar o provisionar un terminal. Se copia en el archivo config.h del firmware del ESP32 para que el terminal pueda autenticarse con el nodo al conectarse por primera vez.</p>
           <p><strong>Como vincular tarjetas:</strong> El administrador emite una tarjeta NFC asignandola a un usuario (User ID) y registrando el UID de la tarjeta fisica. La tarjeta se entrega al usuario con un PIN inicial que debe cambiar la primera vez que la use.</p>
           <p><strong>Que es el PIN:</strong> Es un codigo de 4 digitos que protege la tarjeta NFC. Se pide al usuario en cada transaccion (excepto en modo comunitario). Si se olvida, el administrador puede resetearlo a un valor por defecto.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{tt('cancel', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{tt('cancel', tt('common:close'))}</button>
         </div>
       )}
 
@@ -898,7 +898,7 @@ export default function NFCTerminals() {
                 <input type="checkbox" checked={cardActiveOnly} onChange={(e) => { setCardActiveOnly(e.target.checked); loadAllCards(e.target.checked) }} />
                 {tt('active_only', 'Solo activas')}
               </label>
-              {cardListLoading && <p className="text-xs text-gray-400">{tt('loading', t('common.loading'))}</p>}
+              {cardListLoading && <p className="text-xs text-gray-400">{tt('loading', tt('common:loading'))}</p>}
               {cardListError && <p className="text-xs text-red-500">{cardListError}</p>}
               {!cardListLoading && allCards.length === 0 && (
                 <p className="text-xs text-gray-400">{tt('no_cards_found', 'No hay tarjetas que coincidan con la busqueda.')}</p>
@@ -966,7 +966,7 @@ export default function NFCTerminals() {
                               onClick={() => deleteCardPermanent(c.card_uid)}
                               className="text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 flex items-center gap-1"
                             >
-                              <Trash2 size={12} /> {tt('delete', t('common.delete'))}
+                              <Trash2 size={12} /> {tt('delete', tt('common:delete'))}
                             </button>
                           )}
                         </div>
@@ -1085,7 +1085,7 @@ export default function NFCTerminals() {
             </div>
             <div className="flex gap-2">
               <button onClick={registerTerminal} className="btn-primary flex-1">{tt('register_btn', 'Registrar')}</button>
-              <button onClick={() => setShowRegister(false)} className="btn-secondary">{tt('cancel', t('common.cancel'))}</button>
+              <button onClick={() => setShowRegister(false)} className="btn-secondary">{tt('cancel', tt('common:cancel'))}</button>
             </div>
           </div>
         </div>
@@ -1254,7 +1254,7 @@ export default function NFCTerminals() {
                       )}
                       <button
                         onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation(''); setSelectedCode(''); setPairingOptions([]); setOptionsError('') }}
-                        className="btn-secondary w-full">{t('common.cancel')}</button>
+                        className="btn-secondary w-full">{tt('common:cancel')}</button>
                     </div>
                   ) : (
                     <div className="mt-4 flex gap-2">
@@ -1313,7 +1313,7 @@ export default function NFCTerminals() {
 
             <div className="flex gap-2 pt-2">
               <button onClick={saveEditTerminal} className="btn-primary flex-1">{tt('save_changes', 'Guardar cambios')}</button>
-              <button onClick={() => setShowEditModal(null)} className="btn-secondary">{tt('cancel', t('common.cancel'))}</button>
+              <button onClick={() => setShowEditModal(null)} className="btn-secondary">{tt('cancel', tt('common:cancel'))}</button>
             </div>
           </div>
         </div>
@@ -1378,7 +1378,7 @@ export default function NFCTerminals() {
                 {assigning ? tt('assigning', 'Asignando...') : tt('assign_btn', 'Asignar')}
               </button>
               <button onClick={() => setShowAssignModal(null)} disabled={assigning} className="btn-secondary">
-                {tt('cancel', t('common.cancel'))}
+                {tt('cancel', tt('common:cancel'))}
               </button>
             </div>
           </div>

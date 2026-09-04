@@ -292,7 +292,7 @@ export default function MergeConflicts() {
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setSelectedConflict(null)} className="btn-secondary">{t('common.cancel')}</button>
+              <button onClick={() => setSelectedConflict(null)} className="btn-secondary">{t('common:cancel')}</button>
               <button onClick={() => propose(selectedConflict.id)} className="btn-primary">Enviar Propuesta</button>
             </div>
           </div>

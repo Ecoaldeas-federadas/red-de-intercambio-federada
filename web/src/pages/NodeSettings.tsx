@@ -789,7 +789,7 @@ export default function NodeSettings() {
               )}
               <button onClick={saveConfig} className="btn-primary flex items-center gap-2">
                 <Save size={18} />
-                {permChecks['node_config'] && !permChecks['node_config'].can_direct ? t('propose_change', 'Proponer cambio') : t('common.save')}
+                {permChecks['node_config'] && !permChecks['node_config'].can_direct ? t('propose_change', 'Proponer cambio') : t('common:save')}
               </button>
               {configMsg && (
                 <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
@@ -1501,7 +1501,7 @@ export default function NodeSettings() {
                   <input className="input" value={newProfile.default_rules} onChange={e => setNewProfile({ ...newProfile, default_rules: e.target.value })} placeholder="Sin carne, sin alcohol" />
                 </div>
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => setShowCreateProfile(false)} className="px-3 py-1 text-sm text-gray-600">{t('common.cancel')}</button>
+                  <button onClick={() => setShowCreateProfile(false)} className="px-3 py-1 text-sm text-gray-600">{t('common:cancel')}</button>
                   <button
                     onClick={async () => {
                       if (!newProfile.id || !newProfile.name) { setOrgMsg({ type: 'error', text: 'ID y nombre son obligatorios' }); return }
@@ -1862,7 +1862,7 @@ export default function NodeSettings() {
           </div>
 
           {/* Lista de prestamos */}
-          {seedLoansLoading && <p className="text-sm text-gray-500">{t('common.loading')}</p>}
+          {seedLoansLoading && <p className="text-sm text-gray-500">{t('common:loading')}</p>}
           {!seedLoansLoading && seedLoans.length === 0 && <p className="text-sm text-gray-500">No hay prestamos registrados.</p>}
           {seedLoans.length > 0 && (
             <div className="space-y-2">
@@ -1986,7 +1986,7 @@ export default function NodeSettings() {
                 <label htmlFor="auto_rotate" className="text-sm">Rotar clave automaticamente en cada transaccion (solo DESFire/NTAG424)</label>
               </div>
             </div>
-            {cardTypeCfgLoading && <p className="text-xs text-gray-500">{t('common.loading')}</p>}
+            {cardTypeCfgLoading && <p className="text-xs text-gray-500">{t('common:loading')}</p>}
           </div>
 
           {/* HISTORIAL DE ROTACIONES */}
@@ -2037,7 +2037,7 @@ export default function NodeSettings() {
             Cuando tengas NFC disponible, puedes desactivar el QR.
           </p>
 
-          {attConfigLoading && <p className="text-sm text-gray-500">{t('common.loading')}</p>}
+          {attConfigLoading && <p className="text-sm text-gray-500">{t('common:loading')}</p>}
           {!attConfigLoading && attConfig && (
             <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
               <h3 className="font-medium text-sm">Configuracion de asistencia</h3>
@@ -2284,7 +2284,7 @@ export default function NodeSettings() {
             no son accesibles ni aparecen en el menu publico.
           </p>
 
-          {pageSettingsLoading && <p className="text-sm text-gray-500">{t('common.loading')}</p>}
+          {pageSettingsLoading && <p className="text-sm text-gray-500">{t('common:loading')}</p>}
           {!pageSettingsLoading && pageSettings && (
             <div className="space-y-3">
               <label className="flex items-center justify-between p-3 border rounded-lg">
@@ -2540,7 +2540,7 @@ export default function NodeSettings() {
                 className="btn-primary flex items-center gap-2"
               >
                 <Save size={16} />
-                {backupConfigLoading ? t('common.loading') : t('save_config', 'Guardar Configuracion')}
+                {backupConfigLoading ? t('common:loading') : t('save_config', 'Guardar Configuracion')}
               </button>
               {backupMsg && (
                 <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
@@ -3272,7 +3272,7 @@ export default function NodeSettings() {
                 disabled={demoPresetsLoading}
                 className="text-xs text-blue-600 hover:underline"
               >
-                {demoPresetsLoading ? t('common.loading') : demoPresets.length > 0 ? 'Recargar preconfiguraciones' : 'Cargar preconfiguraciones disponibles'}
+                {demoPresetsLoading ? t('common:loading') : demoPresets.length > 0 ? 'Recargar preconfiguraciones' : 'Cargar preconfiguraciones disponibles'}
               </button>
               {demoPresets.length > 0 && (
                 <select
@@ -3358,7 +3358,7 @@ export default function NodeSettings() {
                 onClick={() => setConfirmModal({ ...confirmModal, open: false })}
                 className="px-4 py-2 text-sm bg-gray-200 rounded-lg hover:bg-gray-300"
               >
-                {t('common.cancel')}
+                {t('common:cancel')}
               </button>
               <button
                 onClick={async () => {
@@ -4120,7 +4120,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
                 onClick={() => setShowConfirm(false)}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
               >
-                {t('common.cancel')}
+                {t('common:cancel')}
               </button>
               <button
                 onClick={updateNode}

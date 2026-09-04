@@ -403,7 +403,7 @@ export default function Setup() {
               <input
                 type="text"
                 className="input pl-9"
-                placeholder={t('common.search_placeholder')}
+                placeholder={t('common:search_placeholder')}
                 value={presetSearch}
                 onChange={(e) => setPresetSearch(e.target.value)}
               />
@@ -411,7 +411,7 @@ export default function Setup() {
 
             {presetsLoading && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Loader2 size={16} className="animate-spin" /> {t('common.loading')}
+                <Loader2 size={16} className="animate-spin" /> {t('common:loading')}
               </div>
             )}
 
@@ -636,7 +636,7 @@ export default function Setup() {
                   onClick={() => { navigator.clipboard.writeText(nodePublicKey); setSuccess(t('setup.key_copied', 'Clave copiada!')); setTimeout(() => setSuccess(''), 2000) }}
                   className="btn-primary text-sm py-1 px-3"
                 >
-                  {t('common.copy')} {t('setup.node_public_key', 'clave')}
+                  {t('common:copy')} {t('setup.node_public_key', 'clave')}
                 </button>
               </div>
             )}
@@ -659,7 +659,7 @@ export default function Setup() {
               disabled={step === 0}
               className="px-4 py-2 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:text-gray-900"
             >
-              {t('common.back')}
+              {t('common:back')}
             </button>
 
             {step < 5 ? (
@@ -667,7 +667,7 @@ export default function Setup() {
                 onClick={handleNext}
                 className="btn-primary flex items-center gap-2"
               >
-                {t('common.next')}
+                {t('common:next')}
                 <ArrowRight size={20} />
               </button>
             ) : (

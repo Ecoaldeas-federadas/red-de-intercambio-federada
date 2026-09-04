@@ -254,7 +254,7 @@ export default function Settings() {
           className="btn-primary flex items-center gap-2 disabled:opacity-50"
         >
           <Save size={18} />
-          {saving ? t('common.loading') : t('settings.save')}
+          {saving ? t('common:loading') : t('settings.save')}
         </button>
       </div>
     </div>

@@ -786,7 +786,7 @@ export default function FederatedServices() {
                 onClick={() => setConfirmUninstall(null)}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
               >
-                {t('cancel', t('common.cancel'))}
+                {t('cancel', t('common:cancel'))}
               </button>
               <button
                 onClick={doUninstall}
@@ -814,7 +814,7 @@ export default function FederatedServices() {
                     onClick={closeServiceUpdateConsole}
                     className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
                   >
-                    {t('close', t('common.close'))}
+                    {t('close', t('common:close'))}
                   </button>
                 )}
               </div>
@@ -1301,7 +1301,7 @@ function VoIPPanel() {
         </div>
       )}
 
-      <button onClick={saveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('save', t('common.save'))}</button>
+      <button onClick={saveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('save', t('common:save'))}</button>
 
       {/* Extensiones */}
       <div className="border-t pt-3">

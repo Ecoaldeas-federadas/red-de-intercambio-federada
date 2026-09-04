@@ -94,7 +94,7 @@ export default function CommunityFund() {
           <p><strong>Para que se usa:</strong> El dinero del fondo se destina a infraestructura del nodo, servicios publicos, ayuda mutua entre miembros, y proyectos aprobados por la asamblea. No puede gastarse libremente: cada gasto requiere aprobacion colectiva.</p>
           <p><strong>Como se distribuye:</strong> Para gastar dinero del fondo hay que crear una propuesta de distribucion indicando el destinatario, el monto y la razon. Luego los miembros votan a favor o en contra. Si la propuesta se aprueba, se puede ejecutar y el dinero se transfiere al destinatario.</p>
           <p><strong>Quien lo administra:</strong> Nadie individualmente. El balance es visible para todos, pero los gastos solo se realizan mediante votacion de la asamblea. Esto garantiza que el fondo no pueda ser mal utilizado por una sola persona.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common:close')}</button>
         </div>
       )}
 
@@ -125,7 +125,7 @@ export default function CommunityFund() {
             </div>
           )
         ) : (
-          <p className="text-gray-500 text-sm">{t('common.loading')}</p>
+          <p className="text-gray-500 text-sm">{t('common:loading')}</p>
         )}
       </div>
 

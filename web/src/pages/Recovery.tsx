@@ -119,7 +119,7 @@ export default function Recovery() {
             <li><strong>{t('recovery_page.mode_department', 'Departamento')}:</strong> {t('recovery_page.help_mode_department', 'Aprobacion por los jefes de departamento')}</li>
           </ul>
           <p><strong>{t('recovery_page.help_usage', 'Como usar esta pagina:')}</strong> {t('recovery_page.help_usage_desc', 'Pulsa "Nueva Solicitud" para crear una recuperacion indicando el usuario y la razon. Las solicitudes pendientes aparecen en la lista: puedes aprobarlas, rechazarlas o ver el detalle de las firmas. Desde "Configuracion" puedes ajustar el modo de aprobacion y los parametros.')}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('recovery_page.close', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('recovery_page.close', t('common:close'))}</button>
         </div>
       )}
 
@@ -132,7 +132,7 @@ export default function Recovery() {
             <div><span className="text-gray-500">{t('recovery_page.config_mode', 'Modo:')}</span> <b>{modeLabels[config.approval_mode] ?? config.approval_mode}</b></div>
             <div><span className="text-gray-500">{t('recovery_page.config_approvals', 'Aprobaciones:')}</span> <b>{config.required_approvals}</b></div>
             <div><span className="text-gray-500">{t('recovery_page.config_expires', 'Expira (h):')}</span> <b>{config.auto_expire_hours}</b></div>
-            <div><span className="text-gray-500">{t('recovery_page.config_identity', 'Verif. identidad:')}</span> <b>{config.requires_identity_verification ? t('common.yes', 'Si') : t('common.no', 'No')}</b></div>
+            <div><span className="text-gray-500">{t('recovery_page.config_identity', 'Verif. identidad:')}</span> <b>{config.requires_identity_verification ? t('common:yes', 'Si') : t('common:no', 'No')}</b></div>
           </div>
         </div>
       )}
@@ -156,7 +156,7 @@ export default function Recovery() {
             {t('recovery_page.config_identity_label', 'Requiere verificacion de identidad')}
           </label>
           <button onClick={saveConfig} className="btn-primary">{t('recovery_page.config_save', 'Guardar Configuracion')}</button>
-          <button onClick={() => setShowConfig(false)} className="btn-secondary ml-2">{t('recovery_page.config_cancel', t('common.cancel'))}</button>
+          <button onClick={() => setShowConfig(false)} className="btn-secondary ml-2">{t('recovery_page.config_cancel', t('common:cancel'))}</button>
         </div>
       )}
 
@@ -175,7 +175,7 @@ export default function Recovery() {
           <textarea className="input" rows={3} placeholder={t('recovery_page.new_req_reason_placeholder', 'Razon de la solicitud')} value={newReq.reason} onChange={(e) => setNewReq({ ...newReq, reason: e.target.value })} />
           <div className="flex gap-2">
             <button onClick={createReq} className="btn-primary">{t('recovery_page.new_req_create', 'Crear Solicitud')}</button>
-            <button onClick={() => setShowNewReq(false)} className="btn-secondary">{t('recovery_page.new_req_cancel', t('common.cancel'))}</button>
+            <button onClick={() => setShowNewReq(false)} className="btn-secondary">{t('recovery_page.new_req_cancel', t('common:cancel'))}</button>
           </div>
         </div>
       )}
@@ -232,7 +232,7 @@ export default function Recovery() {
               ))}
             </div>
           )}
-          <button onClick={() => setSelectedReq(null)} className="btn-secondary mt-3 text-sm">{t('recovery_page.close', t('common.close'))}</button>
+          <button onClick={() => setSelectedReq(null)} className="btn-secondary mt-3 text-sm">{t('recovery_page.close', t('common:close'))}</button>
         </div>
       )}
     </div>

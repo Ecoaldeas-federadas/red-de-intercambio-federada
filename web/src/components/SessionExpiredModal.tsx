@@ -70,7 +70,7 @@ export function SessionExpiredProvider({ children }: { children: React.ReactNode
             </div>
             <form onSubmit={handleRelogin} className="space-y-3">
               <div>
-                <label className="label text-sm">{t('common.username')}</label>
+                <label className="label text-sm">{t('common:username')}</label>
                 <input
                   className="input"
                   value={username}
@@ -81,7 +81,7 @@ export function SessionExpiredProvider({ children }: { children: React.ReactNode
                 />
               </div>
               <div>
-                <label className="label text-sm">{t('common.password')}</label>
+                <label className="label text-sm">{t('common:password')}</label>
                 <input
                   type="password"
                   className="input"

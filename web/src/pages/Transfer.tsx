@@ -68,7 +68,7 @@ export default function Transfer() {
           <p><strong>Como funciona el impuesto:</strong> El sistema puede aplicar un pequeno impuesto (comision) sobre cada transferencia. Este impuesto se descuenta del monto que recibe el destinatario y se envia a la cuenta del nodo o comunidad. El remitente no paga extra: envia el monto indicado y el destinatario recibe ese monto menos el impuesto. El porcentaje lo define la configuracion del nodo.</p>
           <p><strong>Que son los limites de credito y debito:</strong> El sistema permite que tu saldo sea negativo (credito) o positivo (debito). <strong>Credito</strong> significa que debes Trueques a la comunidad (saldo negativo, ej: -200 {currency}); es normal y permite que la economia funcione sin necesidad de tener saldo previo. <strong>Debito</strong> significa que la comunidad te debe a ti (saldo positivo, ej: +500 {currency}). Hay un limite maximo de credito (cuanto puedes deber) definido por el nodo para evitar abusos.</p>
           <p><strong>Importante - El sistema suma cero:</strong> Por cada transferencia, lo que sale de una cuenta entra en otra. Si envias 50 {currency}, tu saldo baja 50 y el del destinatario sube 50 (menos el impuesto, si aplica). No se crea dinero de la nada ni desaparece: el total de todos los saldos de la red siempre es cero.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common:close')}</button>
         </div>
       )}
 

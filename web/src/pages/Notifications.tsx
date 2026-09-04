@@ -98,7 +98,7 @@ export default function Notifications() {
 
       {/* Lista */}
       {loading ? (
-        <div className="card p-8 text-center text-gray-400">{t('loading', t('common.loading'))}</div>
+        <div className="card p-8 text-center text-gray-400">{t('loading', t('common:loading'))}</div>
       ) : filtered.length === 0 ? (
         <div className="card p-8 text-center text-gray-400">
           <Bell size={32} className="mx-auto mb-2 opacity-30" />

@@ -222,7 +222,7 @@ export default function Admission() {
           <p><strong>{t('admission.help_responsibility', 'Responsabilidad:')}</strong> {t('admission.help_responsibility_desc', 'Si tu ahijado no cumple, la asamblea puede pedirte que cubras su deuda. Por eso, solo apadrina a personas en las que confias.')}</p>
           <p><strong>{t('admission.help_public', 'Solicitudes publicas:')}</strong> {t('admission.help_public_desc', 'Las solicitudes que llegan desde la pagina web publica aparecen aqui sin padrino. Cualquier miembro puede apadrinarlas haciendo clic en "Apadrinar".')}</p>
           <p><strong>{t('admission.help_approval', 'Aprobacion:')}</strong> {t('admission.help_approval_desc', 'La asamblea revisa y aprueba/rechaza. No se puede aprobar una solicitud sin padrino.')}</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('admission.close', t('common.close'))}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('admission.close', t('common:close'))}</button>
         </div>
       )}
 
@@ -287,7 +287,7 @@ export default function Admission() {
                       <span className="text-gray-500 ml-2">{doc.document_number}</span>
                       {doc.country_iso2 && <span className="text-gray-400 ml-2">({countries.find((c: any) => c.iso2 === doc.country_iso2)?.name || doc.country_iso2})</span>}
                     </div>
-                    <button type="button" onClick={() => removeDocument(i)} className="text-red-500 hover:text-red-700 text-xs">{t('admission.delete', t('common.delete'))}</button>
+                    <button type="button" onClick={() => removeDocument(i)} className="text-red-500 hover:text-red-700 text-xs">{t('admission.delete', t('common:delete'))}</button>
                   </div>
                 ))}
               </div>
@@ -322,7 +322,7 @@ export default function Admission() {
 
           <div className="flex gap-2">
             <button onClick={submitRequest} className="btn-primary flex items-center gap-2"><Heart size={16} /> {t('admission.sponsor_btn', 'Apadrinar')}</button>
-            <button onClick={() => setShowForm(false)} className="btn-secondary">{t('admission.cancel', t('common.cancel'))}</button>
+            <button onClick={() => setShowForm(false)} className="btn-secondary">{t('admission.cancel', t('common:cancel'))}</button>
           </div>
         </div>
       )}

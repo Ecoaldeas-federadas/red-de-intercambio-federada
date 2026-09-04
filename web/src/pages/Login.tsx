@@ -344,7 +344,7 @@ export default function Login() {
                 }`}
               >
                 <Lock size={16} className="inline mr-1" />
-                {t('common.password')}
+                {t('common:password')}
               </button>
               <button
                 onClick={() => setMode('passkey')}
