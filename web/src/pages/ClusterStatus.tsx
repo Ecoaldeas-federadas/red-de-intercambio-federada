@@ -88,7 +88,7 @@ export default function ClusterStatus() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2">
-          <Database size={24} /> Cluster YugabyteDB
+          <Database size={24} /> {t('cluster.title', 'Cluster YugabyteDB')}
         </h2>
         <button
           onClick={checkCluster}
@@ -207,21 +207,19 @@ export default function ClusterStatus() {
           </h3>
           <div className="space-y-3 text-sm text-blue-700">
             <div>
-              <strong>Opcion A: Mismo servidor (desarrollo)</strong>
+              <strong>{t('cluster.option_a', 'Opcion A: Mismo servidor (desarrollo)')}</strong>
               <p className="text-xs mt-1">
-                Agrega un nuevo servicio en docker-compose.yml copiando yugabytedb2,
-                cambiando el hostname, puertos y volumenes.
+                {t('cluster.option_a_desc', 'Agrega un nuevo servicio en docker-compose.yml copiando yugabytedb2, cambiando el hostname, puertos y volumenes.')}
               </p>
             </div>
             <div>
-              <strong>Opcion B: Servidor separado (produccion)</strong>
+              <strong>{t('cluster.option_b', 'Opcion B: Servidor separado (produccion)')}</strong>
               <p className="text-xs mt-1">
-                Instala YugabyteDB en otro servidor y unelo con --join=IP_DEL_NODO1.
-                Cada servidor agrega ~534 tabletas al limite.
+                {t('cluster.option_b_desc', 'Instala YugabyteDB en otro servidor y unelo con --join=IP_DEL_NODO1. Cada servidor agrega ~534 tabletas al limite.')}
               </p>
             </div>
             <div className="bg-white p-3 rounded-lg text-xs text-gray-600">
-              <strong>Ejemplo docker-compose:</strong>
+              <strong>{t('cluster.docker_example', 'Ejemplo docker-compose:')}</strong>
               <pre className="mt-1 font-mono text-xs overflow-x-auto">{`yugabytedb3:
   image: yugabytedb/yugabyte:latest
   hostname: yugabytedb3

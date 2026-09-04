@@ -681,5 +681,11 @@
   "history.help_usage_label": "Como se usa:",
   "history.help_filter_label": "Como filtrar:",
   "history.help_hash_label": "Que es el hash de integridad:",
-  "history.help_note_label": "Nota importante:"
+  "history.help_note_label": "Nota importante:",
+  "cluster.title": "Cluster YugabyteDB",
+  "cluster.option_a": "Opcion A: Mismo servidor (desarrollo)",
+  "cluster.option_a_desc": "Agrega un nuevo servicio en docker-compose.yml copiando yugabytedb2, cambiando el hostname, puertos y volumenes.",
+  "cluster.option_b": "Opcion B: Servidor separado (produccion)",
+  "cluster.option_b_desc": "Instala YugabyteDB en otro servidor y unelo con --join=IP_DEL_NODO1. Cada servidor agrega ~534 tabletas al limite.",
+  "cluster.docker_example": "Ejemplo docker-compose:"
 }

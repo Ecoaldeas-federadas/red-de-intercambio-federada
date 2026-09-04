@@ -521,7 +521,7 @@ export default function NotificationSettings() {
             </summary>
             <div className="mt-3 space-y-2">
               {help.steps.map((s, i) => (
-                <p key={i} className="text-xs text-gray-700">{s}</p>
+                <p key={i} className="text-xs text-gray-700">{t('gateway_help_' + channel + '_step_' + i, s)}</p>
               ))}
               {help.links.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -533,7 +533,7 @@ export default function NotificationSettings() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs bg-white border border-blue-300 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition"
                     >
-                      <ExternalLink size={12} /> {l.label}
+                      <ExternalLink size={12} /> {t('gateway_link_' + channel + '_' + i, l.label)}
                     </a>
                   ))}
                 </div>
@@ -563,7 +563,7 @@ export default function NotificationSettings() {
           return (
             <div key={f.key}>
               <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">
-                {f.label}
+                {t('field_label_' + channel + '_' + f.key, f.label)}
                 {fieldHelp && (
                   <span title={fieldHelp.howto} className="cursor-help text-gray-400 hover:text-blue-600">
                     <HelpCircle size={12} />
@@ -578,7 +578,7 @@ export default function NotificationSettings() {
                 className="input text-sm"
               />
               {fieldHelp && (
-                <p className="text-xs text-gray-400 mt-1">{fieldHelp.howto}</p>
+                <p className="text-xs text-gray-400 mt-1">{t('field_howto_' + channel + '_' + f.key, fieldHelp.howto)}</p>
               )}
             </div>
           )
@@ -869,8 +869,8 @@ export default function NotificationSettings() {
                   <div className="flex items-center gap-3">
                     <Icon size={24} className={info.color} />
                     <div>
-                      <p className="font-medium">{info.label}</p>
-                      <p className="text-xs text-gray-500">{info.description}</p>
+                      <p className="font-medium">{t('channel_label_' + code, info.label)}</p>
+                      <p className="text-xs text-gray-500">{t('channel_desc_' + code, info.description)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

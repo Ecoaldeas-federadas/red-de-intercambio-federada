@@ -31,7 +31,7 @@ export default function MergeConflicts() {
 
   const scan = async () => {
     if (!scanDomain) {
-      setError('Ingresa el dominio del otro nodo')
+      setError(t('merge_error_enter_domain', 'Ingresa el dominio del otro nodo'))
       return
     }
     setScanning(true)
@@ -41,13 +41,13 @@ export default function MergeConflicts() {
       const res: any = await api.post('/federation/scan-conflicts', { other_node_domain: scanDomain })
       setScanResult(res)
       if (res.count > 0) {
-        setSuccess(`${res.count} conflictos detectados. Revisa y propón resoluciones.`)
+        setSuccess(t('merge_conflicts_detected', '{{count}} conflictos detectados. Revisa y propón resoluciones.', { count: res.count }))
         load()
       } else {
-        setSuccess('No hay conflictos. Los nodos pueden federarse sin duplicados.')
+        setSuccess(t('merge_no_conflicts_clean', 'No hay conflictos. Los nodos pueden federarse sin duplicados.'))
       }
     } catch (e: any) {
-      setError(e?.message || 'Error al escanear')
+      setError(e?.message || t('merge_error_scanning', 'Error al escanear'))
     } finally {
       setScanning(false)
     }
@@ -58,11 +58,11 @@ export default function MergeConflicts() {
     setSuccess('')
     try {
       const res: any = await api.post(`/federation/merge-conflicts/${id}/propose`, resolution)
-      setSuccess(res.message || 'Propuesta enviada')
+      setSuccess(res.message || t('merge_proposal_sent', 'Propuesta enviada'))
       setSelectedConflict(null)
       load()
     } catch (e: any) {
-      setError(e?.message || 'Error al proponer')
+      setError(e?.message || t('merge_error_proposing', 'Error al proponer'))
     }
   }
 
@@ -71,23 +71,23 @@ export default function MergeConflicts() {
     setSuccess('')
     try {
       const res: any = await api.post(`/federation/merge-conflicts/${id}/vote`, { vote: voteValue })
-      setSuccess(res.message || 'Voto registrado')
+      setSuccess(res.message || t('merge_vote_registered', 'Voto registrado'))
       load()
     } catch (e: any) {
-      setError(e?.message || 'Error al votar')
+      setError(e?.message || t('merge_error_voting', 'Error al votar'))
     }
   }
 
   const execute = async (id: string) => {
-    if (!confirm('Confirmar ejecucion de la resolucion? Esta accion migrara al usuario y procesara el saldo.')) return
+    if (!confirm(t('merge_confirm_execute', 'Confirmar ejecucion de la resolucion? Esta accion migrara al usuario y procesara el saldo.'))) return
     setError('')
     setSuccess('')
     try {
       const res: any = await api.post(`/federation/merge-conflicts/${id}/execute`, {})
-      setSuccess(res.message || 'Resolucion ejecutada')
+      setSuccess(res.message || t('merge_executed', 'Resolucion ejecutada'))
       load()
     } catch (e: any) {
-      setError(e?.message || 'Error al ejecutar')
+      setError(e?.message || t('merge_error_executing', 'Error al ejecutar'))
     }
   }
 
@@ -138,7 +138,7 @@ export default function MergeConflicts() {
         <div className="flex gap-2">
           <input
             className="input flex-1"
-            placeholder="Ej: otraaldea.com"
+            placeholder={t('merge_scan_placeholder', 'Ej: otraaldea.com')}
             value={scanDomain}
             onChange={(e) => setScanDomain(e.target.value)}
           />
@@ -185,31 +185,31 @@ export default function MergeConflicts() {
                   <div className="text-xs text-blue-600 mb-1">{t('merge_node_a')}</div>
                   <div className="font-medium">{c.node_a_domain}</div>
                   <div className="text-sm">{c.user_a_name}</div>
-                  <div className="text-xs text-gray-500 mt-1">Saldo: {fmtTQ(c.balance_a)} {currency}</div>
+                  <div className="text-xs text-gray-500 mt-1">{t('merge_balance_label', 'Saldo:')} {fmtTQ(c.balance_a)} {currency}</div>
                 </div>
                 <div className="bg-purple-50 p-3 rounded-lg">
                   <div className="text-xs text-purple-600 mb-1">{t('merge_node_b')}</div>
                   <div className="font-medium">{c.node_b_domain}</div>
                   <div className="text-sm">{c.user_b_name}</div>
-                  <div className="text-xs text-gray-500 mt-1">Saldo: {fmtTQ(c.balance_b)} {currency}</div>
+                  <div className="text-xs text-gray-500 mt-1">{t('merge_balance_label', 'Saldo:')} {fmtTQ(c.balance_b)} {currency}</div>
                 </div>
               </div>
 
               {/* Estado de votacion */}
               <div className="flex gap-3 text-xs mb-3">
                 <span className={`px-2 py-1 rounded ${c.vote_a_status === 'approved' ? 'bg-green-100 text-green-700' : c.vote_a_status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
-                  Nodo A: {c.vote_a_status === 'approved' ? 'Aprobado' : c.vote_a_status === 'rejected' ? 'Rechazado' : c.vote_a_status === 'open' ? 'Votando' : 'Pendiente'}
+                  {t('merge_node_a_label', 'Nodo A')}: {c.vote_a_status === 'approved' ? t('merge_approved', 'Aprobado') : c.vote_a_status === 'rejected' ? t('merge_rejected', 'Rechazado') : c.vote_a_status === 'open' ? t('merge_voting', 'Votando') : t('merge_pending', 'Pendiente')}
                 </span>
                 <span className={`px-2 py-1 rounded ${c.vote_b_status === 'approved' ? 'bg-green-100 text-green-700' : c.vote_b_status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
-                  Nodo B: {c.vote_b_status === 'approved' ? 'Aprobado' : c.vote_b_status === 'rejected' ? 'Rechazado' : c.vote_b_status === 'open' ? 'Votando' : 'Pendiente'}
+                  {t('merge_node_b_label', 'Nodo B')}: {c.vote_b_status === 'approved' ? t('merge_approved', 'Aprobado') : c.vote_b_status === 'rejected' ? t('merge_rejected', 'Rechazado') : c.vote_b_status === 'open' ? t('merge_voting', 'Votando') : t('merge_pending', 'Pendiente')}
                 </span>
               </div>
 
               {/* Resolucion propuesta */}
               {c.proposed_resolution && (
                 <div className="text-sm bg-gray-50 p-2 rounded mb-3">
-                  <b>Propuesta:</b> Quedarse en nodo {c.proposed_resolution === 'a' ? c.node_a_domain : c.node_b_domain} |
-                  <b> Saldo:</b> {c.balance_action === 'combine' ? 'Combinar (suma algebraica)' : c.balance_action === 'forgive_debt' ? 'Condonar deuda' : 'Descartar saldo'}
+                  <b>{t('merge_proposal_label', 'Propuesta:')}</b> {t('merge_stay_node', 'Quedarse en nodo')} {c.proposed_resolution === 'a' ? c.node_a_domain : c.node_b_domain} |
+                  <b> {t('merge_balance_label', 'Saldo:')}</b> {c.balance_action === 'combine' ? t('merge_combine_full', 'Combinar (suma algebraica)') : c.balance_action === 'forgive_debt' ? t('merge_forgive_debt_full', 'Condonar deuda') : t('merge_discard_balance', 'Descartar saldo')}
                 </div>
               )}
 
@@ -249,7 +249,7 @@ export default function MergeConflicts() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-4">
             <h2 className="font-semibold text-lg">{t('merge_proposal_title')}</h2>
-            <p className="text-sm text-gray-600">Usuario: {selectedConflict.user_a_name} / {selectedConflict.user_b_name}</p>
+            <p className="text-sm text-gray-600">{t('merge_user_label', 'Usuario:')} {selectedConflict.user_a_name} / {selectedConflict.user_b_name}</p>
 
             <div>
               <label className="label">{t('merge_which_node')}</label>
@@ -258,8 +258,8 @@ export default function MergeConflicts() {
                 value={resolution.proposed_resolution}
                 onChange={(e) => setResolution({ ...resolution, proposed_resolution: e.target.value })}
               >
-                <option value="a">Nodo A ({selectedConflict.node_a_domain})</option>
-                <option value="b">Nodo B ({selectedConflict.node_b_domain})</option>
+                <option value="a">{t('merge_node_a_option', 'Nodo A')} ({selectedConflict.node_a_domain})</option>
+                <option value="b">{t('merge_node_b_option', 'Nodo B')} ({selectedConflict.node_b_domain})</option>
               </select>
               <p className="text-xs text-gray-400 mt-1">{t('merge_no_dual')}</p>
             </div>
@@ -276,16 +276,16 @@ export default function MergeConflicts() {
                 <option value="remove_balance">{t('merge_remove_balance')}</option>
               </select>
               <p className="text-xs text-gray-400 mt-1">
-                Combinar: suma ambos saldos (positivo+positivo=mas positivo, negativo+negativo=mas negativo, positivo+negativo=se compensan).
+                {t('merge_combine_desc', 'Combinar: suma ambos saldos (positivo+positivo=mas positivo, negativo+negativo=mas negativo, positivo+negativo=se compensan).')}
               </p>
             </div>
 
             <div>
-              <label className="label">Notas (opcional)</label>
+              <label className="label">{t('merge_notes_label', 'Notas (opcional)')}</label>
               <textarea
                 className="input"
                 rows={2}
-                placeholder="Explica el razonamiento de la asamblea..."
+                placeholder={t('merge_notes_placeholder', 'Explica el razonamiento de la asamblea...')}
                 value={resolution.notes}
                 onChange={(e) => setResolution({ ...resolution, notes: e.target.value })}
               />
@@ -293,7 +293,7 @@ export default function MergeConflicts() {
 
             <div className="flex gap-2 justify-end">
               <button onClick={() => setSelectedConflict(null)} className="btn-secondary">{t('common:cancel')}</button>
-              <button onClick={() => propose(selectedConflict.id)} className="btn-primary">Enviar Propuesta</button>
+              <button onClick={() => propose(selectedConflict.id)} className="btn-primary">{t('merge_send_proposal', 'Enviar Propuesta')}</button>
             </div>
           </div>
         </div>

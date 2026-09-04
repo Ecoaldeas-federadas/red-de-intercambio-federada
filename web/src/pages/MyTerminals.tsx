@@ -116,13 +116,13 @@ export default function MyTerminals() {
       const options = Array.isArray(res) ? res : res?.options ?? []
       setWebSessionOptions(options)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar opciones')
+      setError(err instanceof Error ? err.message : t('error_load_options', 'Error al cargar opciones'))
     }
   }
 
   const handleApproveWebSession = async (reqId: string) => {
     if (!selectedCode) {
-      setError('Selecciona un codigo')
+      setError(t('error_select_code', 'Selecciona un codigo'))
       return
     }
     setWebSessionAction(reqId)
@@ -138,7 +138,7 @@ export default function MyTerminals() {
       loadActiveWebSessions()
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar sesion')
+      setError(err instanceof Error ? err.message : t('error_approve_session', 'Error al aprobar sesion'))
     } finally {
       setWebSessionAction('')
     }
@@ -151,7 +151,7 @@ export default function MyTerminals() {
       setPendingWebSessions(prev => prev.filter(p => p.id !== reqId))
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al rechazar')
+      setError(err instanceof Error ? err.message : t('error_reject', 'Error al rechazar'))
     } finally {
       setWebSessionAction('')
     }
@@ -165,7 +165,7 @@ export default function MyTerminals() {
       loadTerminals()
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al anular sesion')
+      setError(err instanceof Error ? err.message : t('error_revoke_session', 'Error al anular sesion'))
     } finally {
       setWebSessionAction('')
     }
@@ -214,7 +214,7 @@ export default function MyTerminals() {
       setRenameLabel('')
       await loadTerminals()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al renombrar')
+      setError(err instanceof Error ? err.message : t('error_rename', 'Error al renombrar'))
     } finally {
       setRenameSaving(false)
     }
@@ -233,7 +233,7 @@ export default function MyTerminals() {
       setShiftPinValue('')
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al configurar PIN')
+      setError(err instanceof Error ? err.message : t('error_set_pin', 'Error al configurar PIN'))
     } finally {
       setShiftPinSaving(false)
     }
@@ -272,7 +272,7 @@ export default function MyTerminals() {
       const text = await resp.text()
       downloadCSV(text, `transacciones_${terminalId}.csv`)
     } catch (err) {
-      setError('Error al exportar transacciones')
+      setError(t('error_export_tx', 'Error al exportar transacciones'))
     }
   }
 
@@ -286,7 +286,7 @@ export default function MyTerminals() {
       const text = await resp.text()
       downloadCSV(text, `turnos_${terminalId}.csv`)
     } catch (err) {
-      setError('Error al exportar turnos')
+      setError(t('error_export_shifts', 'Error al exportar turnos'))
     }
   }
 
@@ -301,7 +301,7 @@ export default function MyTerminals() {
   }
 
   const formatTime = (ts: string | null) => {
-    if (!ts) return 'Nunca'
+    if (!ts) return t('never', 'Nunca')
     return fmtDateTime(ts)
   }
 
@@ -357,7 +357,7 @@ export default function MyTerminals() {
                 <div key={tx.id} className="p-4 flex items-center justify-between">
                   <div>
                     <div className="font-medium">
-                      {tx.card_uid === 'qr_payment' ? '📱 Pago QR' : `💳 ${tx.card_uid.slice(0, 12)}...`}
+                      {tx.card_uid === 'qr_payment' ? t('qr_payment', '📱 Pago QR') : `💳 ${tx.card_uid.slice(0, 12)}...`}
                     </div>
                     <div className="text-xs text-gray-500">
                       {formatTime(tx.created_at)}
@@ -477,7 +477,7 @@ export default function MyTerminals() {
                         : 'bg-green-50 text-green-600 hover:bg-green-100'
                     }`}
                   >
-                    {term.is_active ? <><Power size={16} /> Off</> : <><Power size={16} /> On</>}
+                    {term.is_active ? <><Power size={16} /> {t('off', 'Off')}</> : <><Power size={16} /> {t('on', 'On')}</>}
                   </button>
                 )}
               </div>
@@ -523,10 +523,10 @@ export default function MyTerminals() {
                           <div>
                             <p className="font-medium">{req.terminal_label || req.terminal_id}</p>
                             <p className="text-xs text-gray-500 font-mono mt-1">
-                              Terminal: {req.terminal_id.slice(0, 24)}...
+                              {t('terminal_label', 'Terminal:')} {req.terminal_id.slice(0, 24)}...
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
-                              Solicitado: {formatTime(req.created_at)}
+                              {t('requested_label', 'Solicitado:')} {formatTime(req.created_at)}
                             </p>
                           </div>
                         </div>
@@ -535,7 +535,7 @@ export default function MyTerminals() {
                           /* Mostrar opciones de codigo */
                           <div className="border-t pt-3">
                             <p className="text-sm text-gray-600 mb-3">
-                              Selecciona el codigo que te comunico la persona del POS web:
+                              {t('select_code_prompt', 'Selecciona el codigo que te comunico la persona del POS web:')}
                             </p>
                             <div className="grid grid-cols-2 gap-2 mb-3">
                               {webSessionOptions.map((code) => (
@@ -553,7 +553,7 @@ export default function MyTerminals() {
                               ))}
                             </div>
 
-                            <p className="text-sm text-gray-600 mb-2">Duracion de la sesion:</p>
+                            <p className="text-sm text-gray-600 mb-2">{t('session_duration', 'Duracion de la sesion:')}</p>
                             <div className="flex gap-2 mb-3">
                               {[1, 5, 24].map(h => (
                                 <button
@@ -649,9 +649,9 @@ export default function MyTerminals() {
                         </div>
                         <div className="text-sm text-gray-500 mb-3">
                           {session.expires_at && (
-                            <p>⏰ Expira: {formatTime(session.expires_at)}</p>
+                            <p>⏰ {t('expires_label', 'Expira:')} {formatTime(session.expires_at)}</p>
                           )}
-                          <p>🕐 Ultima actividad: {formatTime(session.last_seen)}</p>
+                          <p>🕐 {t('last_activity_label', 'Ultima actividad:')} {formatTime(session.last_seen)}</p>
                         </div>
                         {!session.expired && session.is_active && (
                           <button
@@ -685,13 +685,13 @@ export default function MyTerminals() {
       <div className="mt-6 bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
         <p className="font-medium mb-1">💡 {t('how_to_use_terminal', 'Como usar tu terminal')}</p>
         <ol className="list-decimal list-inside space-y-1 text-blue-600">
-          <li>Abre el POS en tu dispositivo (celular o PC)</li>
-          <li>Ingresa la URL del nodo e inicia sesion</li>
-          <li>Si es terminal fisico (Android/ESP32), el administrador lo registra</li>
-          <li>Si es POS Web, el administrador te asigna el terminal y tu apruebas cada sesion de navegador desde aqui</li>
-          <li>Usa el teclado para ingresar el monto a cobrar</li>
-          <li>Cobra con QR o NFC</li>
-          <li>Aqui puedes ver todas tus transacciones y gestionar tus terminales</li>
+          <li>{t('howto_step1', 'Abre el POS en tu dispositivo (celular o PC)')}</li>
+          <li>{t('howto_step2', 'Ingresa la URL del nodo e inicia sesion')}</li>
+          <li>{t('howto_step3', 'Si es terminal fisico (Android/ESP32), el administrador lo registra')}</li>
+          <li>{t('howto_step4', 'Si es POS Web, el administrador te asigna el terminal y tu apruebas cada sesion de navegador desde aqui')}</li>
+          <li>{t('howto_step5', 'Usa el teclado para ingresar el monto a cobrar')}</li>
+          <li>{t('howto_step6', 'Cobra con QR o NFC')}</li>
+          <li>{t('howto_step7', 'Aqui puedes ver todas tus transacciones y gestionar tus terminales')}</li>
         </ol>
       </div>
 
@@ -712,7 +712,7 @@ export default function MyTerminals() {
               type="password"
               value={shiftPinValue}
               onChange={(e) => setShiftPinValue(e.target.value)}
-              placeholder="PIN (minimo 4 digitos)"
+              placeholder={t('pin_placeholder', 'PIN (minimo 4 digitos)')}
               className="input w-full mb-4"
               autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter' && shiftPinValue.length >= 4) handleSetShiftPin() }}
@@ -760,14 +760,14 @@ export default function MyTerminals() {
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
                 className="input flex-1"
-                placeholder="Desde"
+                placeholder={t('from_date', 'Desde')}
               />
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
                 className="input flex-1"
-                placeholder="Hasta"
+                placeholder={t('to_date', 'Hasta')}
               />
               <button
                 onClick={() => loadShifts(shiftHistoryModal.terminal_id)}
@@ -819,22 +819,22 @@ export default function MyTerminals() {
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div>
-                        <span className="text-gray-500">Apertura: </span>
+                        <span className="text-gray-500">{t('opening_label', 'Apertura:')} </span>
                         <span className="font-medium">{fmtTQ(s.opening_amount || 0)} TQ</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Ventas: </span>
+                        <span className="text-gray-500">{t('sales_label', 'Ventas:')} </span>
                         <span className="font-medium text-green-600">{fmtTQ(s.total_sales || 0)} TQ</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Trans: </span>
+                        <span className="text-gray-500">{t('trans_label', 'Trans:')} </span>
                         <span className="font-medium">{s.transactions_count || 0}</span>
                       </div>
                     </div>
                     {s.closed_at && (
                       <div className="text-xs text-gray-400 mt-1">
-                        Cerrado: {fmtDateTime(s.closed_at)}
-                        {s.closing_amount != null && ` · Cierre: ${fmtTQ(s.closing_amount)} TQ`}
+                        {t('closed_label', 'Cerrado:')} {fmtDateTime(s.closed_at)}
+                        {s.closing_amount != null && ` · ${t('closing_label', 'Cierre:')} ${fmtTQ(s.closing_amount)} TQ`}
                       </div>
                     )}
                   </div>
@@ -857,7 +857,7 @@ export default function MyTerminals() {
               type="text"
               value={renameLabel}
               onChange={(e) => setRenameLabel(e.target.value)}
-              placeholder="Nombre personalizado (ej: Caja 1, Tienda Central)"
+              placeholder={t('rename_placeholder', 'Nombre personalizado (ej: Caja 1, Tienda Central)')}
               className="input w-full mb-4"
               autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter') handleRename() }}
