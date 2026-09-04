@@ -10,7 +10,7 @@ type FilterPeriod = '24h' | '7d' | '30d' | '3m' | 'all' | 'custom'
 
 export default function Wallet() {
   const { currency } = useConfig()
-  const { user } = useAuth()
+  const { username } = useAuth()
   const { t } = useTranslation('transfer')
   const [txs, setTxs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +54,7 @@ export default function Wallet() {
 
   // Determinar si una transaccion es debito (salida) o credito (entrada)
   const getDirection = (t: any): 'debit' | 'credit' => {
-    const userId = String(user?.id || '')
+    const userId = String(username || '')
     if (t.direction === 'debit') return 'debit'
     if (t.direction === 'credit') return 'credit'
     // Fallback: comparar IDs

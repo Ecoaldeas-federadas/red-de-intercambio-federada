@@ -15,56 +15,56 @@ type ProposalType =
   | 'budget' | 'election' | 'product_approval' | 'product_disapproval' | 'product_remove' | 'product_import' | 'product_to_base' | 'federation'
   | 'node_config' | 'backup_config' | 'cluster_config' | 'permission_assignment' | 'federation_treaty'
 
-const PROPOSAL_LABELS: Record<string, string> = {
-  limit_change: 'Cambio de limites',
-  admission: 'Admision de miembro',
-  expulsion: 'Expulsion de miembro',
-  budget_increase: 'Aumento de presupuesto',
-  federation_config: 'Configuracion de federacion',
-  recovery_config: 'Configuracion de recuperacion',
-  tax_change: 'Cambio de impuestos',
-  member_level: 'Nivel de miembro',
-  policy: 'Politica general',
-  create_account: 'Crear cuenta contable',
-  fund_distribution: 'Distribucion de fondo',
-  energy_rate_change: 'Cambio de tarifa energetica',
-  product_modification: 'Modificacion de producto',
-  free_proposal: 'Propuesta libre',
-  budget: 'Presupuesto',
-  election: 'Eleccion',
-  product_approval: 'Aprobacion de producto',
-  product_disapproval: 'Desaprobacion de producto',
-  product_remove: 'Eliminacion de producto',
-  product_import: 'Importar producto federado',
-  product_to_base: 'Convertir a producto base',
-  federation: 'Federacion',
-  node_config: 'Configuracion del nodo',
-  backup_config: 'Configuracion de backups',
-  cluster_config: 'Configuracion de base de datos',
-  permission_assignment: 'Asignacion de permisos',
-  federation_treaty: 'Tratado de federacion',
+const PROPOSAL_LABEL_KEYS: Record<string, string> = {
+  limit_change: 'proposal_type.limit_change',
+  admission: 'proposal_type.admission',
+  expulsion: 'proposal_type.expulsion',
+  budget_increase: 'proposal_type.budget_increase',
+  federation_config: 'proposal_type.federation_config',
+  recovery_config: 'proposal_type.recovery_config',
+  tax_change: 'proposal_type.tax_change',
+  member_level: 'proposal_type.member_level',
+  policy: 'proposal_type.policy',
+  create_account: 'proposal_type.create_account',
+  fund_distribution: 'proposal_type.fund_distribution',
+  energy_rate_change: 'proposal_type.energy_rate_change',
+  product_modification: 'proposal_type.product_modification',
+  free_proposal: 'proposal_type.free_proposal',
+  budget: 'proposal_type.budget',
+  election: 'proposal_type.election',
+  product_approval: 'proposal_type.product_approval',
+  product_disapproval: 'proposal_type.product_disapproval',
+  product_remove: 'proposal_type.product_remove',
+  product_import: 'proposal_type.product_import',
+  product_to_base: 'proposal_type.product_to_base',
+  federation: 'proposal_type.federation',
+  node_config: 'proposal_type.node_config',
+  backup_config: 'proposal_type.backup_config',
+  cluster_config: 'proposal_type.cluster_config',
+  permission_assignment: 'proposal_type.permission_assignment',
+  federation_treaty: 'proposal_type.federation_treaty',
 }
 
-const PROPOSAL_HELP: Record<ProposalType, string> = {
-  limit_change: 'Cambia los limites de credito/debito de un usuario o nodo. Ej: aumentar el limite de credito de un miembro de 100 a 300.',
-  admission: 'Admite un nuevo miembro asignandole un nivel. Ej: admitir a "juan" con nivel "pleno".',
-  expulsion: 'Expulsa a un miembro por mala conducta. Requiere alto quorum. Ej: expulsar a "pedro" por fraude.',
-  budget_increase: 'Aumenta el presupuesto de una organizacion. Ej: aumentar 500 al presupuesto de "coop_norte".',
-  federation_config: 'Cambia limites o configuracion de federacion con otro nodo. Ej: establecer limite de credito con "nodo-b.org" en 1000.',
-  recovery_config: 'Cambia parametros de recuperacion de cuentas. Ej: cambiar el modo de aprobacion a multi_sig con 3 aprobaciones.',
-  tax_change: 'Cambia la tasa de impuesto sobre transacciones. El dinero va a la cuenta de impuestos. Se puede aplicar a un nivel de miembro o de organizacion. Ej: 2% para nivel "pleno".',
-  member_level: 'Crea o modifica un nivel de miembro con sus permisos y limites. Ej: crear nivel "pleno" con limite 500.',
-  policy: 'Cualquier decision de politica general de la comunidad. Ej: aprobar el reglamento interno.',
-  create_account: 'Crea una nueva cuenta contable en el nodo (no es un usuario). Sirve para separar fondos por proposito: fondo_social, caja_chica, inventario, etc. La cuenta se crea con saldo 0; para asignarle saldo se necesita una transferencia aprobada por la Asamblea.',
-  fund_distribution: 'Distribuye fondos de una cuenta/organizacion a otra. Ej: transferir 200 de "coop_norte" para pago de servicios.',
-  energy_rate_change: 'Cambia un parametro de la tarifa energetica. Ej: cambiar el precio por kWh a 0.15.',
-  product_modification: 'Modifica el precio o datos de un producto existente. Ej: cambiar el precio del "pan_integral" a 5.',
-  product_approval: 'Aprueba un producto para que aparezca en el catalogo del nodo. Por defecto lo decide la Junta Directiva.',
-  product_disapproval: 'Desaprueba un producto (no lo elimina, solo cambia su estado). Por defecto lo decide la Junta Directiva.',
-  product_remove: 'Elimina permanentemente un producto del catalogo. Requiere 2/3 de la Asamblea por defecto.',
-  product_import: 'Importa un producto de otro nodo federado al catalogo local. Requiere mayoria simple.',
-  product_to_base: 'Convierte un producto compuesto en producto base/materia prima.',
-  free_proposal: 'Propuesta libre sobre cualquier tema no cubierto por los otros tipos. Ej: crear un comite de bienvenida.',
+const PROPOSAL_HELP_KEYS: Record<string, string> = {
+  limit_change: 'proposal_help.limit_change',
+  admission: 'proposal_help.admission',
+  expulsion: 'proposal_help.expulsion',
+  budget_increase: 'proposal_help.budget_increase',
+  federation_config: 'proposal_help.federation_config',
+  recovery_config: 'proposal_help.recovery_config',
+  tax_change: 'proposal_help.tax_change',
+  member_level: 'proposal_help.member_level',
+  policy: 'proposal_help.policy',
+  create_account: 'proposal_help.create_account',
+  fund_distribution: 'proposal_help.fund_distribution',
+  energy_rate_change: 'proposal_help.energy_rate_change',
+  product_modification: 'proposal_help.product_modification',
+  product_approval: 'proposal_help.product_approval',
+  product_disapproval: 'proposal_help.product_disapproval',
+  product_remove: 'proposal_help.product_remove',
+  product_import: 'proposal_help.product_import',
+  product_to_base: 'proposal_help.product_to_base',
+  free_proposal: 'proposal_help.free_proposal',
 }
 
 type FieldType = 'text' | 'number' | 'textarea' | 'select' | 'entity' | 'entity_toggle'
@@ -1533,11 +1533,11 @@ export default function Assembly() {
               <div>
                 <label className="label">{t('proposal_type_label', 'Tipo de propuesta')}</label>
                 <select className="input" value={proposalType} onChange={(e) => { setProposalType(e.target.value as ProposalType); setProposalFields({}); setEntityModes({}) }}>
-                  {Object.entries(PROPOSAL_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
+                  {Object.entries(PROPOSAL_LABEL_KEYS).map(([k, key]) => (
+                    <option key={k} value={k}>{t(key)}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">{PROPOSAL_HELP[proposalType]}</p>
+                <p className="text-xs text-gray-400 mt-1">{t(PROPOSAL_HELP_KEYS[proposalType] || '')}</p>
               </div>
 
               {PROPOSAL_FIELDS(currency)[proposalType]?.map((field) => renderProposalField(field))}
@@ -1570,8 +1570,8 @@ export default function Assembly() {
                     <div key={i} className="card border-purple-200">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="font-medium">{PROPOSAL_LABELS[p.proposal_type as ProposalType] || p.proposal_type}</span>
-                          <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">pendiente de aprobacion</span>
+                          <span className="font-medium">{String(t(PROPOSAL_LABEL_KEYS[p.proposal_type as ProposalType] || '', p.proposal_type))}</span>
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">{t('pending_approval', 'pendiente de aprobacion')}</span>
                         </div>
                         <span className="text-xs text-gray-400">{p.created_at?.slice(0, 10)}</span>
                       </div>
@@ -1643,7 +1643,7 @@ export default function Assembly() {
                     <div key={i} className="card">
                     <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-medium">{PROPOSAL_LABELS[p.proposal_type as ProposalType] || p.proposal_type}</span>
+                      <span className="font-medium">{String(t(PROPOSAL_LABEL_KEYS[p.proposal_type as ProposalType] || '', p.proposal_type))}</span>
                       <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
                         p.status === 'executed' ? 'bg-green-100 text-green-700' :
                         p.status === 'rejected' ? 'bg-red-100 text-red-700' :
@@ -1851,7 +1851,7 @@ export default function Assembly() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-sm">{PROPOSAL_LABELS[rp.proposal_type as ProposalType] || rp.proposal_type}</span>
+                        <span className="font-medium text-sm">{String(t(PROPOSAL_LABEL_KEYS[rp.proposal_type as ProposalType] || '', rp.proposal_type))}</span>
                         <span className={`text-xs px-2 py-0.5 rounded ${
                           rp.status === 'executed' ? 'bg-green-100 text-green-700' :
                           rp.status === 'rejected' ? 'bg-red-100 text-red-700' :
@@ -1895,10 +1895,10 @@ export default function Assembly() {
                 <div className="p-4 space-y-4 text-sm">
                   {/* Datos generales */}
                   <div className="space-y-1">
-                    <div className="flex justify-between"><span className="text-gray-500">Tipo de propuesta:</span><span className="font-medium">{PROPOSAL_LABELS[selectedReport.proposal_type as ProposalType] || selectedReport.proposal_type}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Estado:</span><span className="font-medium">{selectedReport.result}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Fecha de creacion:</span><span className="font-medium">{selectedReport.created_at?.replace('T', ' ').slice(0, 19)}</span></div>
-                    {selectedReport.executed_at && <div className="flex justify-between"><span className="text-gray-500">Fecha de ejecucion:</span><span className="font-medium">{selectedReport.executed_at?.replace('T', ' ').slice(0, 19)}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-500">{t('report.proposal_type', 'Tipo de propuesta')}:</span><span className="font-medium">{String(t(PROPOSAL_LABEL_KEYS[selectedReport.proposal_type as ProposalType] || '', selectedReport.proposal_type))}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('report.status', 'Estado')}:</span><span className="font-medium">{selectedReport.result}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('report.created_at', 'Fecha de creacion')}:</span><span className="font-medium">{selectedReport.created_at?.replace('T', ' ').slice(0, 19)}</span></div>
+                    {selectedReport.executed_at && <div className="flex justify-between"><span className="text-gray-500">{t('report.executed_at', 'Fecha de ejecucion')}:</span><span className="font-medium">{selectedReport.executed_at?.replace('T', ' ').slice(0, 19)}</span></div>}
                     <div className="flex justify-between"><span className="text-gray-500">Tiempo configurado:</span><span className="font-medium">{selectedReport.configured_duration}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Duracion real de votacion:</span><span className="font-medium">{selectedReport.actual_voting_duration || 'sin votos'}</span></div>
                     {selectedReport.first_vote_at && <div className="flex justify-between"><span className="text-gray-500">Primer voto:</span><span className="font-medium">{selectedReport.first_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
@@ -3163,7 +3163,7 @@ export default function Assembly() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <b className="text-sm">{PROPOSAL_LABELS[cfg.proposal_type as ProposalType] || cfg.proposal_type}</b>
+                        <b className="text-sm">{String(t(PROPOSAL_LABEL_KEYS[cfg.proposal_type as ProposalType] || '', cfg.proposal_type))}</b>
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{methodLabel}</span>
                       </div>
                       {cfg.description && <p className="text-xs text-gray-500 mt-1">{cfg.description}</p>}
@@ -3736,7 +3736,7 @@ export default function Assembly() {
             <div className="space-y-3 text-sm">
               <div>
                 <span className="text-gray-500">Tipo:</span>{' '}
-                <span className="font-medium">{PROPOSAL_LABELS[showProposalDetail.proposal_type as ProposalType] || showProposalDetail.proposal_type}</span>
+                <span className="font-medium">{String(t(PROPOSAL_LABEL_KEYS[showProposalDetail.proposal_type as ProposalType] || '', showProposalDetail.proposal_type))}</span>
               </div>
 
               <div>

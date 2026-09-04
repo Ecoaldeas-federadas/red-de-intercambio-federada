@@ -586,7 +586,7 @@ export default function NFCTerminals() {
                   const text = await res.text()
                   const blob = new Blob([text], { type: 'text/plain' })
                   const url = URL.createObjectURL(blob)
-                  const a = document.createElementt('a')
+                  const a = document.createElement('a')
                   a.href = url
                   a.download = 'chip-id-reader.ino'
                   a.click()

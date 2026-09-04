@@ -6,16 +6,16 @@ import { api } from '../api'
 import { changeLanguage } from '../i18n/TranslationProvider'
 
 const LOCALES = [
-  { value: 'es', label: 'Espanol' },
-  { value: 'en', label: 'English' },
-  { value: 'pt', label: 'Portugues' },
+  { value: 'es', label: 'es' },
+  { value: 'en', label: 'en' },
+  { value: 'pt', label: 'pt' },
 ]
 
 const NUMBER_LOCALES = [
-  { value: 'es-VE', label: '1.234,56 (coma decimal)' },
-  { value: 'es-ES', label: '1.234,56 (coma decimal)' },
-  { value: 'en-US', label: '1,234.56 (punto decimal)' },
-  { value: 'pt-BR', label: '1.234,56 (coma decimal)' },
+  { value: 'es-VE', label: 'es-VE' },
+  { value: 'es-ES', label: 'es-ES' },
+  { value: 'en-US', label: 'en-US' },
+  { value: 'pt-BR', label: 'pt-BR' },
 ]
 
 const DATE_FORMATS = [

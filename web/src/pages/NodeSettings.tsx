@@ -446,7 +446,6 @@ export default function NodeSettings() {
   useEffect(() => {
     if (tab === 'backup') { loadAutoBackups(); loadBackupConfig() }
     if (tab === 'database') { loadYbNodes(); loadClusterStatus(); loadClusterConfig() }
-    if (tab === 'catalog') { loadCatalogRules() }
     if (tab === 'orgs') { loadOrgProfiles() }
     if (tab === 'work') { loadWorkSessions() }
     if (tab === 'frne') { loadFrneRequests() }
@@ -1894,7 +1893,7 @@ export default function NodeSettings() {
                         const qty = parseFloat((document.getElementById(`return-${loan.id}`) as HTMLInputElement)?.value || '0')
                         if (qty <= 0) return
                         try {
-                          const res = await api.post(`/seeds/loans/${loan.id}/return`, { quantity_returned: qty })
+                          const res = await api.post(`/seeds/loans/${loan.id}/return`, { quantity_returned: qty }) as any
                           setSeedMsg({ type: 'success', text: res.message || 'Devolucion registrada' })
                           loadSeedLoans()
                         } catch (e: any) { setSeedMsg({ type: 'error', text: e?.message || 'Error' }) }
