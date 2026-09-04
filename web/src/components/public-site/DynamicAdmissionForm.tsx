@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api'
 import {
   Sparkles,
@@ -136,9 +137,10 @@ export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
 ]
 
 export function DynamicAdmissionForm() {
+  const { t } = useTranslation('public')
   const [fields, setFields] = useState<FormFieldSchema[]>(DEFAULT_ADMISSION_FIELDS)
-  const [title, setTitle] = useState('Solicitud de Ingreso a la Red')
-  const [subtitle, setSubtitle] = useState('Completa tus datos para postularte como productor, artesano o miembro.')
+  const [title, setTitle] = useState('')
+  const [subtitle, setSubtitle] = useState('')
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -148,6 +150,8 @@ export function DynamicAdmissionForm() {
   const [showRules, setShowRules] = useState(false)
 
   useEffect(() => {
+    setTitle(t('admission_form_title'))
+    setSubtitle(t('admission_form_subtitle'))
     api
       .get('/public/admission-form')
       .then((d: any) => {
@@ -193,7 +197,7 @@ export function DynamicAdmissionForm() {
       if (f.required) {
         const val = answers[f.id]
         if (!val || (typeof val === 'string' && val.trim() === '') || (Array.isArray(val) && val.length === 0)) {
-          setError(`El campo "${f.label.replace('*', '').trim()}" es obligatorio.`)
+          setError(t('admission_error_required', { field: f.label.replace('*', '').trim() }))
           return
         }
       }
@@ -201,7 +205,7 @@ export function DynamicAdmissionForm() {
 
     // Validar aceptacion de reglas de gobernanza
     if (governanceRules.length > 0 && !acceptedRules) {
-      setError('Debes aceptar la Ley de la Aldea (reglas de gobernanza) para enviar tu solicitud.')
+      setError(t('admission_error_rules'))
       return
     }
 
@@ -211,7 +215,7 @@ export function DynamicAdmissionForm() {
       const pw = answers.proposed_password || ''
       const pwConfirm = answers.proposed_password_confirm || ''
       if (pw && pwConfirm && pw !== pwConfirm) {
-        setError('Las contraseñas no coinciden.')
+        setError(t('admission_error_passwords'))
         setLoading(false)
         return
       }
@@ -219,7 +223,7 @@ export function DynamicAdmissionForm() {
       // Validar formato de username
       const username = (answers.proposed_username || '').trim().toLowerCase()
       if (username && !/^[a-z0-9_-]+$/.test(username)) {
-        setError('El nombre de usuario solo puede contener letras, números, guiones y guiones bajos.')
+        setError(t('admission_error_username'))
         setLoading(false)
         return
       }
@@ -236,7 +240,7 @@ export function DynamicAdmissionForm() {
       }
 
       const payload = {
-        full_name: answers.full_name || answers[fields[0]?.id] || 'Anónimo',
+        full_name: answers.full_name || answers[fields[0]?.id] || t('admission_anonymous'),
         email: answers.email || '',
         phone: answers.phone || '',
         location: answers.location || '',
@@ -251,7 +255,7 @@ export function DynamicAdmissionForm() {
       await api.post('/public/admission-request', payload)
       setSubmitted(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al enviar la solicitud.')
+      setError(err instanceof Error ? err.message : t('admission_error_submit'))
     } finally {
       setLoading(false)
     }
@@ -264,20 +268,18 @@ export function DynamicAdmissionForm() {
           ✓
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-emerald-950">
-          ¡Solicitud enviada con éxito!
+          {t('admission_success_title')}
         </h2>
-        <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
-          Muchas gracias por tu interés en sumarte a la <b>comunidad</b>. Tus respuestas han sido registradas y serán evaluadas por la asamblea comunitaria.
-        </p>
+        <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-lg mx-auto" dangerouslySetInnerHTML={{ __html: t('admission_success_desc') }} />
         <p className="text-xs sm:text-sm text-emerald-800 font-medium">
-          Puedes <Link to="/login" className="underline font-bold">iniciar sesión</Link> con tu nombre de usuario y contraseña para ver el estado de tu solicitud.
+          {t('admission_success_login_prefix')} <Link to="/login" className="underline font-bold">{t('admission_success_login_link')}</Link> {t('admission_success_login_suffix')}
         </p>
         <div className="pt-3">
           <Link
             to="/p/inicio"
             className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl font-bold text-white bg-emerald-800 hover:bg-emerald-700 transition text-xs shadow"
           >
-            Volver a la Página Principal
+            {t('admission_success_home')}
           </Link>
         </div>
       </div>
@@ -289,7 +291,7 @@ export function DynamicAdmissionForm() {
       {/* Header */}
       <div className="text-center space-y-1.5">
         <span className="inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-          🌱 Postulación Comunitaria
+          {t('admission_badge')}
         </span>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">{title}</h1>
         {subtitle && <p className="text-xs sm:text-sm text-gray-600 max-w-lg mx-auto">{subtitle}</p>}
@@ -380,7 +382,7 @@ export function DynamicAdmissionForm() {
                   value={val}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 >
-                  <option value="">Selecciona una opción...</option>
+                  <option value="">{t('admission_select_option')}</option>
                   {(field.options || []).map((opt, i) => (
                     <option key={i} value={opt}>
                       {opt}
@@ -449,17 +451,17 @@ export function DynamicAdmissionForm() {
         {governanceRules.length > 0 && (
           <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-emerald-900">Ley de la Aldea - Reglas de Gobernanza</h3>
+              <h3 className="font-bold text-sm text-emerald-900">{t('admission_rules_title')}</h3>
               <button
                 type="button"
                 onClick={() => setShowRules(!showRules)}
                 className="text-xs text-emerald-700 underline"
               >
-                {showRules ? 'Ocultar' : 'Leer reglas'}
+                {showRules ? t('admission_rules_hide') : t('admission_rules_show')}
               </button>
             </div>
             <p className="text-xs text-gray-600">
-              Antes de enviar tu solicitud, debes leer y aceptar las reglas de convivencia de la aldea ({governanceRules.length} reglas).
+              {t('admission_rules_intro', { count: governanceRules.length })}
             </p>
             {showRules && (
               <div className="max-h-64 overflow-y-auto rounded-lg bg-white p-3 space-y-2 border border-gray-200">
@@ -472,9 +474,9 @@ export function DynamicAdmissionForm() {
                         rule.severity === 'leve' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-blue-100 text-blue-700'
                       }`}>
-                        {rule.severity === 'muy_grave' ? 'Muy Grave' :
-                         rule.severity === 'grave' ? 'Grave' :
-                         rule.severity === 'leve' ? 'Leve' : 'Info'}
+                        {rule.severity === 'muy_grave' ? t('admission_severity_muy_grave') :
+                         rule.severity === 'grave' ? t('admission_severity_grave') :
+                         rule.severity === 'leve' ? t('admission_severity_leve') : t('admission_severity_info')}
                       </span>
                       <span className="font-medium">{rule.title}</span>
                     </div>
@@ -491,7 +493,7 @@ export function DynamicAdmissionForm() {
                 className="accent-emerald-700 rounded mt-0.5"
               />
               <span className="text-xs text-gray-800 font-medium">
-                He leido y acepto la Ley de la Aldea: los deberes, prohibiciones, faltas y proceso de admision. Entiendo que el incumplimiento puede llevar a sanciones o expulsion.
+                {t('admission_rules_accept')}
               </span>
             </label>
           </div>
@@ -503,7 +505,7 @@ export function DynamicAdmissionForm() {
             disabled={loading}
             className="w-full py-3 rounded-xl font-bold text-white bg-emerald-800 hover:bg-emerald-700 active:scale-95 transition shadow-md text-xs sm:text-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? 'Enviando postulación...' : 'Enviar Solicitud a la Asamblea'}
+            {loading ? t('admission_submitting') : t('admission_submit')}
             <ArrowRight size={15} />
           </button>
           {error && (
@@ -519,7 +521,7 @@ export function DynamicAdmissionForm() {
       <div className="mt-4 text-center">
         <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
           <ScrollText size={12} />
-          Licencia LPF-1.0
+          {t('admission_license')}
         </Link>
       </div>
     </div>

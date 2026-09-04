@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Search, X } from 'lucide-react'
 import { api } from '../api'
 
@@ -20,6 +21,7 @@ export function EntitySelector({
   label, helpText, placeholder, value, onChange,
   endpoint, valueKey, labelKey, subLabelKey, filterFn, emptyMessage
 }: EntitySelectorProps) {
+  const { t } = useTranslation('common')
   const [items, setItems] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [showList, setShowList] = useState(false)
@@ -89,7 +91,7 @@ export function EntitySelector({
           <input
             type="text"
             className="input pl-9"
-            placeholder={placeholder || 'Buscar...'}
+            placeholder={placeholder || t('common.search_placeholder')}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setShowList(true) }}
             onFocus={() => setShowList(true)}
@@ -97,9 +99,9 @@ export function EntitySelector({
           {showList && (
             <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
               {loading ? (
-                <div className="p-3 text-sm text-gray-400">Cargando...</div>
+                <div className="p-3 text-sm text-gray-400">{t('common.loading')}</div>
               ) : filtered.length === 0 ? (
-                <div className="p-3 text-sm text-gray-400">{emptyMessage || 'No se encontraron resultados'}</div>
+                <div className="p-3 text-sm text-gray-400">{emptyMessage || t('common.no_results')}</div>
               ) : (
                 filtered.map((item, i) => (
                   <button

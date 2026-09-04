@@ -605,7 +605,8 @@ fun KioskDocumentDisplay(
 
 enum class DocumentKeypadMode {
     NUMERIC,
-    ALPHANUMERIC
+    ALPHANUMERIC,
+    SYMBOLS
 }
 
 @Composable
@@ -617,301 +618,595 @@ fun KioskDocumentKeypad(
 ) {
     val context = LocalContext.current
     var keypadMode by remember(initialMode) { mutableStateOf(initialMode) }
+    var isUpperCase by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Mode Switcher Header
+        // Mode Switcher Header with 3 direct tabs: [123] [ABC] [?@#] + [Limpiar]
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (keypadMode == DocumentKeypadMode.NUMERIC) "Teclado Numérico" else "Teclado Alfanumérico",
-                style = MaterialTheme.typography.labelSmall,
-                color = PosSlate400,
-                fontWeight = FontWeight.SemiBold
-            )
-            TextButton(
-                onClick = {
-                    FeedbackHelper.playKeyClick(context)
-                    keypadMode = if (keypadMode == DocumentKeypadMode.NUMERIC) {
-                        DocumentKeypadMode.ALPHANUMERIC
-                    } else {
-                        DocumentKeypadMode.NUMERIC
-                    }
-                },
-                colors = ButtonDefaults.textButtonColors(contentColor = PosPrimaryLight),
+            // Mode Segmented Buttons
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.testTag("toggle_doc_keypad_mode")
             ) {
-                Icon(
-                    imageVector = Icons.Default.Keyboard,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (keypadMode == DocumentKeypadMode.NUMERIC) "Letras (ABC)" else "Números (123)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
+                listOf(
+                    DocumentKeypadMode.NUMERIC to "123",
+                    DocumentKeypadMode.ALPHANUMERIC to "ABC",
+                    DocumentKeypadMode.SYMBOLS to "?@#"
+                ).forEach { (mode, label) ->
+                    val isSelected = keypadMode == mode
+                    Surface(
+                        onClick = {
+                            FeedbackHelper.playKeyClick(context)
+                            keypadMode = mode
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) PosPrimaryBlue else PosSlate800,
+                        modifier = Modifier.testTag("doc_mode_${label.lowercase()}")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) PosWhite else PosSlate300,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (documentNumber.isNotEmpty()) {
+                TextButton(
+                    onClick = {
+                        FeedbackHelper.playKeyClick(context)
+                        onDocumentChange("")
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Limpiar", color = PosErrorRedLight, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
 
-        if (keypadMode == DocumentKeypadMode.NUMERIC) {
-            // 3x4 Numeric Keypad with ABC and DEL
-            val rows = listOf(
-                listOf("1", "2", "3"),
-                listOf("4", "5", "6"),
-                listOf("7", "8", "9"),
-                listOf("ABC", "0", "DEL")
-            )
+        when (keypadMode) {
+            DocumentKeypadMode.NUMERIC -> {
+                // 3x4 Numeric Keypad with ABC, Symbols and DEL
+                val rows = listOf(
+                    listOf("1", "2", "3"),
+                    listOf("4", "5", "6"),
+                    listOf("7", "8", "9"),
+                    listOf("ABC", "0", "DEL")
+                )
 
-            rows.forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    row.forEach { key ->
-                        val bgColor = when (key) {
-                            "DEL" -> PosSlate700
-                            "ABC" -> PosPrimaryDark.copy(alpha = 0.6f)
-                            else -> PosSlate800
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(bgColor)
-                                .clickable {
-                                    FeedbackHelper.playKeyClick(context)
-                                    when (key) {
-                                        "DEL" -> {
-                                            if (documentNumber.isNotEmpty()) {
-                                                onDocumentChange(documentNumber.dropLast(1))
+                rows.forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        row.forEach { key ->
+                            val bgColor = when (key) {
+                                "DEL" -> PosSlate700
+                                "ABC" -> PosPrimaryDark.copy(alpha = 0.6f)
+                                else -> PosSlate800
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(54.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(bgColor)
+                                    .clickable {
+                                        FeedbackHelper.playKeyClick(context)
+                                        when (key) {
+                                            "DEL" -> {
+                                                if (documentNumber.isNotEmpty()) {
+                                                    onDocumentChange(documentNumber.dropLast(1))
+                                                }
                                             }
-                                        }
-                                        "ABC" -> {
-                                            keypadMode = DocumentKeypadMode.ALPHANUMERIC
-                                        }
-                                        else -> {
-                                            if (documentNumber.length < 25) {
-                                                onDocumentChange(documentNumber + key)
+                                            "ABC" -> {
+                                                keypadMode = DocumentKeypadMode.ALPHANUMERIC
+                                            }
+                                            else -> {
+                                                if (documentNumber.length < 60) {
+                                                    onDocumentChange(documentNumber + key)
+                                                }
                                             }
                                         }
                                     }
+                                    .testTag("doc_key_${key}"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (key == "DEL") {
+                                    Icon(
+                                        imageVector = Icons.Default.Backspace,
+                                        contentDescription = "Borrar",
+                                        tint = PosSlate100,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else if (key == "ABC") {
+                                    Text(
+                                        text = "ABC",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = PosPrimaryLight,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                } else {
+                                    Text(
+                                        text = key,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = PosSlate100,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                                .testTag("doc_key_${key}"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (key == "DEL") {
-                                Icon(
-                                    imageVector = Icons.Default.Backspace,
-                                    contentDescription = "Borrar",
-                                    tint = PosSlate100,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            } else if (key == "ABC") {
-                                Text(
-                                    text = "ABC",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = PosPrimaryLight,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            } else {
-                                Text(
-                                    text = key,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = PosSlate100,
-                                    fontWeight = FontWeight.Bold
-                                )
                             }
                         }
                     }
                 }
             }
-            if (documentNumber.isNotEmpty()) {
+            DocumentKeypadMode.ALPHANUMERIC -> {
+                // Alphanumeric On-Screen Keyboard with Shift and Symbol shortcuts
+                val numberRow = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+                val rawRow1 = listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P")
+                val rawRow2 = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ")
+                val rawRow3 = listOf("Z", "X", "C", "V", "B", "N", "M")
+
+                val row1 = if (isUpperCase) rawRow1 else rawRow1.map { it.lowercase() }
+                val row2 = if (isUpperCase) rawRow2 else rawRow2.map { it.lowercase() }
+                val row3 = if (isUpperCase) rawRow3 else rawRow3.map { it.lowercase() }
+
+                // Numbers row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    TextButton(
-                        onClick = {
-                            FeedbackHelper.playKeyClick(context)
-                            onDocumentChange("")
+                    numberRow.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PosSlate700)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_alpha_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
-                    ) {
-                        Text("Limpiar Todo", color = PosErrorRedLight, fontSize = 12.sp)
                     }
                 }
-            }
-        } else {
-            // Compact Alphanumeric On-Screen Keyboard
-            val numberRow = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-            val row1 = listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P")
-            val row2 = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L", "@")
-            val row3 = listOf("Z", "X", "C", "V", "B", "N", "M")
 
-            // Top Numbers Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                numberRow.forEach { key ->
+                // Row 1 (QWERTY)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    row1.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PosSlate800)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_alpha_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                // Row 2 (ASDFG)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    row2.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PosSlate800)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_alpha_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                // Row 3 (Shift + ZXCVB + DEL)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Shift / Mayús toggle
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
+                            .weight(1.3f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isUpperCase) PosPrimaryBlue else PosSlate700)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                isUpperCase = !isUpperCase
+                            }
+                            .testTag("doc_alpha_shift"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isUpperCase) "⇧ MAY" else "⇧ min",
+                            color = if (isUpperCase) PosWhite else PosSlate300,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    row3.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PosSlate800)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_alpha_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+
+                    // DEL button
+                    Box(
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(42.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(PosSlate700)
                             .clickable {
                                 FeedbackHelper.playKeyClick(context)
-                                if (documentNumber.length < 25) {
-                                    onDocumentChange(documentNumber + key)
+                                if (documentNumber.isNotEmpty()) {
+                                    onDocumentChange(documentNumber.dropLast(1))
                                 }
                             }
-                            .testTag("doc_alpha_key_$key"),
+                            .testTag("doc_alpha_del"),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    }
-                }
-            }
-
-            // QWERTY Row 1
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                row1.forEach { key ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(PosSlate800)
-                            .clickable {
-                                FeedbackHelper.playKeyClick(context)
-                                if (documentNumber.length < 25) {
-                                    onDocumentChange(documentNumber + key)
-                                }
-                            }
-                            .testTag("doc_alpha_key_$key"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                }
-            }
-
-            // Row 2
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                row2.forEach { key ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(PosSlate800)
-                            .clickable {
-                                FeedbackHelper.playKeyClick(context)
-                                if (documentNumber.length < 25) {
-                                    onDocumentChange(documentNumber + key)
-                                }
-                            }
-                            .testTag("doc_alpha_key_$key"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                }
-            }
-
-            // Row 3 (123 Toggle + Letters + DEL)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                // 123 button
-                Box(
-                    modifier = Modifier
-                        .weight(1.5f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(PosPrimaryDark.copy(alpha = 0.7f))
-                        .clickable {
-                            FeedbackHelper.playKeyClick(context)
-                            keypadMode = DocumentKeypadMode.NUMERIC
-                        }
-                        .testTag("doc_alpha_123"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "123", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
-
-                row3.forEach { key ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(PosSlate800)
-                            .clickable {
-                                FeedbackHelper.playKeyClick(context)
-                                if (documentNumber.length < 25) {
-                                    onDocumentChange(documentNumber + key)
-                                }
-                            }
-                            .testTag("doc_alpha_key_$key"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Icon(
+                            imageVector = Icons.Default.Backspace,
+                            contentDescription = "Borrar",
+                            tint = PosSlate100,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
-                // DEL button
-                Box(
-                    modifier = Modifier
-                        .weight(1.5f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(PosSlate700)
-                        .clickable {
-                            FeedbackHelper.playKeyClick(context)
-                            if (documentNumber.isNotEmpty()) {
-                                onDocumentChange(documentNumber.dropLast(1))
-                            }
-                        }
-                        .testTag("doc_alpha_del"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Backspace,
-                        contentDescription = "Borrar",
-                        tint = PosSlate100,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            if (documentNumber.isNotEmpty()) {
+                // Row 4 (123, ?@#, @, ., _, -, Espacio)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    TextButton(
-                        onClick = {
-                            FeedbackHelper.playKeyClick(context)
-                            onDocumentChange("")
-                        }
+                    // 123 switch
+                    Box(
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosPrimaryDark.copy(alpha = 0.7f))
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                keypadMode = DocumentKeypadMode.NUMERIC
+                            }
+                            .testTag("doc_alpha_123"),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("Limpiar Todo", color = PosErrorRedLight, fontSize = 12.sp)
+                        Text(text = "123", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    // ?@# switch
+                    Box(
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosPrimaryDark.copy(alpha = 0.7f))
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                keypadMode = DocumentKeypadMode.SYMBOLS
+                            }
+                            .testTag("doc_alpha_symbols"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "?@#", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    // Quick keys: @, ., _, -
+                    listOf("@", ".", "_", "-").forEach { sym ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (sym == "@") PosPrimaryBlue.copy(alpha = 0.5f) else PosSlate700)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + sym)
+                                    }
+                                }
+                                .testTag("doc_alpha_key_$sym"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = sym, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+
+                    // Espacio
+                    Box(
+                        modifier = Modifier
+                            .weight(2.4f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosSlate700)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                if (documentNumber.length < 60) {
+                                    onDocumentChange(documentNumber + " ")
+                                }
+                            }
+                            .testTag("doc_alpha_space"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "ESPACIO", color = PosSlate300, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+                    }
+                }
+            }
+            DocumentKeypadMode.SYMBOLS -> {
+                // Complete Symbols On-Screen Keyboard
+                val numberRow = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+                val symRow1 = listOf("@", "#", "$", "%", "&", "*", "-", "+", "(", ")")
+                val symRow2 = listOf("!", "\"", "'", ":", ";", "/", "?", "~", "\\", "_")
+                val symRow3 = listOf("=", "<", ">", "[", "]", "{", "}", "^")
+
+                // Top numbers row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    numberRow.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PosSlate700)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_sym_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                // Symbols Row 1
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    symRow1.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (key == "@" || key == "_" || key == "-") PosPrimaryDark.copy(alpha = 0.5f) else PosSlate800)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_sym_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                // Symbols Row 2
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    symRow2.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (key == "_") PosPrimaryDark.copy(alpha = 0.5f) else PosSlate800)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_sym_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                // Symbols Row 3 (ABC switch + symbols + DEL)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // ABC switch
+                    Box(
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosPrimaryDark.copy(alpha = 0.7f))
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                keypadMode = DocumentKeypadMode.ALPHANUMERIC
+                            }
+                            .testTag("doc_sym_abc"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "ABC", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+
+                    symRow3.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PosSlate800)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + key)
+                                    }
+                                }
+                                .testTag("doc_sym_key_$key"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+
+                    // DEL button
+                    Box(
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosSlate700)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                if (documentNumber.isNotEmpty()) {
+                                    onDocumentChange(documentNumber.dropLast(1))
+                                }
+                            }
+                            .testTag("doc_sym_del"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Backspace,
+                            contentDescription = "Borrar",
+                            tint = PosSlate100,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Symbols Row 4 (123, @, ., ,, -, ESPACIO)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // 123 switch
+                    Box(
+                        modifier = Modifier
+                            .weight(1.4f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosPrimaryDark.copy(alpha = 0.7f))
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                keypadMode = DocumentKeypadMode.NUMERIC
+                            }
+                            .testTag("doc_sym_123"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "123", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    listOf("@", ".", ",", "-").forEach { sym ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (sym == "@") PosPrimaryBlue.copy(alpha = 0.6f) else PosSlate700)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    if (documentNumber.length < 60) {
+                                        onDocumentChange(documentNumber + sym)
+                                    }
+                                }
+                                .testTag("doc_sym_key_$sym"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = sym, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+
+                    // Space
+                    Box(
+                        modifier = Modifier
+                            .weight(2.6f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosSlate700)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                if (documentNumber.length < 60) {
+                                    onDocumentChange(documentNumber + " ")
+                                }
+                            }
+                            .testTag("doc_sym_space"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "ESPACIO", color = PosSlate300, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
                     }
                 }
             }

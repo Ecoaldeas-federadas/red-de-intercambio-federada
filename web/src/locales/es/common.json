@@ -139,7 +139,14 @@
     "connecting": "Conectando...",
     "password_placeholder": "Tu contrasena",
     "username_hint": "Escribe solo tu nombre. El dominio @{{domain}} se agrega automaticamente. Para otro nodo, escribe usuario@otro-dominio.com",
-    "no_account": "¿No tienes cuenta? Solicita admision en tu nodo."
+    "no_account": "¿No tienes cuenta? Solicita admision en tu nodo.",
+    "expired_title": "Sesion expirada",
+    "expired_desc": "Tu sesion se cerro por inactividad. Inicia sesion nuevamente para continuar. No perderas lo que estabas haciendo.",
+    "expired_username_placeholder": "Tu usuario",
+    "expired_password_placeholder": "Tu contrasena",
+    "expired_submit": "Iniciar sesion y continuar",
+    "expired_submitting": "Iniciando sesion...",
+    "expired_note": "Al iniciar sesion, volveras a la misma pagina donde estabas."
   },
   "setup": {
     "title": "Configuracion Inicial del Nodo",

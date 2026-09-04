@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api'
 import { fmtNumber } from '../../lib/format'
 import {
@@ -57,7 +58,6 @@ import {
   Video,
   MessageCircle,
   Cloud,
-  Phone,
   Mail as MailIcon,
   FileText as FileTextIcon,
   Film,
@@ -99,7 +99,7 @@ const ICON_MAP: Record<string, any> = {
   scale: Scale,
   zap: Zap,
   'help-circle': HelpCircle,
-  mail: Mail,
+  'mail-icon': MailIcon,
   home: Home,
   calendar: Calendar,
   clock: Clock,
@@ -113,7 +113,7 @@ const ICON_MAP: Record<string, any> = {
   'message-circle': MessageCircle,
   cloud: Cloud,
   phone: Phone,
-  mail: MailIcon,
+  'mail-alt': MailIcon,
   'file-text': FileTextIcon,
   film: Film,
   music: Music,
@@ -267,6 +267,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
 // 2. CAROUSEL / PHOTO ALBUM BLOCK
 // -------------------------------------------------------------
 export function CarouselBlock({ data }: { data: CarouselBlockData }) {
+  const { t } = useTranslation('public')
   const [current, setCurrent] = useState(0)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const items = data.items || []
@@ -316,7 +317,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
         <button
           onClick={() => setLightboxIndex(current)}
           className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/70 backdrop-blur transition"
-          title="Ver en pantalla completa"
+          title={t('blk_ver_pantalla')}
         >
           <Maximize2 size={16} />
         </button>
@@ -327,14 +328,14 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
             <button
               onClick={() => setCurrent((prev) => (prev - 1 + items.length) % items.length)}
               className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/80 backdrop-blur transition"
-              aria-label="Anterior"
+              aria-label={t('blk_anterior')}
             >
               <ChevronLeft size={20} />
             </button>
             <button
               onClick={() => setCurrent((prev) => (prev + 1) % items.length)}
               className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/80 backdrop-blur transition"
-              aria-label="Siguiente"
+              aria-label={t('blk_siguiente')}
             >
               <ChevronRight size={20} />
             </button>
@@ -366,8 +367,8 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
       <div className="text-center">
         <EdAddItem
           arrayField="items"
-          template={{ image_url: '/placeholder.svg', title: 'Nueva Foto', caption: 'Descripción de la foto', tag: 'Feria' }}
-          label="+ Añadir foto al carrusel"
+          template={{ image_url: '/placeholder.svg', title: t('blk_nueva_foto_title'), caption: t('blk_nueva_foto_caption'), tag: t('blk_nueva_foto_tag') }}
+          label={t('blk_anadir_foto')}
         />
       </div>
 
@@ -406,6 +407,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
 // 3. FEATURES GRID BLOCK (Cards / Pillars)
 // -------------------------------------------------------------
 export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
+  const { t } = useTranslation('public')
   const cols =
     data.columns === 2
       ? 'md:grid-cols-2'
@@ -455,7 +457,7 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
                     to={item.link}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 group-hover:translate-x-1 transition"
                   >
-                    Saber más
+                    {t('blk_saber_mas')}
                     <ArrowRight size={13} />
                   </Link>
                 </div>
@@ -465,7 +467,7 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
         })}
       </div>
       <div className="text-center mt-4">
-        <EdAddItem arrayField="items" template={{ icon: 'leaf', title: 'Nueva Tarjeta', description: 'Descripción de la tarjeta', badge: 'Nuevo' }} label="+ Añadir tarjeta" />
+        <EdAddItem arrayField="items" template={{ icon: 'leaf', title: t('blk_nueva_tarjeta_title'), description: t('blk_nueva_tarjeta_desc'), badge: t('blk_nueva_tarjeta_badge') }} label={t('blk_anadir_tarjeta')} />
       </div>
     </section>
   )
@@ -475,6 +477,7 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
 // 4. SPLIT STORY / ABOUT SECTION BLOCK
 // -------------------------------------------------------------
 export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
+  const { t } = useTranslation('public')
   const isLeft = data.image_position === 'left'
 
   return (
@@ -519,7 +522,7 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
             </div>
           )}
           <div>
-            <EdAddItem arrayField="highlights" template="Nuevo punto destacado" label="+ Añadir punto" />
+            <EdAddItem arrayField="highlights" template={t('blk_nuevo_punto')} label={t('blk_anadir_punto')} />
           </div>
 
           {data.quote && (
@@ -542,6 +545,7 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
 // 5. STATS BLOCK
 // -------------------------------------------------------------
 export function StatsBlock({ data }: { data: StatsBlockData }) {
+  const { t } = useTranslation('public')
   const isPrimary = data.bg_theme !== 'light'
 
   return (
@@ -581,7 +585,7 @@ export function StatsBlock({ data }: { data: StatsBlockData }) {
         ))}
       </div>
       <div className="text-center mt-4">
-        <EdAddItem arrayField="items" template={{ value: '0', label: 'Nueva estadística', description: 'Descripción' }} label="+ Añadir estadística" />
+        <EdAddItem arrayField="items" template={{ value: '0', label: t('blk_nueva_estadistica_label'), description: t('blk_nueva_estadistica_desc') }} label={t('blk_anadir_estadistica')} />
       </div>
     </section>
   )
@@ -591,6 +595,7 @@ export function StatsBlock({ data }: { data: StatsBlockData }) {
 // 6. EVENT SCHEDULE BLOCK
 // -------------------------------------------------------------
 export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
+  const { t } = useTranslation('public')
   return (
     <section className="my-8 sm:my-10 bg-gradient-to-br from-emerald-50 via-amber-50 to-orange-50 rounded-3xl p-5 sm:p-10 border border-amber-200/60 shadow-md">
       <div className="grid lg:grid-cols-12 gap-6 sm:gap-8 items-center">
@@ -608,7 +613,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
                 <Calendar size={18} />
               </div>
               <div className="min-w-0">
-                <span className="text-[11px] text-gray-500 block font-medium">Frecuencia</span>
+                <span className="text-[11px] text-gray-500 block font-medium">{t('blk_frecuencia')}</span>
                 <EdText field="date_text" value={data.date_text} as="b" className="text-xs sm:text-sm text-gray-900 truncate block" />
               </div>
             </div>
@@ -618,7 +623,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
                 <Clock size={18} />
               </div>
               <div className="min-w-0">
-                <span className="text-[11px] text-gray-500 block font-medium">Horario</span>
+                <span className="text-[11px] text-gray-500 block font-medium">{t('blk_horario')}</span>
                 <EdText field="time_text" value={data.time_text} as="b" className="text-xs sm:text-sm text-gray-900 truncate block" />
               </div>
             </div>
@@ -649,7 +654,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
         <div className="lg:col-span-5 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-amber-100 space-y-3">
           <h3 className="font-bold text-sm sm:text-base text-gray-900 flex items-center gap-2">
             <ShieldCheck size={18} className="text-emerald-700" />
-            Normas & Recomendaciones
+            {t('blk_normas_title')}
           </h3>
           <ul className="space-y-2 text-xs sm:text-sm text-gray-700">
             {(data.guidelines || []).map((g, i) => (
@@ -660,7 +665,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
               </li>
             ))}
           </ul>
-          <EdAddItem arrayField="guidelines" template="Nueva norma o recomendación" label="+ Añadir norma" />
+          <EdAddItem arrayField="guidelines" template={t('blk_nueva_norma')} label={t('blk_anadir_norma')} />
         </div>
       </div>
     </section>
@@ -671,6 +676,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
 // 7. PRODUCTS SHOWCASE BLOCK
 // -------------------------------------------------------------
 export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockData }) {
+  const { t } = useTranslation('public')
   const [selectedParent, setSelectedParent] = useState<string>('all')
   const [selectedCat, setSelectedCat] = useState<string>('all')
   const [backendProducts, setBackendProducts] = useState<any[]>([])
@@ -758,7 +764,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
           category: p.category || 'General',
           subcategory: p.subcategory || '',
           description: p.description || '',
-          badge: p.stock > 0 ? 'Disponible' : 'Agotado',
+          badge: p.stock > 0 ? t('blk_disponible') : t('blk_agotado'),
           image_url: p.image_url || '',
           unit: p.unit || '',
           price_energy: p.final_price ? `${p.final_price} TQ` : (p.price_trueque ? `${p.price_trueque} TQ` : ''),
@@ -771,7 +777,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
           category: p.category || 'General',
           subcategory: p.subcategory || '',
           description: p.description || '',
-          badge: p.badge || (p.is_approved ? 'Aprobado' : ''),
+          badge: p.badge || (p.is_approved ? t('blk_aprobado') : ''),
           image_url: p.image_url || '',
           unit: p.unit || '',
           price_energy: p.price_trueque ? `${p.price_trueque} TQ` : '',
@@ -818,7 +824,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-emerald-500"
-              placeholder="Buscar producto por nombre..."
+              placeholder={t('blk_buscar_ph')}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') setSearchTerm(searchInput.trim()) }}
@@ -828,14 +834,14 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
             onClick={() => setSearchTerm(searchInput.trim())}
             className="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition"
           >
-            Buscar
+            {t('blk_buscar')}
           </button>
           {searchTerm && (
             <button
               onClick={() => { setSearchInput(''); setSearchTerm('') }}
               className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-semibold hover:bg-gray-200 transition"
             >
-              Limpiar
+              {t('blk_limpiar')}
             </button>
           )}
         </div>
@@ -848,7 +854,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            Productos en la Feria ({storeItems.length})
+            {t('blk_feria_tab')} ({storeItems.length})
           </button>
           <button
             onClick={() => { setViewMode('catalogo'); setSelectedParent('all'); setSelectedCat('all') }}
@@ -858,7 +864,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            Catalogo Aprobado ({totalCount})
+            {t('blk_catalogo_tab')} ({totalCount})
           </button>
         </div>
         </>
@@ -867,8 +873,8 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
       {/* Aviso cuando no hay productos en la feria */}
       {useBackend && viewMode === 'feria' && storeItems.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          <p className="text-sm">No hay productos publicados en la feria en este momento.</p>
-          <p className="text-xs mt-1">Los productores pueden publicar productos desde la tienda del nodo.</p>
+          <p className="text-sm">{t('blk_feria_vacia')}</p>
+          <p className="text-xs mt-1">{t('blk_feria_vacia_desc')}</p>
         </div>
       )}
 
@@ -883,7 +889,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            Todos ({useBackend ? totalCount : items.length})
+            {t('blk_todos')} ({useBackend ? totalCount : items.length})
           </button>
           {parentCategories.map((pc, i) => {
             const count = items.filter((it: any) => it.parent_category === pc).length
@@ -915,7 +921,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
                 : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            Todas ({items.filter((it: any) => it.parent_category === selectedParent).length})
+            {t('blk_todas')} ({items.filter((it: any) => it.parent_category === selectedParent).length})
           </button>
           {categories.map((cat, i) => {
             const count = items.filter((it: any) => it.parent_category === selectedParent && it.category === cat).length
@@ -976,15 +982,15 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
               {prod.price_energy && (
                 <div className="pt-2 border-t border-gray-100 space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Valor Energetico</span>
+                    <span className="text-gray-500">{t('blk_valor_energetico')}</span>
                     <div className="text-right">
                       <EdArrayText arrayField="items" index={realIdx} itemField="price_energy" value={prod.price_energy} as="span" className="font-bold text-amber-600" />
-                      {prod.unit && <span className="block text-[10px] text-gray-400">por {prod.unit}</span>}
+                      {prod.unit && <span className="block text-[10px] text-gray-400">{t('blk_por')} {prod.unit}</span>}
                     </div>
                   </div>
                   {useBackend && fcFactor > 0 && prod.price_trueque > 0 && (
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Ref. externo</span>
+                      <span className="text-gray-500">{t('blk_ref_externo')}</span>
                       <span className="font-semibold text-gray-700">{formatExternal(prod.price_trueque)} {externalCurrency}</span>
                     </div>
                   )}
@@ -999,13 +1005,13 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
       {/* Loading indicator (solo backend) */}
       {useBackend && loading && (
         <div className="flex justify-center py-6">
-          <div className="animate-pulse text-emerald-700 text-sm">Cargando productos...</div>
+          <div className="animate-pulse text-emerald-700 text-sm">{t('blk_cargando_productos')}</div>
         </div>
       )}
 
       {!useBackend && (
         <div className="text-center mt-4">
-          <EdAddItem arrayField="items" template={{ name: 'Nuevo Producto', category: 'Cosecha Fresca', description: 'Descripción del producto', badge: '', image_url: '', price_energy: '' }} label="+ Añadir producto" />
+          <EdAddItem arrayField="items" template={{ name: t('blk_nuevo_producto'), category: t('blk_nuevo_producto_cat'), description: t('blk_nuevo_producto_desc'), badge: '', image_url: '', price_energy: '' }} label={t('blk_anadir_producto')} />
         </div>
       )}
     </section>
@@ -1016,6 +1022,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
 // 8. TESTIMONIALS BLOCK
 // -------------------------------------------------------------
 export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
+  const { t } = useTranslation('public')
   return (
     <section className="my-8 sm:my-12 space-y-6">
       {(data.title || data.subtitle) && (
@@ -1057,7 +1064,7 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
         ))}
       </div>
       <div className="text-center mt-4">
-        <EdAddItem arrayField="items" template={{ name: 'Nuevo Miembro', role: 'Productor', project: '', quote: 'Cita del miembro', location: '' }} label="+ Añadir testimonio" />
+        <EdAddItem arrayField="items" template={{ name: t('blk_nuevo_miembro'), role: t('blk_nuevo_miembro_rol'), project: '', quote: t('blk_nuevo_miembro_cita'), location: '' }} label={t('blk_anadir_testimonio')} />
       </div>
     </section>
   )
@@ -1067,6 +1074,7 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
 // 9. TRUEQUE EXPLAINER BLOCK
 // -------------------------------------------------------------
 export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockData }) {
+  const { t } = useTranslation('public')
   return (
     <section className="my-8 sm:my-12 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       <div className="text-center space-y-2 max-w-3xl mx-auto">
@@ -1106,14 +1114,14 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
         })}
       </div>
       <div className="text-center mt-2">
-        <EdAddItem arrayField="steps" template={{ step: 5, title: 'Nuevo Paso', description: 'Descripción del paso', icon: 'scale' }} label="+ Añadir paso" />
+        <EdAddItem arrayField="steps" template={{ step: 5, title: t('blk_nuevo_paso_title'), description: t('blk_nuevo_paso_desc'), icon: 'scale' }} label={t('blk_anadir_paso')} />
       </div>
 
       {data.key_points && (
         <div className="grid md:grid-cols-3 gap-3 pt-2">
           <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-100 space-y-1">
             <b className="text-emerald-900 text-xs flex items-center gap-1.5">
-              <span>➕</span> Saldo Positivo (+TQ)
+              <span>➕</span> {t('blk_saldo_positivo')}
             </b>
             <p className="text-xs text-gray-700 leading-relaxed">
               {data.key_points.positive_balance}
@@ -1122,7 +1130,7 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
 
           <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-100 space-y-1">
             <b className="text-amber-900 text-xs flex items-center gap-1.5">
-              <span>➖</span> Saldo Deudor (-TQ)
+              <span>➖</span> {t('blk_saldo_deudor')}
             </b>
             <p className="text-xs text-gray-700 leading-relaxed">
               {data.key_points.negative_balance}
@@ -1131,7 +1139,7 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
 
           <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-100 space-y-1">
             <b className="text-blue-900 text-xs flex items-center gap-1.5">
-              <span>⚖️</span> Suma Cero Ética
+              <span>⚖️</span> {t('blk_suma_cero')}
             </b>
             <p className="text-xs text-gray-700 leading-relaxed">{data.key_points.zero_sum}</p>
           </div>
@@ -1145,6 +1153,7 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
 // 10. NEWS / ARTICLES FEED BLOCK (Inspired by FAO / Mincyt / BiodiversidadLA)
 // -------------------------------------------------------------
 export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
+  const { t } = useTranslation('public')
   return (
     <section className="my-8 sm:my-12 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-gray-200 pb-3">
@@ -1195,7 +1204,7 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
                   to={art.link}
                   className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-950"
                 >
-                  Leer comunicado
+                  {t('blk_leer_comunicado')}
                   <ArrowRight size={13} />
                 </Link>
               </div>
@@ -1204,7 +1213,7 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
         ))}
       </div>
       <div className="text-center mt-4">
-        <EdAddItem arrayField="items" template={{ title: 'Nueva noticia', date: '2025', author: '', category: 'Noticia', excerpt: 'Resumen de la noticia', image_url: '' }} label="+ Añadir noticia" />
+        <EdAddItem arrayField="items" template={{ title: t('blk_nueva_noticia_title'), date: '2025', author: '', category: t('blk_nueva_noticia_cat'), excerpt: t('blk_nueva_noticia_excerpt'), image_url: '' }} label={t('blk_anadir_noticia')} />
       </div>
     </section>
   )
@@ -1214,6 +1223,7 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
 // 11. TIMELINE HISTORY BLOCK
 // -------------------------------------------------------------
 export function TimelineHistoryBlock({ data }: { data: TimelineHistoryBlockData }) {
+  const { t } = useTranslation('public')
   return (
     <section className="my-8 sm:my-12 bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       <div className="text-center space-y-1.5 max-w-2xl mx-auto mb-6">
@@ -1249,7 +1259,7 @@ export function TimelineHistoryBlock({ data }: { data: TimelineHistoryBlockData 
         ))}
       </div>
       <div className="text-center mt-4">
-        <EdAddItem arrayField="items" template={{ year: '2025', title: 'Nuevo hito', description: 'Descripción del hito', badge: 'Hito' }} label="+ Añadir hito" />
+        <EdAddItem arrayField="items" template={{ year: '2025', title: t('blk_nuevo_hito_title'), description: t('blk_nuevo_hito_desc'), badge: t('blk_nuevo_hito_badge') }} label={t('blk_anadir_hito')} />
       </div>
     </section>
   )
@@ -1290,6 +1300,7 @@ export function InstitutionsPartnersBlock({ data }: { data: InstitutionsPartners
 // 13. RESOURCE DOWNLOADS / GUIDES BLOCK
 // -------------------------------------------------------------
 export function ResourceDownloadsBlock({ data }: { data: ResourceDownloadsBlockData }) {
+  const { t } = useTranslation('public')
   return (
     <section className="my-8 sm:my-12 bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       <div className="space-y-1">
@@ -1319,7 +1330,7 @@ export function ResourceDownloadsBlock({ data }: { data: ResourceDownloadsBlockD
               className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-700 transition shadow-xs"
             >
               <Download size={14} />
-              Descargar Guía
+              {t('blk_descargar_guia')}
             </EdAnchor>
           </div>
         ))}
@@ -1332,6 +1343,7 @@ export function ResourceDownloadsBlock({ data }: { data: ResourceDownloadsBlockD
 // 14. INTERACTIVE CALCULATOR PREVIEW BLOCK
 // -------------------------------------------------------------
 export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockData }) {
+  const { t } = useTranslation('public')
   const [hours, setHours] = useState(4)
   const [effort, setEffort] = useState(1.0)
   const [kwhRate, setKwhRate] = useState(0.19)
@@ -1345,12 +1357,12 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
         <div className="lg:col-span-6 space-y-4">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400 text-gray-950">
             <CalcIcon size={14} />
-            Simulador de Valor Energético
+            {t('blk_simulador_title')}
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold">{data.title}</h2>
           <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
             {data.subtitle ||
-              'Calcula el valor objetivo de cualquier labor agrícola o artesanal en unidades de energía (1 TQ = 1 kWh de energía física invertida). El trueque no es dinero: es un registro contable de aportes para intercambiar en el futuro.'}
+              t('blk_simulador_desc')}
           </p>
 
           <div className="pt-2 flex flex-wrap gap-2.5">
@@ -1358,14 +1370,14 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
               to="/p/como-funciona"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-white/15 hover:bg-white/25 text-white border border-white/20 text-xs shadow-sm transition"
             >
-              ¿Cómo Funciona el Trueque?
+              {t('blk_como_funciona')}
               <ArrowRight size={14} />
             </Link>
             <Link
               to="/p/unirse"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-amber-500 text-gray-950 hover:bg-amber-400 text-xs shadow-md transition"
             >
-              Solicitar Ingreso a la Red
+              {t('blk_solicitar_ingreso')}
               <ArrowRight size={14} />
             </Link>
           </div>
@@ -1375,9 +1387,9 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-xs font-bold text-gray-200">
-                Horas de Labor Aportada:
+                {t('blk_horas_labor')}
               </label>
-              <span className="text-sm font-extrabold text-amber-300">{hours} horas</span>
+              <span className="text-sm font-extrabold text-amber-300">{hours} {t('blk_horas')}</span>
             </div>
             <input
               type="range"
@@ -1391,7 +1403,7 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-gray-200 block mb-1">Tipo de Labor</label>
+              <label className="text-xs font-bold text-gray-200 block mb-1">{t('blk_tipo_labor')}</label>
               <select
                 className="w-full bg-black/30 border border-white/20 rounded-xl px-3 py-2 text-xs text-white"
                 value={kwhRate}
@@ -1400,37 +1412,37 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
                   setKwhRate(val)
                 }}
               >
-                <option value="0.05" className="text-gray-900">Gestión / Coordinación (0.05 kWh/h)</option>
-                <option value="0.19" className="text-gray-900">Siembra & Conuco (0.19 kWh/h)</option>
-                <option value="0.30" className="text-gray-900">Carga Pesada & Mecánica (0.30 kWh/h)</option>
+                <option value="0.05" className="text-gray-900">{t('blk_labor_gestion')}</option>
+                <option value="0.19" className="text-gray-900">{t('blk_labor_siembra')}</option>
+                <option value="0.30" className="text-gray-900">{t('blk_labor_carga')}</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-gray-200 block mb-1">Dificultad / Esfuerzo</label>
+              <label className="text-xs font-bold text-gray-200 block mb-1">{t('blk_dificultad')}</label>
               <select
                 className="w-full bg-black/30 border border-white/20 rounded-xl px-3 py-2 text-xs text-white"
                 value={effort}
                 onChange={(e) => setEffort(parseFloat(e.target.value) || 1.0)}
               >
-                <option value="1.0" className="text-gray-900">Esfuerzo Base (x1.0)</option>
-                <option value="1.15" className="text-gray-900">Especializado (x1.15)</option>
-                <option value="1.3" className="text-gray-900">Intenso / Sol Fuerte (x1.3)</option>
+                <option value="1.0" className="text-gray-900">{t('blk_esfuerzo_base')}</option>
+                <option value="1.15" className="text-gray-900">{t('blk_esfuerzo_especializado')}</option>
+                <option value="1.3" className="text-gray-900">{t('blk_esfuerzo_intenso')}</option>
               </select>
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-amber-400 text-gray-950 flex items-center justify-between font-extrabold shadow-md">
             <div>
-              <span className="text-[11px] uppercase tracking-wider block opacity-80">Aporte Energético Objetivo</span>
+              <span className="text-[11px] uppercase tracking-wider block opacity-80">{t('blk_aporte_energetico')}</span>
               <span className="text-2xl">{totalKwh} TQ</span>
             </div>
             <span className="text-xs bg-black/15 px-3 py-1.5 rounded-lg">
-              = {totalKwh} kWh de energía
+              = {totalKwh} {t('blk_kwh_energia')}
             </span>
           </div>
           <p className="text-[10px] text-gray-300 italic text-center">
-            Este valor se registra en tu cuenta de aportes para que en el futuro recibas el equivalente en productos o labores de otros miembros.
+            {t('blk_simulador_note')}
           </p>
         </div>
       </div>
@@ -1442,6 +1454,7 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
 // 15. FAQ ACCORDION BLOCK
 // -------------------------------------------------------------
 export function FaqBlock({ data }: { data: FaqBlockData }) {
+  const { t } = useTranslation('public')
   const [openIdx, setOpenIdx] = useState<number | null>(0)
 
   return (
@@ -1483,7 +1496,7 @@ export function FaqBlock({ data }: { data: FaqBlockData }) {
         })}
       </div>
       <div className="text-center mt-4">
-        <EdAddItem arrayField="items" template={{ question: 'Nueva pregunta', answer: 'Respuesta a la pregunta' }} label="+ Añadir pregunta" />
+        <EdAddItem arrayField="items" template={{ question: t('blk_nueva_pregunta'), answer: t('blk_nueva_respuesta') }} label={t('blk_anadir_pregunta')} />
       </div>
     </section>
   )
@@ -1562,6 +1575,7 @@ export function RichTextBlock({ data }: { data: RichTextBlockData }) {
 // 18. CONTACT & LOCATION BLOCK
 // -------------------------------------------------------------
 export function ContactLocationBlock({ data }: { data: ContactLocationBlockData }) {
+  const { t } = useTranslation('public')
   return (
     <section className="my-8 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       {(data.title || data.subtitle) && (
@@ -1576,7 +1590,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
           <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
             <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs sm:text-sm">
               <MapPin size={16} />
-              Ubicación
+              {t('blk_ubicacion')}
             </div>
             <EdText field="address" value={data.address} as="p" className="text-xs text-gray-700 leading-relaxed" multiline />
           </div>
@@ -1586,7 +1600,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
           <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
             <div className="flex items-center gap-2 text-amber-700 font-bold text-xs sm:text-sm">
               <Calendar size={16} />
-              Horario
+              {t('blk_horario')}
             </div>
             <EdText field="schedule" value={data.schedule} as="p" className="text-xs text-gray-700 leading-relaxed" multiline />
           </div>
@@ -1596,7 +1610,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
           <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1">
             <div className="flex items-center gap-2 text-blue-700 font-bold text-xs sm:text-sm">
               <ExternalLink size={16} />
-              Transporte
+              {t('blk_transporte')}
             </div>
             <EdText field="transport_info" value={data.transport_info} as="p" className="text-xs text-gray-700 leading-relaxed" multiline />
           </div>
@@ -1646,13 +1660,14 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
 // En modo edicion: toggle mostrar/ocultar. No se puede eliminar.
 // -------------------------------------------------------------
 const SERVICE_CATEGORY_LABELS: Record<string, string> = {
-  social: 'Redes Sociales Federadas',
-  communication: 'Comunicación',
-  productivity: 'Productividad y Multimedia',
-  infrastructure: 'Infraestructura',
+  social: 'social',
+  communication: 'communication',
+  productivity: 'productivity',
+  infrastructure: 'infrastructure',
 }
 
 export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData }) {
+  const { t } = useTranslation('public')
   const { editMode, updateField } = useInlineEdit()
   const [services, setServices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -1686,7 +1701,7 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
   const grouped = SERVICE_CATEGORY_LABELS
     ? Object.entries(SERVICE_CATEGORY_LABELS).map(([key, label]) => ({
         key,
-        label,
+        label: t(`blk_cat_${label}`),
         items: visibleServices.filter((s) => s.category === key),
       })).filter((g) => g.items.length > 0)
     : [{ key: 'all', label: '', items: visibleServices }]
@@ -1704,7 +1719,7 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
       <section className="my-8 sm:my-12 bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-gray-100">
         <div className="text-center py-8 space-y-3">
           <div className="w-10 h-10 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin mx-auto" />
-          <p className="text-gray-500 text-xs">Cargando servicios...</p>
+          <p className="text-gray-500 text-xs">{t('blk_cargando_servicios')}</p>
         </div>
       </section>
     )
@@ -1726,10 +1741,9 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2">
           <Server size={16} className="flex-shrink-0 mt-0.5" />
           <div>
-            Estos servicios provienen del catálogo real del nodo. Usa los botones <strong>Ocultar/Mostrar</strong> para controlar
-            cuáles se muestran al público. Para instalar o desinstalar servicios, usa el{' '}
-            <Link to="/app/services" className="font-bold underline">Panel de Servicios</Link>.
-            <strong> No se pueden eliminar del catálogo desde aquí.</strong>
+            <span dangerouslySetInnerHTML={{ __html: t('blk_servicios_info_pre') }} />
+            <Link to="/app/services" className="font-bold underline">{t('blk_servicios_panel')}</Link>
+            <span dangerouslySetInnerHTML={{ __html: t('blk_servicios_info_post') }} />
           </div>
         </div>
       )}
@@ -1759,10 +1773,10 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
                       <span className={`font-bold px-2 py-0.5 rounded ${
                         isInstalled ? 'text-emerald-800 bg-emerald-100' : 'text-gray-500 bg-gray-200'
                       }`}>
-                        {isInstalled ? 'Instalado' : 'Disponible'}
+                        {isInstalled ? t('blk_instalado') : t('blk_disponible_svc')}
                       </span>
                       {svc.replaces && (
-                        <span className="text-gray-400 text-[10px]">Reemplaza: {svc.replaces}</span>
+                        <span className="text-gray-400 text-[10px]">{t('blk_reemplaza')}: {svc.replaces}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -1782,7 +1796,7 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                     >
-                      {isHidden ? <><Eye size={14} /> Mostrar al público</> : <><EyeOff size={14} /> Ocultar del público</>}
+                      {isHidden ? <><Eye size={14} /> {t('blk_mostrar_publico')}</> : <><EyeOff size={14} /> {t('blk_ocultar_publico')}</>}
                     </button>
                   )}
                 </div>
@@ -1794,8 +1808,9 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
 
       {editMode && visibleServices.length === 0 && (
         <div className="text-center py-8 text-gray-500 text-xs">
-          No hay servicios en el catálogo. Instala servicios desde el{' '}
-          <Link to="/app/services" className="font-bold underline">Panel de Servicios</Link>.
+          <span dangerouslySetInnerHTML={{ __html: t('blk_no_servicios_pre') }} />
+          <Link to="/app/services" className="font-bold underline">{t('blk_servicios_panel')}</Link>
+          <span dangerouslySetInnerHTML={{ __html: t('blk_no_servicios_post') }} />
         </div>
       )}
     </section>

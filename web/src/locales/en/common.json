@@ -139,7 +139,14 @@
     "connecting": "Connecting...",
     "password_placeholder": "Your password",
     "username_hint": "Type only your name. The @{{domain}} domain is added automatically. For another node, type user@other-domain.com",
-    "no_account": "Don't have an account? Request admission to your node."
+    "no_account": "Don't have an account? Request admission to your node.",
+    "expired_title": "Session expired",
+    "expired_desc": "Your session was closed due to inactivity. Log in again to continue. You won't lose what you were doing.",
+    "expired_username_placeholder": "Your username",
+    "expired_password_placeholder": "Your password",
+    "expired_submit": "Log in and continue",
+    "expired_submitting": "Logging in...",
+    "expired_note": "When you log in, you'll return to the same page you were on."
   },
   "setup": {
     "title": "Initial Node Setup",

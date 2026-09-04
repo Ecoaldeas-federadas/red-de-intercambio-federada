@@ -1,39 +1,23 @@
-docs(licencia): Licencia Publica Federada LPF-1.0 con copyleft, regalías y federacion obligatoria
+feat(license): pagina /licencia visible para todos + endpoint publico
 
-Anade la Licencia Publica Federada (LPF-1.0), una licencia propia basada en
-copyleft fuerte (estilo AGPL) con condiciones adicionales unicas del proyecto:
+La Licencia Publica Federada (LPF-1.0) ya existia en el archivo LICENSE
+pero no era visible desde la interfaz del nodo. Ahora:
 
-- Copyleft fuerte: toda modificacion debe publicarse bajo LPF-1.0 con codigo
-  fuente completo, en cualquier lenguaje o plataforma
-- Prohibicion de venta del codigo: no se puede vender como producto ni
-  licenciar por pago
-- Servicios permitidos: cobrar por instalacion, configuracion, soporte,
-  capacitacion y SaaS
-- Regalía del 2% sobre ingresos SaaS above USD 12,000/ano (umbral que cubre
-  costos basicos de hospedaje; 2% es menos que comisiones de procesadores
-  de pagos como Stripe ~3%)
-- Federacion obligatoria: toda modificacion debe poder federarse con el
-  repositorio principal (como SMTP entre servidores de correo)
-- Cambios al protocolo requieren aprobacion del repositorio principal
-- Registro obligatorio de forks en forks-registry/registry.md
-- Atribucion obligatoria al creador (discapacidad5)
-- Prohibicion de relicenciamiento
-- Incumplimiento: 30 dias de gracia + revocacion automatica + acciones legales
+- Nueva pagina /licencia accesible por todos (sin login)
+  Muestra resumen visual: que esta permitido, que esta prohibido,
+  a que te comprometes, regalias por SaaS, y texto completo.
 
-Investigacion de regalías reales que informo el 2%:
-- Unreal Engine: 5% above USD 1M (motores AAA complejos)
-- OSFL: 1% sin umbral
-- BCE project: 0.5% sin umbral
-- 2% es el punto dulce: reconoce el trabajo del creador sin generar resistencia
+- Endpoint publico GET /api/license que sirve el texto de LICENSE
 
-Archivos nuevos:
-- LICENSE: texto completo de LPF-1.0 (16 secciones)
-- forks-registry/registry.md: registro inicial de forks con instrucciones
+- Enlace visible en el footer del sitio publico ("Licencia LPF-1.0")
 
-Archivos modificados:
-- README.md: seccion Licencia actualizada con resumen claro
-- cmd/node/main.go, internal/federation/transport.go, propagation.go,
-  web/src/main.tsx: headers de licencia
+- Enlace en el menu lateral del panel admin ("Licencia LPF-1.0")
+
+- Arreglado error tipografico en LICENSE (incluia caracteres chinos
+  por error: "incluyendo但不限于" -> "incluyendo sin limitar a")
+
+Esto cumple con la Seccion 5.7 de la LPF-1.0 que exige que la
+atribucion y licencia sean accesibles desde la interfaz del usuario.
 
 Generated with [Devin](https://devin.ai)
 

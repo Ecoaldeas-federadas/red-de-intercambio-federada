@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, setSessionExpiredHandler, clearSessionExpiredFlag } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { Lock, X } from 'lucide-react'
 
 export function SessionExpiredProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('common')
   const [showModal, setShowModal] = useState(false)
   const { login, logout } = useAuth()
   const [username, setUsername] = useState('')
@@ -31,7 +33,7 @@ export function SessionExpiredProvider({ children }: { children: React.ReactNode
       setPassword('')
       clearSessionExpiredFlag()
     } catch (err: any) {
-      setError(err?.message || 'Error al iniciar sesión')
+      setError(err?.message || t('login.error_generic'))
     } finally {
       setLoading(false)
     }
@@ -60,42 +62,41 @@ export function SessionExpiredProvider({ children }: { children: React.ReactNode
                 <Lock size={24} className="text-amber-600" />
               </div>
               <div>
-                <h2 className="font-bold text-lg text-gray-900">Sesión expirada</h2>
+                <h2 className="font-bold text-lg text-gray-900">{t('login.expired_title')}</h2>
                 <p className="text-sm text-gray-500">
-                  Tu sesión se cerró por inactividad. Inicia sesión nuevamente para continuar.
-                  No perderás lo que estabas haciendo.
+                  {t('login.expired_desc')}
                 </p>
               </div>
             </div>
             <form onSubmit={handleRelogin} className="space-y-3">
               <div>
-                <label className="label text-sm">Usuario</label>
+                <label className="label text-sm">{t('common.username')}</label>
                 <input
                   className="input"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                  placeholder="Tu usuario"
+                  placeholder={t('login.expired_username_placeholder')}
                   autoFocus
                   required
                 />
               </div>
               <div>
-                <label className="label text-sm">Contraseña</label>
+                <label className="label text-sm">{t('common.password')}</label>
                 <input
                   type="password"
                   className="input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Tu contraseña"
+                  placeholder={t('login.expired_password_placeholder')}
                   required
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <button type="submit" className="btn-primary w-full" disabled={loading}>
-                {loading ? 'Iniciando sesión...' : 'Iniciar sesión y continuar'}
+                {loading ? t('login.expired_submitting') : t('login.expired_submit')}
               </button>
               <p className="text-xs text-gray-400 text-center">
-                Al iniciar sesión, volverás a la misma página donde estabas.
+                {t('login.expired_note')}
               </p>
             </form>
           </div>

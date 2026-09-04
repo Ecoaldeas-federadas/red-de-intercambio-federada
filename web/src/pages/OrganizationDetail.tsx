@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
@@ -10,6 +11,7 @@ import { fmtTQ, toCents, fmtDateTime } from '../lib/format'
 export default function OrganizationDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation('organizations')
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -134,12 +136,12 @@ export default function OrganizationDetail() {
   const assignBoard = async () => {
     setError('')
     if (!boardForm.user_id) {
-      setError('Selecciona un usuario')
+      setError(t('detail_error_select_user'))
       return
     }
     try {
       await api.post(`/organizations/${id}/board`, boardForm)
-      setSuccess('Miembro asignado a la junta directiva')
+      setSuccess(t('detail_success_board_assigned'))
       setBoardForm({ user_id: '', position: 'presidente' })
       load()
       setTimeout(() => setSuccess(''), 3000)
@@ -160,7 +162,7 @@ export default function OrganizationDetail() {
   const saveMultisig = async () => {
     try {
       await api.put(`/organizations/${id}/multisig`, multisigForm)
-      setSuccess('Configuracion multi-firma guardada')
+      setSuccess(t('detail_success_multisig_saved'))
       setTimeout(() => setSuccess(''), 3000)
       load()
     } catch (err) {
@@ -171,7 +173,7 @@ export default function OrganizationDetail() {
   const createDept = async () => {
     setError('')
     if (!deptForm.name.trim()) {
-      setError('El nombre del departamento es obligatorio')
+      setError(t('detail_error_dept_name'))
       return
     }
     try {
@@ -181,7 +183,7 @@ export default function OrganizationDetail() {
         group_type: 'department',
         parent_organization_id: id,
       })
-      setSuccess('Departamento creado')
+      setSuccess(t('detail_success_dept_created'))
       setDeptForm({ name: '', description: '' })
       setShowDeptForm(false)
       load()
@@ -197,38 +199,37 @@ export default function OrganizationDetail() {
     return (
       <div className="space-y-4">
         <button onClick={() => navigate('/app/organizations')} className="text-trueque-600 flex items-center gap-1">
-          <ArrowLeft size={16} /> Volver
+          <ArrowLeft size={16} /> {t('detail_back')}
         </button>
-        <p className="text-gray-500">Cargando organizacion...</p>
+        <p className="text-gray-500">{t('detail_loading')}</p>
       </div>
     )
   }
 
   const POSITIONS = [
-    { value: 'presidente', label: 'Presidente' },
-    { value: 'vicepresidente', label: 'Vicepresidente' },
-    { value: 'secretario', label: 'Secretario/a' },
-    { value: 'tesorero', label: 'Tesorero/a' },
-    { value: 'vocal', label: 'Vocal' },
+    { value: 'presidente', label: t('detail_position_presidente') },
+    { value: 'vicepresidente', label: t('detail_position_vicepresidente') },
+    { value: 'secretario', label: t('detail_position_secretario') },
+    { value: 'tesorero', label: t('detail_position_tesorero') },
+    { value: 'vocal', label: t('detail_position_vocal') },
   ]
 
   const tabs = [
-    { key: 'info', label: 'Informacion', icon: <Settings size={16} /> },
-    { key: 'board', label: 'Junta Directiva', icon: <Crown size={16} /> },
-    { key: 'members', label: 'Miembros', icon: <Users size={16} /> },
-    { key: 'departments', label: 'Departamentos', icon: <Building2 size={16} /> },
-    { key: 'services', label: 'Servicios', icon: <Plug size={16} /> },
-    { key: 'terminals', label: 'Puntos de Venta', icon: <ShoppingBag size={16} /> },
-    { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
-    // La pestana Asamblea solo aparece para orgs que NO son la Asamblea General
-    ...(isAssemblyOwned ? [] : [{ key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> }]),
-    { key: 'boardmeetings', label: 'Reuniones Junta', icon: <VoteIcon size={16} /> },
+    { key: 'info', label: t('detail_tab_info'), icon: <Settings size={16} /> },
+    { key: 'board', label: t('detail_tab_board'), icon: <Crown size={16} /> },
+    { key: 'members', label: t('detail_tab_members'), icon: <Users size={16} /> },
+    { key: 'departments', label: t('detail_tab_departments'), icon: <Building2 size={16} /> },
+    { key: 'services', label: t('detail_tab_services'), icon: <Plug size={16} /> },
+    { key: 'terminals', label: t('detail_tab_terminals'), icon: <ShoppingBag size={16} /> },
+    { key: 'wallet', label: t('detail_tab_wallet'), icon: <WalletIcon size={16} /> },
+    ...(isAssemblyOwned ? [] : [{ key: 'assembly', label: t('detail_tab_assembly'), icon: <VoteIcon size={16} /> }]),
+    { key: 'boardmeetings', label: t('detail_tab_boardmeetings'), icon: <VoteIcon size={16} /> },
   ]
 
   return (
     <div className="space-y-4">
       <button onClick={() => navigate('/app/organizations')} className="text-trueque-600 flex items-center gap-1 text-sm">
-        <ArrowLeft size={16} /> Volver a organizaciones
+        <ArrowLeft size={16} /> {t('detail_back_to_orgs')}
       </button>
 
       <div className={`card ${isAssemblyOwned ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300' : ''}`}>
@@ -239,12 +240,12 @@ export default function OrganizationDetail() {
           <div className="flex-1">
             <h1 className="text-2xl font-bold">{org.display_name || org.username}</h1>
             <p className="text-sm text-gray-500">
-              @{org.username} | {org.organization_subtype || 'Organizacion'}
-              {isAssemblyOwned && <span className="ml-2 text-amber-700 font-semibold">Creada por la Asamblea</span>}
+              @{org.username} | {org.organization_subtype || t('title')}
+              {isAssemblyOwned && <span className="ml-2 text-amber-700 font-semibold">{t('created_by_assembly')}</span>}
             </p>
           </div>
           <span className={`text-xs px-2 py-1 rounded ${org.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-            {org.is_approved ? 'Aprobada' : 'Pendiente'}
+            {org.is_approved ? t('detail_approved') : t('detail_pending')}
           </span>
         </div>
         {isAssemblyOwned && (
@@ -254,36 +255,36 @@ export default function OrganizationDetail() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition"
             >
               <VoteIcon size={16} />
-              Ir a la Asamblea General
+              {t('detail_go_to_assembly')}
               <ExternalLink size={14} />
             </button>
             <p className="text-xs text-amber-700 mt-2">
-              Esta organizacion es la Asamblea General del nodo. Sus reuniones, propuestas y votaciones se gestionan en la pestaña Asamblea del menu principal. La billetera de esta organizacion es el Fondo Comunitario.
+              {t('detail_assembly_owned_desc')}
             </p>
           </div>
         )}
         {myRole && (
           <div className="mt-3 flex items-center gap-2 text-sm">
-            <span className="text-gray-500">Tu rol aqui:</span>
+            <span className="text-gray-500">{t('detail_your_role_here')}</span>
             <span className="font-medium text-purple-700">{myRole.role}</span>
-            {myRole.is_board_member && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Junta Directiva</span>}
-            {myRole.can_transfer && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>}
-            {myRole.can_config && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Puede configurar</span>}
+            {myRole.is_board_member && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{t('board_directive')}</span>}
+            {myRole.can_transfer && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('can_transfer')}</span>}
+            {myRole.can_config && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t('detail_can_config')}</span>}
           </div>
         )}
       </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 border-b border-gray-200">
-        {tabs.map(t => (
+        {tabs.map(tb => (
           <button
-            key={t.key}
-            onClick={() => changeTab(t.key as any)}
+            key={tb.key}
+            onClick={() => changeTab(tb.key as any)}
             className={`px-4 py-2 text-sm font-medium flex items-center gap-1 whitespace-nowrap ${
-              tab === t.key ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
+              tab === tb.key ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t.icon} {t.label}
+            {tb.icon} {tb.label}
           </button>
         ))}
       </div>
@@ -294,40 +295,40 @@ export default function OrganizationDetail() {
       {/* Tab: Informacion */}
       {tab === 'info' && (
         <div className="card space-y-3">
-          <h2 className="font-semibold">Informacion de la Organizacion</h2>
+          <h2 className="font-semibold">{t('detail_info_title')}</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Nombre:</p>
+              <p className="text-gray-500">{t('detail_name_label')}</p>
               <p className="font-medium">{org.display_name || org.username}</p>
             </div>
             <div>
-              <p className="text-gray-500">Usuario:</p>
+              <p className="text-gray-500">{t('detail_username_label')}</p>
               <p className="font-medium">@{org.username}</p>
             </div>
             <div>
-              <p className="text-gray-500">Tipo:</p>
+              <p className="text-gray-500">{t('detail_type_label')}</p>
               <p className="font-medium">{org.organization_subtype || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-gray-500">Balance:</p>
+              <p className="text-gray-500">{t('detail_balance_label')}</p>
               <p className="font-medium">{fmtAmount(balance)} {currency}</p>
             </div>
             <div>
-              <p className="text-gray-500">Limite credito:</p>
+              <p className="text-gray-500">{t('detail_credit_limit_label')}</p>
               <p className="font-medium">{fmtTQ(org.credit_limit || 0)} {currency}</p>
             </div>
             <div>
-              <p className="text-gray-500">Limite debito:</p>
+              <p className="text-gray-500">{t('detail_debit_limit_label')}</p>
               <p className="font-medium">{fmtTQ(org.debit_limit || 0)} {currency}</p>
             </div>
           </div>
           {isAssemblyOwned && (
             <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
-              Esta organizacion fue creada por la Asamblea. Las decisiones sobre el Fondo Comunitario se toman en la <button onClick={() => navigate('/app/assembly')} className="underline font-semibold">pagina de la Asamblea</button>.
+              {t('detail_assembly_owned_info')} <button onClick={() => navigate('/app/assembly')} className="underline font-semibold">{t('detail_assembly_page_link')}</button>.
             </p>
           )}
           <p className="text-xs text-gray-400">
-            Para transferir a esta organizacion, usa su usuario @{org.username} como destinatario.
+            {t('detail_transfer_hint', { username: org.username })}
           </p>
         </div>
       )}
@@ -336,11 +337,11 @@ export default function OrganizationDetail() {
       {tab === 'board' && (
         <div className="space-y-4">
           <div className="card space-y-3">
-            <h2 className="font-semibold flex items-center gap-2"><Crown size={18} /> Junta Directiva</h2>
-            <p className="text-xs text-gray-500">Los cargos asignados definen quienes pueden tomar decisiones en nombre de la organizacion.</p>
+            <h2 className="font-semibold flex items-center gap-2"><Crown size={18} /> {t('detail_board_title')}</h2>
+            <p className="text-xs text-gray-500">{t('detail_board_desc')}</p>
 
             {boardMembers.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay miembros en la junta directiva.</p>
+              <p className="text-gray-500 text-sm">{t('detail_board_empty')}</p>
             ) : (
               <div className="space-y-2">
                 {boardMembers.map((m, i) => (
@@ -361,10 +362,10 @@ export default function OrganizationDetail() {
 
             {canManage && (
               <div className="border-t pt-3 space-y-2">
-                <h3 className="text-sm font-medium">Asignar nuevo miembro</h3>
+                <h3 className="text-sm font-medium">{t('detail_board_assign_new')}</h3>
                 <div className="grid grid-cols-2 gap-2">
                   <select className="input" value={boardForm.user_id} onChange={(e) => setBoardForm({ ...boardForm, user_id: e.target.value })}>
-                    <option value="">Seleccionar...</option>
+                    <option value="">{t('detail_board_select')}</option>
                     {allUsers.map((u: any) => (
                       <option key={u.id} value={u.id}>{u.display_name || u.username} ({u.username})</option>
                     ))}
@@ -373,18 +374,18 @@ export default function OrganizationDetail() {
                     {POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                   </select>
                 </div>
-                <button onClick={assignBoard} className="btn-primary text-sm">Asignar</button>
+                <button onClick={assignBoard} className="btn-primary text-sm">{t('detail_board_assign_button')}</button>
               </div>
             )}
           </div>
 
           {/* Multi-firma */}
           <div className="card space-y-3">
-            <h2 className="font-semibold flex items-center gap-2"><Settings size={18} /> Multi-firma</h2>
-            <p className="text-xs text-gray-500">Selecciona quienes deben firmar para aprobar transacciones de esta organizacion.</p>
+            <h2 className="font-semibold flex items-center gap-2"><Settings size={18} /> {t('detail_multisig_title')}</h2>
+            <p className="text-xs text-gray-500">{t('detail_multisig_desc')}</p>
 
             <div>
-              <label className="label">Firmas requeridas</label>
+              <label className="label">{t('detail_multisig_required')}</label>
               <input
                 type="number"
                 min={1}
@@ -395,7 +396,7 @@ export default function OrganizationDetail() {
             </div>
 
             <div>
-              <label className="label">Personas autorizadas a firmar</label>
+              <label className="label">{t('detail_multisig_authorized')}</label>
               <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
                 {allUsers.map((u: any) => (
                   <label key={u.id} className="flex items-center gap-2 text-sm">
@@ -417,7 +418,7 @@ export default function OrganizationDetail() {
             </div>
 
             {canManage && (
-              <button onClick={saveMultisig} className="btn-primary text-sm">Guardar configuracion</button>
+              <button onClick={saveMultisig} className="btn-primary text-sm">{t('detail_multisig_save')}</button>
             )}
           </div>
         </div>
@@ -426,10 +427,10 @@ export default function OrganizationDetail() {
       {/* Tab: Miembros */}
       {tab === 'members' && (
         <div className="card space-y-3">
-          <h2 className="font-semibold flex items-center gap-2"><Users size={18} /> Miembros de la Organizacion</h2>
-          <p className="text-xs text-gray-500">Los miembros pueden ver las actividades de la organizacion y participar en sus decisiones.</p>
+          <h2 className="font-semibold flex items-center gap-2"><Users size={18} /> {t('detail_members_title')}</h2>
+          <p className="text-xs text-gray-500">{t('detail_members_desc')}</p>
           {orgMembers.length === 0 ? (
-            <p className="text-gray-500 text-sm">No hay miembros asignados a esta organizacion.</p>
+            <p className="text-gray-500 text-sm">{t('detail_members_empty')}</p>
           ) : (
             <div className="space-y-2">
               {orgMembers.map((m, i) => (
@@ -448,12 +449,12 @@ export default function OrganizationDetail() {
           <div className="card space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} /> Departamentos de {org.display_name || org.username}</h2>
-                <p className="text-xs text-gray-500 mt-1">Los departamentos son subgrupos internos de esta organizacion. Cada departamento tiene sus propios miembros, roles y billetera.</p>
+                <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} /> {t('detail_depts_of')} {org.display_name || org.username}</h2>
+                <p className="text-xs text-gray-500 mt-1">{t('detail_depts_desc')}</p>
               </div>
               {canManage && (
                 <button onClick={() => setShowDeptForm(!showDeptForm)} className="btn-primary text-sm flex items-center gap-1">
-                  <Plus size={16} /> Nuevo Departamento
+                  <Plus size={16} /> {t('detail_depts_new')}
                 </button>
               )}
             </div>
@@ -461,33 +462,33 @@ export default function OrganizationDetail() {
             {showDeptForm && (
               <div className="border-t pt-3 space-y-2">
                 <div>
-                  <label className="label">Nombre del departamento</label>
+                  <label className="label">{t('detail_depts_name_label')}</label>
                   <input
                     className="input"
-                    placeholder="Ej: Comision de Economia, Consejo de Vision..."
+                    placeholder={t('detail_depts_name_placeholder')}
                     value={deptForm.name}
                     onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="label">Descripcion</label>
+                  <label className="label">{t('detail_depts_desc_label')}</label>
                   <textarea
                     className="input"
                     rows={2}
-                    placeholder="Que hace este departamento?"
+                    placeholder={t('detail_depts_desc_placeholder')}
                     value={deptForm.description}
                     onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
                   />
                 </div>
-                <button onClick={createDept} className="btn-primary text-sm">Crear Departamento</button>
+                <button onClick={createDept} className="btn-primary text-sm">{t('detail_depts_create_button')}</button>
               </div>
             )}
 
             {deptList.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Building2 size={32} className="mx-auto mb-2 text-gray-300" />
-                <p>Esta organizacion no tiene departamentos.</p>
-                {canManage && <p className="text-xs mt-1">Crea uno con el boton "Nuevo Departamento".</p>}
+                <p>{t('detail_depts_empty')}</p>
+                {canManage && <p className="text-xs mt-1">{t('detail_depts_empty_hint')}</p>}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -497,16 +498,16 @@ export default function OrganizationDetail() {
                       <Building2 size={16} className="text-trueque-600" />
                       <h3 className="font-medium text-sm">{dp.name}</h3>
                     </div>
-                    <p className="text-xs text-gray-500 mb-2">{dp.description || 'Sin descripcion'}</p>
+                    <p className="text-xs text-gray-500 mb-2">{dp.description || t('detail_depts_no_description')}</p>
                     <div className="flex items-center justify-between">
                       <span className={`text-xs px-2 py-0.5 rounded ${dp.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {dp.is_active ? 'Activo' : 'Inactivo'}
+                        {dp.is_active ? t('detail_depts_active') : t('detail_depts_inactive')}
                       </span>
                       <button
                         onClick={() => navigate(`/app/departments/${dp.id}`)}
                         className="text-xs text-trueque-600 hover:underline flex items-center gap-1 font-medium"
                       >
-                        Abrir <ArrowUpCircle size={12} />
+                        {t('detail_depts_open')} <ArrowUpCircle size={12} />
                       </button>
                     </div>
                   </div>
@@ -523,9 +524,9 @@ export default function OrganizationDetail() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="font-semibold text-lg flex items-center gap-2"><Plug size={18} />Servicios de la Organizacion</h2>
+                <h2 className="font-semibold text-lg flex items-center gap-2"><Plug size={18} />{t('detail_services_title')}</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Servicios que ofrece esta organizacion: mensualidades, cobros, pagos a miembros.
+                  {t('detail_services_desc')}
                 </p>
               </div>
               {canConfig && (
@@ -533,38 +534,38 @@ export default function OrganizationDetail() {
                   onClick={() => setShowServiceForm(!showServiceForm)}
                   className="px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-sm font-medium hover:bg-trueque-700"
                 >
-                  <Plus size={14} className="inline mr-1" />Nuevo Servicio
+                  <Plus size={14} className="inline mr-1" />{t('detail_services_new')}
                 </button>
               )}
             </div>
 
             {showServiceForm && canConfig && (
               <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
-                <h3 className="font-medium mb-3">Crear Nuevo Servicio</h3>
+                <h3 className="font-medium mb-3">{t('detail_services_create_title')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-gray-500">Nombre del servicio *</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_name_label')}</label>
                     <input
                       className="input mt-1"
                       value={serviceForm.name}
                       onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })}
-                      placeholder="Ej: Mensualidad Electrica"
+                      placeholder={t('detail_services_name_placeholder')}
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Tipo de servicio</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_type_label')}</label>
                     <select
                       className="input mt-1"
                       value={serviceForm.service_type}
                       onChange={(e) => setServiceForm({ ...serviceForm, service_type: e.target.value })}
                     >
-                      <option value="subscription">Cobro: la organizacion cobra al miembro</option>
-                      <option value="benefit">Pago: la organizacion PAGA al miembro</option>
-                      <option value="one_time">Cobro unico: pago una sola vez</option>
+                      <option value="subscription">{t('detail_services_type_subscription')}</option>
+                      <option value="benefit">{t('detail_services_type_benefit')}</option>
+                      <option value="one_time">{t('detail_services_type_one_time')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Monto (0 = gratuito)</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_amount_label')}</label>
                     <input
                       type="number"
                       className="input mt-1"
@@ -573,54 +574,54 @@ export default function OrganizationDetail() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Frecuencia</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_frequency_label')}</label>
                     <select
                       className="input mt-1"
                       value={serviceForm.frequency}
                       onChange={(e) => setServiceForm({ ...serviceForm, frequency: e.target.value })}
                     >
-                      <option value="monthly">Mensual</option>
-                      <option value="quarterly">Trimestral</option>
-                      <option value="annual">Anual</option>
+                      <option value="monthly">{t('detail_services_frequency_monthly')}</option>
+                      <option value="quarterly">{t('detail_services_frequency_quarterly')}</option>
+                      <option value="annual">{t('detail_services_frequency_annual')}</option>
                     </select>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500">Descripcion</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_desc_label')}</label>
                     <input
                       className="input mt-1"
                       value={serviceForm.description}
                       onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
-                      placeholder="Que incluye el servicio"
+                      placeholder={t('detail_services_desc_placeholder')}
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Obligaciones del miembro</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_obligations_label')}</label>
                     <textarea
                       className="input mt-1"
                       rows={2}
                       value={serviceForm.obligations}
                       onChange={(e) => setServiceForm({ ...serviceForm, obligations: e.target.value })}
-                      placeholder="Que debe hacer el miembro"
+                      placeholder={t('detail_services_obligations_placeholder')}
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Derechos del miembro</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_rights_label')}</label>
                     <textarea
                       className="input mt-1"
                       rows={2}
                       value={serviceForm.rights}
                       onChange={(e) => setServiceForm({ ...serviceForm, rights: e.target.value })}
-                      placeholder="Que recibe el miembro"
+                      placeholder={t('detail_services_rights_placeholder')}
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500">Deberes del miembro</label>
+                    <label className="text-xs text-gray-500">{t('detail_services_duties_label')}</label>
                     <textarea
                       className="input mt-1"
                       rows={2}
                       value={serviceForm.duties}
                       onChange={(e) => setServiceForm({ ...serviceForm, duties: e.target.value })}
-                      placeholder="Tareas o compromisos esperados"
+                      placeholder={t('detail_services_duties_placeholder')}
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -631,8 +632,8 @@ export default function OrganizationDetail() {
                         onChange={(e) => setServiceForm({ ...serviceForm, is_mandatory: e.target.checked })}
                       />
                       <span>
-                        <strong>Servicio obligatorio</strong> — todos los miembros deben cumplir
-                        {org?.is_assembly_owned ? ' (aplica a todos los miembros del nodo)' : ' (requiere aprobacion por votacion de los miembros de la organizacion)'}
+                        <strong>{t('detail_services_mandatory_label')}</strong> — {t('detail_services_mandatory_desc')}
+                        {org?.is_assembly_owned ? t('detail_services_mandatory_assembly') : t('detail_services_mandatory_org')}
                       </span>
                     </label>
                   </div>
@@ -640,33 +641,33 @@ export default function OrganizationDetail() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => {
-                      if (!serviceForm.name) { alert('El nombre es requerido'); return }
+                      if (!serviceForm.name) { alert(t('detail_error_service_name')); return }
                       api.post(`/organizations/${id}/services`, serviceForm).then(() => {
-                        setSuccess('Servicio creado')
+                        setSuccess(t('detail_success_service_created'))
                         setShowServiceForm(false)
                         setServiceForm({ name: '', description: '', service_type: 'subscription', amount: 0, frequency: 'monthly', is_mandatory: false, obligations: '', rights: '', duties: '' })
                         load()
                         setTimeout(() => setSuccess(''), 3000)
                       }).catch((err: any) => {
-                        alert(err instanceof Error ? err.message : 'Error al crear servicio')
+                        alert(err instanceof Error ? err.message : t('detail_error_service_create'))
                       })
                     }}
                     className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm font-medium hover:bg-trueque-700"
                   >
-                    Crear Servicio
+                    {t('detail_services_create_button')}
                   </button>
                   <button
                     onClick={() => setShowServiceForm(false)}
                     className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200"
                   >
-                    Cancelar
+                    {t('detail_services_cancel')}
                   </button>
                 </div>
               </div>
             )}
 
             {services.length === 0 ? (
-              <p className="text-gray-400 py-8 text-center">Esta organizacion no tiene servicios activos.</p>
+              <p className="text-gray-400 py-8 text-center">{t('detail_services_empty')}</p>
             ) : (
               <div className="space-y-3">
                 {services.map((svc: any) => (
@@ -676,55 +677,55 @@ export default function OrganizationDetail() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-medium">{svc.name}</h3>
                           {svc.is_mandatory && (
-                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Obligatorio</span>
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{t('detail_services_mandatory_badge')}</span>
                           )}
                           {svc.service_type === 'benefit' && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Paga al miembro</span>
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{t('detail_services_pays_member_badge')}</span>
                           )}
                           {svc.service_type === 'one_time' && (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Pago unico</span>
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{t('detail_services_one_time_badge')}</span>
                           )}
                           {svc.amount === 0 && (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Gratuito</span>
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{t('detail_services_free_badge')}</span>
                           )}
                           {!svc.is_active && (
-                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Inactivo</span>
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{t('detail_services_inactive_badge')}</span>
                           )}
                         </div>
                         <p className="text-sm text-gray-600 mt-1">{svc.description}</p>
                         <p className="text-sm font-medium mt-2">
                           {svc.service_type === 'benefit' ? '+' : svc.amount === 0 ? '' : '-'}
-                          {svc.amount > 0 ? `${fmtAmount(svc.amount)} ${currency}` : 'Gratuito'}
-                          {svc.amount > 0 && svc.frequency === 'monthly' ? ' / mes' : svc.frequency === 'quarterly' ? ' / trimestre' : svc.frequency === 'annual' ? ' / ano' : ''}
+                          {svc.amount > 0 ? `${fmtAmount(svc.amount)} ${currency}` : t('detail_services_free')}
+                          {svc.amount > 0 && svc.frequency === 'monthly' ? t('detail_services_per_month') : svc.frequency === 'quarterly' ? t('detail_services_per_quarter') : svc.frequency === 'annual' ? t('detail_services_per_year') : ''}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
-                          {svc.subscribers_count || 0} suscriptores
+                          {svc.subscribers_count || 0} {t('detail_services_subscribers')}
                         </p>
                       </div>
                       {canConfig && svc.is_active && (
                         <button
                           onClick={() => {
-                            if (!confirm('Desactivar este servicio?')) return
+                            if (!confirm(t('detail_services_deactivate_confirm'))) return
                             api.delete(`/organizations/services/${svc.id}`).then(() => {
                               load()
                             }).catch(() => {})
                           }}
                           className="text-red-500 hover:text-red-700 text-xs"
                         >
-                          Desactivar
+                          {t('detail_services_deactivate')}
                         </button>
                       )}
                     </div>
                     {(svc.obligations || svc.rights || svc.duties) && (
                       <div className="mt-3 pt-3 border-t border-gray-50 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                         {svc.obligations && (
-                          <div><strong className="text-gray-700">Obligaciones:</strong> <span className="text-gray-500">{svc.obligations}</span></div>
+                          <div><strong className="text-gray-700">{t('detail_services_obligations')}</strong> <span className="text-gray-500">{svc.obligations}</span></div>
                         )}
                         {svc.rights && (
-                          <div><strong className="text-gray-700">Derechos:</strong> <span className="text-gray-500">{svc.rights}</span></div>
+                          <div><strong className="text-gray-700">{t('detail_services_rights')}</strong> <span className="text-gray-500">{svc.rights}</span></div>
                         )}
                         {svc.duties && (
-                          <div><strong className="text-gray-700">Deberes:</strong> <span className="text-gray-500">{svc.duties}</span></div>
+                          <div><strong className="text-gray-700">{t('detail_services_duties')}</strong> <span className="text-gray-500">{svc.duties}</span></div>
                         )}
                       </div>
                     )}
@@ -744,13 +745,13 @@ export default function OrganizationDetail() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-amber-100 text-sm">
-                    {`Saldo de ${org.display_name || org.username}`}
+                    {`${t('detail_wallet_balance_of')} ${org.display_name || org.username}`}
                   </p>
                   <p className="text-4xl font-bold mt-1">
                     {balance >= 0 ? '+' : ''}{fmtAmount(balance)} {currency}
                   </p>
                   <p className="text-amber-200 text-xs mt-2">
-                    {`Cuenta: @{org.username}`}
+                    {`Cuenta: @${org.username}`}
                   </p>
                 </div>
                 <WalletIcon size={48} className="text-amber-200" />
@@ -759,15 +760,15 @@ export default function OrganizationDetail() {
           </div>
 
           <div className="card">
-            <h2 className="font-semibold text-lg mb-3">Movimientos</h2>
+            <h2 className="font-semibold text-lg mb-3">{t('detail_wallet_movements')}</h2>
             {txs.length === 0 ? (
-              <p className="text-gray-500 text-sm py-4">No hay transacciones en esta cuenta.</p>
+              <p className="text-gray-500 text-sm py-4">{t('detail_wallet_no_transactions')}</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {txs.map((t, i) => {
-                  const isDebit = t.direction === 'debit'
-                  const fromName = t.sender_display || t.from_user || t.sender_name || '???'
-                  const toName = t.receiver_display || t.to_user || t.receiver_name || '???'
+                {txs.map((tx, i) => {
+                  const isDebit = tx.direction === 'debit'
+                  const fromName = tx.sender_display || tx.from_user || tx.sender_name || '???'
+                  const toName = tx.receiver_display || tx.to_user || tx.receiver_name || '???'
                   return (
                     <div key={i} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
                       <div className="flex items-center gap-3">
@@ -778,17 +779,17 @@ export default function OrganizationDetail() {
                         )}
                         <div>
                           <p className="text-sm font-medium">
-                            {isDebit ? 'Enviado a ' : 'Recibido de '}
+                            {isDebit ? t('detail_wallet_sent_to') + ' ' : t('detail_wallet_received_from') + ' '}
                             <span className="font-semibold">{isDebit ? toName : fromName}</span>
                           </p>
                           <p className="text-xs text-gray-500">
-                            {String(t.created_at || '').slice(0, 16).replace('T', ' ')}
-                            {t.description ? ` - ${t.description}` : ''}
+                            {String(tx.created_at || '').slice(0, 16).replace('T', ' ')}
+                            {tx.description ? ` - ${tx.description}` : ''}
                           </p>
                         </div>
                       </div>
                       <div className={`font-bold text-sm ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
-                        {isDebit ? '-' : '+'}{fmtAmount(t.amount || 0)} {currency}
+                        {isDebit ? '-' : '+'}{fmtAmount(tx.amount || 0)} {currency}
                       </div>
                     </div>
                   )
@@ -818,6 +819,7 @@ export default function OrganizationDetail() {
 // ===== Componente: Terminales POS de la organizacion =====
 
 function OrgTerminals({ orgID }: { orgID: string }) {
+  const { t } = useTranslation('organizations')
   const [terminals, setTerminals] = useState<any[]>([])
   const [members, setMembers] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
@@ -862,7 +864,7 @@ function OrgTerminals({ orgID }: { orgID: string }) {
 
   const handleAssignUser = async (terminalID: string) => {
     const options = members.map(m => `${m.display_name || m.username} (${m.id})`).join('\n')
-    const userID = prompt(`Asignar a miembro de la organizacion:\n\n${options}\n\nIngresa el ID del usuario:`)
+    const userID = prompt(t('detail_terminals_assign_user_prompt', { options }))
     if (!userID) return
     try {
       await api.post(`/nfc/org-terminals/${orgID}/${terminalID}/assign-user`, { user_id: userID })
@@ -874,7 +876,7 @@ function OrgTerminals({ orgID }: { orgID: string }) {
 
   const handleAssignDept = async (terminalID: string) => {
     const options = departments.map(d => `${d.name} (${d.id})`).join('\n')
-    const deptID = prompt(`Asignar a departamento:\n\n${options}\n\nIngresa el ID del departamento:`)
+    const deptID = prompt(t('detail_terminals_assign_dept_prompt', { options }))
     if (!deptID) return
     try {
       await api.post(`/nfc/org-terminals/${orgID}/${terminalID}/assign-dept`, { department_id: deptID })
@@ -916,7 +918,7 @@ function OrgTerminals({ orgID }: { orgID: string }) {
   }
 
   const formatTime = (ts: string | null) => {
-    if (!ts) return 'Nunca'
+    if (!ts) return t('detail_terminals_never')
     return fmtDateTime(ts)
   }
 
@@ -925,12 +927,12 @@ function OrgTerminals({ orgID }: { orgID: string }) {
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Turnos: {selectedTerminal.label}</h2>
-          <button onClick={() => { setSubView('list'); setSelectedTerminal(null) }} className="px-4 py-2 bg-gray-100 rounded-lg">← Volver</button>
+          <h2 className="text-xl font-bold">{t('detail_terminals_shifts_title')} {selectedTerminal.label}</h2>
+          <button onClick={() => { setSubView('list'); setSelectedTerminal(null) }} className="px-4 py-2 bg-gray-100 rounded-lg">← {t('detail_terminals_back')}</button>
         </div>
         {shifts.length === 0 ? (
           <div className="card text-center py-8 text-gray-500">
-            <Clock className="mx-auto mb-2" size={32} /> No hay turnos registrados
+            <Clock className="mx-auto mb-2" size={32} /> {t('detail_terminals_shifts_empty')}
           </div>
         ) : (
           <div className="card divide-y">
@@ -940,12 +942,12 @@ function OrgTerminals({ orgID }: { orgID: string }) {
                   <div className="font-medium">{s.user_name}</div>
                   <div className="text-xs text-gray-500">
                     Abierto: {formatTime(s.opened_at)}
-                    {s.closed_at && ` · Cerrado: ${formatTime(s.closed_at)}`}
+                    {s.closed_at && ` · ${t('detail_terminals_shifts_closed')} ${formatTime(s.closed_at)}`}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="font-bold text-green-600">{fmtTQ(s.total_sales || 0)} TQ</div>
-                  <div className="text-xs text-gray-500">{s.transactions_count} tx · {s.status}</div>
+                  <div className="text-xs text-gray-500">{s.transactions_count} {t('detail_terminals_shifts_tx_count')} · {s.status}</div>
                 </div>
               </div>
             ))}
@@ -957,26 +959,26 @@ function OrgTerminals({ orgID }: { orgID: string }) {
 
   // Vista de transacciones
   if (subView === 'transactions' && selectedTerminal) {
-    const total = transactions.filter((t: any) => t.status === 'approved').reduce((s: number, t: any) => s + t.amount, 0)
+    const total = transactions.filter((tx: any) => tx.status === 'approved').reduce((s: number, tx: any) => s + tx.amount, 0)
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Transacciones: {selectedTerminal.label}</h2>
-          <button onClick={() => { setSubView('list'); setSelectedTerminal(null) }} className="px-4 py-2 bg-gray-100 rounded-lg">← Volver</button>
+          <h2 className="text-xl font-bold">{t('detail_terminals_transactions_title')} {selectedTerminal.label}</h2>
+          <button onClick={() => { setSubView('list'); setSelectedTerminal(null) }} className="px-4 py-2 bg-gray-100 rounded-lg">← {t('detail_terminals_back')}</button>
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="card"><div className="text-xs text-gray-500">TOTAL</div><div className="text-2xl font-bold text-green-600">{fmtTQ(total)} TQ</div></div>
-          <div className="card"><div className="text-xs text-gray-500">TRANSACCIONES</div><div className="text-2xl font-bold">{transactions.length}</div></div>
+          <div className="card"><div className="text-xs text-gray-500">{t('detail_terminals_total')}</div><div className="text-2xl font-bold text-green-600">{fmtTQ(total)} TQ</div></div>
+          <div className="card"><div className="text-xs text-gray-500">{t('detail_terminals_transactions_count')}</div><div className="text-2xl font-bold">{transactions.length}</div></div>
         </div>
         <div className="card divide-y">
-          {transactions.map((t: any) => (
-            <div key={t.id} className="py-3 flex items-center justify-between">
+          {transactions.map((tx: any) => (
+            <div key={tx.id} className="py-3 flex items-center justify-between">
               <div>
-                <div className="font-medium">{t.card_uid === 'qr_payment' ? '📱 QR' : `💳 ${t.card_uid?.slice(0, 12)}...`}</div>
-                <div className="text-xs text-gray-500">{formatTime(t.created_at)}{t.error_message && ` · ${t.error_message}`}</div>
+                <div className="font-medium">{tx.card_uid === 'qr_payment' ? '📱 QR' : `💳 ${tx.card_uid?.slice(0, 12)}...`}</div>
+                <div className="text-xs text-gray-500">{formatTime(tx.created_at)}{tx.error_message && ` · ${tx.error_message}`}</div>
               </div>
-              <div className={`font-bold ${t.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
-                {t.status === 'approved' ? '+' : ''}{fmtTQ(t.amount || 0)} TQ
+              <div className={`font-bold ${tx.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
+                {tx.status === 'approved' ? '+' : ''}{fmtTQ(tx.amount || 0)} TQ
               </div>
             </div>
           ))}
@@ -988,55 +990,55 @@ function OrgTerminals({ orgID }: { orgID: string }) {
   // Vista principal: lista de terminales
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Puntos de Venta de la Organizacion</h2>
+      <h2 className="text-xl font-bold mb-4">{t('detail_terminals_title')}</h2>
       {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">{error}</div>}
       {loading ? (
-        <div className="text-center py-8 text-gray-500">Cargando...</div>
+        <div className="text-center py-8 text-gray-500">{t('detail_terminals_loading')}</div>
       ) : terminals.length === 0 ? (
         <div className="card text-center py-8">
           <ShoppingBag className="mx-auto mb-3 text-gray-300" size={48} />
-          <p className="text-gray-500">Esta organizacion no tiene terminales asignados.</p>
-          <p className="text-gray-400 text-sm mt-2">El administrador (Asamblea) debe asignar terminales a esta organizacion.</p>
+          <p className="text-gray-500">{t('detail_terminals_empty')}</p>
+          <p className="text-gray-400 text-sm mt-2">{t('detail_terminals_empty_hint')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {terminals.map((t: any) => (
-            <div key={t.id} className="card">
+          {terminals.map((term: any) => (
+            <div key={term.id} className="card">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold">{t.label || 'Sin nombre'}</h3>
-                  <p className="text-xs text-gray-500 font-mono">{t.terminal_id?.slice(0, 24)}...</p>
+                  <h3 className="font-semibold">{term.label || t('detail_terminals_no_name')}</h3>
+                  <p className="text-xs text-gray-500 font-mono">{term.terminal_id?.slice(0, 24)}...</p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                  t.is_blocked ? 'bg-red-100 text-red-700' :
-                  t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                  term.is_blocked ? 'bg-red-100 text-red-700' :
+                  term.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                 }`}>
-                  {t.is_blocked ? '🔒 Bloqueado' : t.is_active ? '● Activo' : '○ Inactivo'}
+                  {term.is_blocked ? `🔒 ${t('detail_terminals_blocked')}` : term.is_active ? `● ${t('detail_terminals_active')}` : `○ ${t('detail_terminals_inactive')}`}
                 </span>
               </div>
               <div className="text-sm text-gray-500 mb-3">
-                <p>📍 {t.location || 'Sin ubicacion'}</p>
-                <p>👤 {t.merchant_name || 'Sin usuario asignado'}</p>
-                {t.dept_name && <p>🏢 {t.dept_name}</p>}
-                <p>🕐 {formatTime(t.last_seen)}</p>
+                <p>📍 {term.location || t('detail_terminals_no_location')}</p>
+                <p>👤 {term.merchant_name || t('detail_terminals_no_user')}</p>
+                {term.dept_name && <p>🏢 {term.dept_name}</p>}
+                <p>🕐 {formatTime(term.last_seen)}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => handleViewTransactions(t)} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium flex items-center gap-1">
-                  <Eye size={14} /> Transacciones
+                <button onClick={() => handleViewTransactions(term)} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <Eye size={14} /> {t('detail_terminals_transactions')}
                 </button>
-                <button onClick={() => handleViewShifts(t)} className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium flex items-center gap-1">
-                  <Clock size={14} /> Turnos
+                <button onClick={() => handleViewShifts(term)} className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <Clock size={14} /> {t('detail_terminals_shifts')}
                 </button>
-                <button onClick={() => handleAssignUser(t.terminal_id)} className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium flex items-center gap-1">
-                  <UserCheck size={14} /> Asignar usuario
+                <button onClick={() => handleAssignUser(term.terminal_id)} className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <UserCheck size={14} /> {t('detail_terminals_assign_user')}
                 </button>
-                <button onClick={() => handleAssignDept(t.terminal_id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium flex items-center gap-1">
-                  <Building2 size={14} /> Asignar dept.
+                <button onClick={() => handleAssignDept(term.terminal_id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <Building2 size={14} /> {t('detail_terminals_assign_dept')}
                 </button>
-                <button onClick={() => handleToggle(t.terminal_id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ${
-                  t.is_active ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                <button onClick={() => handleToggle(term.terminal_id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ${
+                  term.is_active ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
                 }`}>
-                  <Power size={14} /> {t.is_active ? 'Desactivar' : 'Activar'}
+                  <Power size={14} /> {term.is_active ? t('detail_terminals_deactivate') : t('detail_terminals_activate')}
                 </button>
               </div>
             </div>

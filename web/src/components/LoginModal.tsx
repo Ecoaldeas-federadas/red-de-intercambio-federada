@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../hooks/useAuth'
 import { useConfig } from '../hooks/useConfig'
 import { api } from '../api'
@@ -29,6 +30,7 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ open, onClose }: LoginModalProps) {
+  const { t } = useTranslation('common')
   const { login } = useAuth()
   const { currency } = useConfig()
   const [username, setUsername] = useState('')
@@ -79,7 +81,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
     setError('')
     const fullUsername = getFullUsername()
     if (!fullUsername || !password) {
-      setError('Ingresa usuario y contrasena')
+      setError(t('login.error_enter_credentials'))
       return
     }
     setLoading(true)
@@ -91,7 +93,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       login(result.token, result.username)
       window.location.reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
+      setError(err instanceof Error ? err.message : t('login.error_generic'))
     } finally {
       setLoading(false)
     }
@@ -108,7 +110,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       login(result.token, result.username)
       window.location.reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesion demo')
+      setError(err instanceof Error ? err.message : t('login.error_demo'))
     } finally {
       setDemoLoading(false)
     }
@@ -118,11 +120,11 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
     setError('')
     const fullUsername = getFullUsername()
     if (!fullUsername) {
-      setError('Ingresa tu nombre de usuario')
+      setError(t('login.error_enter_username'))
       return
     }
     if (!window.PublicKeyCredential) {
-      setError('Tu navegador no soporta Passkeys/WebAuthn.')
+      setError(t('login.error_no_passkey_support'))
       return
     }
     setLoading(true)
@@ -140,7 +142,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         })),
       }
       const credential = await navigator.credentials.get({ publicKey }) as PublicKeyCredential
-      if (!credential) throw new Error('No se pudo autenticar')
+      if (!credential) throw new Error(t('login.error_auth_failed'))
       const response = credential.response as AuthenticatorAssertionResponse
       const result = await api.post<{ token: string; username: string }>('/auth/login/finish', {
         session_key: beginRes.session_key,
@@ -161,9 +163,9 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       window.location.reload()
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
-        setError('Autenticacion cancelada o no autorizada.')
+        setError(t('login.error_auth_cancelled'))
       } else {
-        setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
+        setError(err instanceof Error ? err.message : t('login.error_generic'))
       }
     } finally {
       setLoading(false)
@@ -182,7 +184,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl z-10"
-          aria-label="Cerrar"
+          aria-label={t('common.close')}
         >
           <X size={22} />
         </button>
@@ -192,10 +194,10 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
             <Fingerprint className="text-white" size={32} />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Trueque</h1>
-          <p className="text-gray-600 mt-1">Credito Mutuo Federado</p>
+          <p className="text-gray-600 mt-1">{t('app.tagline')}</p>
           {isDemoNode && (
             <div className="mt-2 inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium">
-              <Sparkles size={12} /> Nodo Demo - Los datos se reinician cada 24h
+              <Sparkles size={12} /> {t('login.demo_mode_badge')}
             </div>
           )}
         </div>
@@ -203,7 +205,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         {expiredMsg && !error && (
           <div className="mb-4 flex items-center gap-2 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
             <AlertCircle size={18} />
-            Tu sesion ha expirado. Por favor inicia sesion nuevamente.
+            {t('login.session_expired')}
           </div>
         )}
 
@@ -217,16 +219,16 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
         {isDemoNode ? (
           <div className="space-y-4">
             <div className="text-center text-sm text-gray-600 mb-4">
-              Entra como cualquier rol para ver el sistema desde su perspectiva.
-              Password: <code className="bg-gray-100 px-1 rounded">demo1234</code>
+              {t('login.demo_enter_any_role')}
+              {t('login.demo_password')}: <code className="bg-gray-100 px-1 rounded">demo1234</code>
             </div>
             {demoUsers.length === 0 && (
-              <div className="text-center text-sm text-gray-400 py-4">Cargando usuarios demo...</div>
+              <div className="text-center text-sm text-gray-400 py-4">{t('login.demo_loading')}</div>
             )}
             {demoUsers.filter(u => u.is_super_admin).length > 0 && (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <Crown size={12} /> Super Admin
+                  <Crown size={12} /> {t('login.role_super_admin')}
                 </div>
                 {demoUsers.filter(u => u.is_super_admin).map((u) => (
                   <button
@@ -247,7 +249,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
             {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role === 'Directivo').length > 0 && (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <Users size={12} /> Junta Directiva
+                  <Users size={12} /> {t('login.role_board')}
                 </div>
                 {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role === 'Directivo').map((u) => (
                   <button
@@ -268,7 +270,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
             {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role !== 'Directivo').length > 0 && (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <UserCircle size={12} /> Miembros
+                  <UserCircle size={12} /> {t('login.role_members')}
                 </div>
                 {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role !== 'Directivo').map((u) => (
                   <button
@@ -287,11 +289,10 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
               </div>
             )}
             {demoLoading && (
-              <div className="text-center text-sm text-gray-500 py-2">Iniciando sesion...</div>
+              <div className="text-center text-sm text-gray-500 py-2">{t('login.logging_in')}</div>
             )}
             <div className="text-center text-xs text-gray-400 pt-2 border-t">
-              Todos los cambios se reinician cada 24 horas.
-              No afecta a ningun nodo real.
+              {t('login.demo_reset_note')}
             </div>
           </div>
         ) : (
@@ -304,7 +305,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                 }`}
               >
                 <Lock size={16} className="inline mr-1" />
-                Contrasena
+                {t('login.password_login')}
               </button>
               <button
                 onClick={() => setMode('passkey')}
@@ -313,13 +314,13 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                 }`}
               >
                 <Fingerprint size={16} className="inline mr-1" />
-                Passkey
+                {t('login.passkey_login')}
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="label">Nombre de usuario</label>
+                <label className="label">{t('login.username_label')}</label>
                 <div className="flex items-center input p-0">
                   <input
                     type="text"
@@ -334,19 +335,19 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  Escribe solo tu nombre. El dominio @{nodeDomain} se agrega automaticamente.
+                  {t('login.username_hint', { domain: nodeDomain })}
                 </p>
               </div>
 
               {mode === 'password' && (
                 <div>
-                  <label className="label">Contrasena</label>
+                  <label className="label">{t('login.password_label')}</label>
                   <input
                     type="password"
                     className="input"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Tu contrasena"
+                    placeholder={t('login.password_placeholder')}
                     onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
                   />
                 </div>
@@ -359,7 +360,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                   className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                   <Lock size={20} />
-                  {loading ? 'Conectando...' : 'Iniciar sesion'}
+                  {loading ? t('login.connecting') : t('login.login_button')}
                 </button>
               ) : (
                 <button
@@ -368,12 +369,12 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
                   className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                   <Fingerprint size={20} />
-                  {loading ? 'Conectando...' : 'Iniciar sesion con Passkey'}
+                  {loading ? t('login.connecting') : t('login.passkey_button')}
                 </button>
               )}
 
               <div className="text-center text-sm text-gray-500">
-                ¿No tienes cuenta? Solicita admision en tu nodo.
+                {t('login.no_account')}
               </div>
             </div>
           </>

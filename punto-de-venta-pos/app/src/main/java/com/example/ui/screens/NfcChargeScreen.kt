@@ -723,10 +723,11 @@ fun NfcChargeScreen(
                             }
                         }
 
-                        // Alphanumeric keypad for username
+                        // Alphanumeric keypad for username (defaults to letters)
                         KioskDocumentKeypad(
                             documentNumber = uiState.customerUsername,
-                            onDocumentChange = { viewModel.setCustomerUsername(it) }
+                            onDocumentChange = { viewModel.setCustomerUsername(it) },
+                            initialMode = DocumentKeypadMode.ALPHANUMERIC
                         )
 
                         Row(
