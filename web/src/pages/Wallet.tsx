@@ -106,14 +106,14 @@ export default function Wallet() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-          <p><strong>Mi Billetera - Ayuda</strong></p>
-          <p>Esta es tu billetera personal. Aqui ves tu saldo y todas tus transacciones.</p>
-          <p><strong>Salidas (debito):</strong> Transacciones donde enviaste {currency}. Aparecen en rojo con signo negativo.</p>
-          <p><strong>Entradas (credito):</strong> Transacciones donde recibiste {currency}. Aparecen en verde con signo positivo.</p>
-          <p><strong>Balance:</strong> Es la diferencia entre entradas y salidas. Si es positivo, te deben. Si es negativo, debes.</p>
-          <p><strong>Filtro por fecha:</strong> Usa los botones para ver transacciones de las ultimas 24 horas, 7 dias, 30 dias, 3 meses o todas.</p>
-          <p><strong>Cuentas de organizaciones:</strong> Para ver la billetera de una organizacion o departamento, entra a esa entidad desde el menu. Cada una tiene su propia billetera interna.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <p><strong>{t('wallet.help_title')}</strong></p>
+          <p>{t('wallet.help_desc')}</p>
+          <p><strong>{t('wallet.help_debit')}</strong> {t('wallet.help_debit_desc', { currency })}</p>
+          <p><strong>{t('wallet.help_credit')}</strong> {t('wallet.help_credit_desc', { currency })}</p>
+          <p><strong>{t('wallet.help_balance')}</strong> {t('wallet.help_balance_desc')}</p>
+          <p><strong>{t('wallet.help_filter')}</strong> {t('wallet.help_filter_desc')}</p>
+          <p><strong>{t('wallet.help_org_accounts')}</strong> {t('wallet.help_org_accounts_desc')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('wallet.close')}</button>
         </div>
       )}
 
@@ -122,23 +122,23 @@ export default function Wallet() {
         <div className="bg-gradient-to-r from-trueque-600 to-trueque-700 text-white rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-trueque-100 text-sm">Cuenta: {userDisplay || userName || 'Mi cuenta personal'}</p>
+              <p className="text-trueque-100 text-sm">{t('wallet.account')}: {userDisplay || userName || t('wallet.personal_account')}</p>
               <p className="text-trueque-200 text-xs">@{userName}</p>
               <p className="text-4xl font-bold mt-2">
                 {balance >= 0 ? '+' : ''}{fmtAmount(balance)} {currency}
               </p>
               <p className="text-trueque-200 text-xs mt-2">
-                Tope credito (piso): {fmtAmount(creditLimit)} {currency} | Tope debito (techo): {fmtAmount(debitLimit)} {currency}
+                {t('wallet.credit_limit_label', { value: fmtAmount(creditLimit), currency })} | {t('wallet.debit_limit_label', { value: fmtAmount(debitLimit), currency })}
               </p>
             </div>
             <WalletIcon size={48} className="text-trueque-200" />
           </div>
           <div className="mt-4 flex gap-2">
             <Link to="/app/transfer" className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition">
-              Transferir
+              {t('wallet.transfer')}
             </Link>
             <Link to="/app/payments" className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition">
-              Pagar con QR
+              {t('wallet.pay_qr')}
             </Link>
           </div>
         </div>
@@ -147,7 +147,7 @@ export default function Wallet() {
       {/* Filtros por fecha */}
       <div className="card">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-500 flex items-center gap-1"><Calendar size={14} /> Periodo:</span>
+          <span className="text-sm text-gray-500 flex items-center gap-1"><Calendar size={14} /> {t('wallet.period')}:</span>
           {(['24h', '7d', '30d', '3m', 'all', 'custom'] as FilterPeriod[]).map(p => (
             <button
               key={p}
@@ -156,7 +156,7 @@ export default function Wallet() {
                 period === p ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {p === '24h' ? '24 horas' : p === '7d' ? '7 dias' : p === '30d' ? '30 dias' : p === '3m' ? '3 meses' : p === 'all' ? 'Todo' : 'Personalizado'}
+              {p === '24h' ? t('wallet.24h') : p === '7d' ? t('wallet.7d') : p === '30d' ? t('wallet.30d') : p === '3m' ? t('wallet.3m') : p === 'all' ? t('wallet.all') : t('wallet.custom')}
             </button>
           ))}
           {period === 'custom' && (
@@ -171,10 +171,10 @@ export default function Wallet() {
 
       {/* Transacciones */}
       <div className="card">
-        <h2 className="font-semibold text-lg mb-3">Movimientos ({filteredTxs.length})</h2>
+        <h2 className="font-semibold text-lg mb-3">{t('wallet.movements', { count: filteredTxs.length })}</h2>
 
         {loading ? (
-          <p className="text-gray-500 py-4">Cargando...</p>
+          <p className="text-gray-500 py-4">{t('wallet.loading')}</p>
         ) : filteredTxs.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p>{t('wallet.no_transactions', 'No hay transacciones en este periodo.')}</p>
@@ -198,7 +198,7 @@ export default function Wallet() {
                     )}
                     <div>
                       <p className="text-sm font-medium">
-                        {isDebit ? 'Enviado a ' : 'Recibido de '}
+                        {isDebit ? t('wallet.sent_to') : t('wallet.received_from')} 
                         <span className="font-semibold">{isDebit ? toName : fromName}</span>
                       </p>
                       <p className="text-xs text-gray-500">
@@ -220,14 +220,14 @@ export default function Wallet() {
       {/* Resumen contable */}
       {!loading && filteredTxs.length > 0 && (
         <div className="card bg-gray-50">
-          <h3 className="font-semibold text-sm mb-3">Resumen del periodo</h3>
+          <h3 className="font-semibold text-sm mb-3">{t('wallet.period_summary')}</h3>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div className="bg-green-50 rounded-lg p-3">
-              <p className="text-gray-600 text-xs">Total entradas</p>
+              <p className="text-gray-600 text-xs">{t('wallet.total_in')}</p>
               <p className="font-bold text-green-600 text-lg">+{fmtAmount(totalIn)} {currency}</p>
             </div>
             <div className="bg-red-50 rounded-lg p-3">
-              <p className="text-gray-600 text-xs">Total salidas</p>
+              <p className="text-gray-600 text-xs">{t('wallet.total_out')}</p>
               <p className="font-bold text-red-600 text-lg">-{fmtAmount(totalOut)} {currency}</p>
             </div>
             <div className={`rounded-lg p-3 ${calculatedBalance >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -239,15 +239,15 @@ export default function Wallet() {
           </div>
           <div className="mt-3 pt-3 border-t border-gray-200">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Saldo real de la cuenta:</span>
+              <span className="text-gray-600">{t('wallet.real_balance')}:</span>
               <span className={`font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {balance >= 0 ? '+' : ''}{fmtAmount(balance)} {currency}
               </span>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            El balance del periodo muestra entradas menos salidas en el rango seleccionado.
-            El saldo real es el acumulado total de la cuenta.
+            {t('wallet.period_balance_desc')}
+            {t('wallet.real_balance_desc')}
           </p>
         </div>
       )}

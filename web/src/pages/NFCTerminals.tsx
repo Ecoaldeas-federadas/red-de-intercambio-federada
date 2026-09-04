@@ -106,8 +106,8 @@ export default function NFCTerminals() {
     setCardListError('')
     try {
       const params = new URLSearchParams()
-      if (cardSearch) params.sett('search', cardSearch)
-      if (activeOnly ?? cardActiveOnly) params.sett('active', 'true')
+      if (cardSearch) params.set('search', cardSearch)
+      if (activeOnly ?? cardActiveOnly) params.set('active', 'true')
       const res = await api.get<any[]>(`/nfc/cards/all?${params.toString()}`)
       setAllCards(Array.isArray(res) ? res : [])
     } catch (err) {
@@ -337,7 +337,7 @@ export default function NFCTerminals() {
           target_id: assignTarget,
         }),
       })
-      setAssignTargett('')
+      setAssignTarget('')
       await loadTerminals()
       setShowAssignModal(null)
     } catch (err) {
@@ -355,7 +355,7 @@ export default function NFCTerminals() {
     try {
       if (newCard.card_type === 'classic') {
         // MIFARE Classic con certificados dinámicos
-        const res = await api.postt('/nfc/cards/provision-classic', {
+        const res = await api.post('/nfc/cards/provision-classic', {
           user_id: newCard.user_id,
           card_uid: newCard.card_uid,
           initial_pin: newCard.initial_pin,
@@ -363,7 +363,7 @@ export default function NFCTerminals() {
         setCardCryptoResult(res)
       } else if (newCard.card_type === 'ntag424' || newCard.card_type === 'desfire') {
         // NTAG424 o DESFire con clave AES
-        const res = await api.postt('/nfc/cards/provision-crypto', {
+        const res = await api.post('/nfc/cards/provision-crypto', {
           user_id: newCard.user_id,
           card_uid: newCard.card_uid,
           card_type: newCard.card_type,
@@ -376,7 +376,7 @@ export default function NFCTerminals() {
       }
       setShowIssueCard(false)
       setNewCard({ user_id: '', card_uid: '', card_type: 'classic', initial_pin: '' })
-      loadCards()
+      loadAllCards()
     } catch (err: any) {
       setError(err?.message || (err instanceof Error ? err.message : 'Error'))
     }
@@ -386,7 +386,7 @@ export default function NFCTerminals() {
   const changePIN = async () => {
     setError('')
     try {
-      await api.putt('/nfc/cards/pin', pinChange)
+      await api.put('/nfc/cards/pin', pinChange)
       setPinChange({ card_uid: '', old_pin: '', new_pin: '' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -446,7 +446,7 @@ export default function NFCTerminals() {
       const text = await res.text()
       const blob = new Blob([text], { type: 'text/plain' })
       const url = URL.createObjectURL(blob)
-      const a = document.createElementt('a')
+      const a = document.createElement('a')
       a.href = url
       a.download = 'config.h'
       a.click()
@@ -479,7 +479,7 @@ export default function NFCTerminals() {
       if (!res.ok) throw new Error('Error al descargar firmware.bin')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
-      const a = document.createElementt('a')
+      const a = document.createElement('a')
       a.href = url
       a.download = `${terminalId}-firmware.bin`
       a.click()
@@ -492,7 +492,7 @@ export default function NFCTerminals() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> {ttt('title', 'Terminales NFC')}</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> {tt('title', 'Terminales NFC')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -522,7 +522,7 @@ export default function NFCTerminals() {
           <p><strong>Que es el token de registro:</strong> Es un codigo secreto que genera el servidor al registrar o provisionar un terminal. Se copia en el archivo config.h del firmware del ESP32 para que el terminal pueda autenticarse con el nodo al conectarse por primera vez.</p>
           <p><strong>Como vincular tarjetas:</strong> El administrador emite una tarjeta NFC asignandola a un usuario (User ID) y registrando el UID de la tarjeta fisica. La tarjeta se entrega al usuario con un PIN inicial que debe cambiar la primera vez que la use.</p>
           <p><strong>Que es el PIN:</strong> Es un codigo de 4 digitos que protege la tarjeta NFC. Se pide al usuario en cada transaccion (excepto en modo comunitario). Si se olvida, el administrador puede resetearlo a un valor por defecto.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{ttt('cancel', 'Cerrar')}</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{tt('cancel', 'Cerrar')}</button>
         </div>
       )}
 
@@ -807,7 +807,7 @@ export default function NFCTerminals() {
                 <div>
                   <p className="font-medium">{t.label || t.terminal_id}</p>
                   <p className="text-xs text-gray-500">
-                    {t.terminal_type} · {t.location || ttt('no_location', 'sin ubicacion')} · {formatTime(t.last_seen)}
+                    {t.terminal_type} · {t.location || tt('no_location', 'sin ubicacion')} · {formatTime(t.last_seen)}
                   </p>
                   {/* Asignacion visible directamente */}
                   {(t.organization_name || t.merchant_user_name) ? (
@@ -843,7 +843,7 @@ export default function NFCTerminals() {
                 )}
                 {canRegisterTerminal && t.is_registered && (
                   <button
-                    onClick={() => { setShowAssignModal(t.terminal_id); setAssignTargett(''); setAssignType('user') }}
+                    onClick={() => { setShowAssignModal(t.terminal_id); setAssignTarget(''); setAssignType('user') }}
                     className="text-blue-500 hover:text-blue-700"
                     title={tt('assign_terminal', 'Asignar a persona u organizacion')}
                   >
@@ -890,7 +890,7 @@ export default function NFCTerminals() {
                   className="input flex-1"
                   placeholder={tt('search_cards', 'Buscar por UID, usuario, nombre o etiqueta...')}
                   value={cardSearch}
-                  onChange={(e) => { setCardSearch(e.target.value); setCardSearchTimer(Date.now()) }}
+                  onChange={(e) => { setCardSearch(e.target.value) }}
                 />
                 <button onClick={() => loadAllCards()} className="btn-secondary">{tt('search_btn', 'Buscar')}</button>
               </div>
@@ -1333,12 +1333,12 @@ export default function NFCTerminals() {
 
             <div className="flex gap-2">
               <button
-                onClick={() => { setAssignType('user'); setAssignTargett('') }}
+                onClick={() => { setAssignType('user'); setAssignTarget('') }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium ${assignType === 'user' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                 Persona
               </button>
               <button
-                onClick={() => { setAssignType('org'); setAssignTargett('') }}
+                onClick={() => { setAssignType('org'); setAssignTarget('') }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium ${assignType === 'org' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                 Organizacion
               </button>

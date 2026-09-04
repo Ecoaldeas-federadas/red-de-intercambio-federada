@@ -68,6 +68,7 @@ export default function Products() {
   const [pendingProducts, setPendingProducts] = useState<any[]>([])
   const [showPending, setShowPending] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const [apiOffset, setApiOffset] = useState(0)
   const [fedNodes, setFedNodes] = useState<any[]>([])
   const [fedNodeFilter, setFedNodeFilter] = useState('')
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -85,11 +86,12 @@ export default function Products() {
 
   const load = useCallback((reset = false) => {
     setLoading(true)
-    const offset = reset ? 0 : products.length
+    const offset = reset ? 0 : apiOffset
     let url = `/products?limit=${PAGE_SIZE}&offset=${offset}`
     if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`
     api.get(url).then((d: any) => {
       const newItems = Array.isArray(d) ? d : d?.products ?? []
+      setApiOffset(offset + newItems.length)
       // Filtrar por sub-tab (permitido / no permitido)
       const filtered = newItems.filter((p: any) => {
         if (mynodeSubTab === 'allowed') return p.is_allowed !== false
@@ -105,7 +107,7 @@ export default function Products() {
     }).catch(() => {
       if (reset) setProducts([])
     }).finally(() => setLoading(false))
-  }, [products.length, searchTerm, mynodeSubTab])
+  }, [apiOffset, searchTerm, mynodeSubTab])
 
   // Cargar productos compuestos
   const loadComposite = useCallback(() => {

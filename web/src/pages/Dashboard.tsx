@@ -58,66 +58,66 @@ export default function Dashboard() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>¿Que es el Panel Principal?</strong></p>
-          <p>El Panel Principal (Dashboard) es la pantalla de inicio de tu nodo. Es la primera pagina que ves al entrar. Muestra un resumen rapido del estado de tu cuenta personal y de la red federada a la que perteneces. Sirve para saber de un vistazo cuanto tienes, cuanto debes y como esta tu comunidad.</p>
+          <p><strong>{t('help_what_is')}</strong></p>
+          <p>{t('help_what_is_desc', { currency })}</p>
 
-          <p><strong>¿Para que sirve?</strong></p>
-          <p>Sirve para:</p>
+          <p><strong>{t('help_what_for')}</strong></p>
+          <p>{t('help_what_for_intro')}</p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li>Ver tu saldo (balance) actual en Trueques ({currency})</li>
-            <li>Saber si te acercas a los limites de credito o debito</li>
-            <li>Ver cuantas comunidades estan federadas con la tuya</li>
-            <li>Acceder rapidamente a las acciones mas comunes (transferir, ver historial, etc.)</li>
+            <li>{t('help_what_for_1', { currency })}</li>
+            <li>{t('help_what_for_2')}</li>
+            <li>{t('help_what_for_3')}</li>
+            <li>{t('help_what_for_4')}</li>
           </ul>
 
-          <p><strong>¿Como se usa?</strong></p>
-          <p>Simplemente mira las tres tarjetas de arriba para ver tu balance, nodos federados y avisos. Si hay avisos (numero en naranja), revisa la seccion "Avisos de Limites" mas abajo. Usa los botones de "Acciones Rapidas" para ir directamente a las paginas mas usadas sin buscarlas en el menu.</p>
+          <p><strong>{t('help_how_to_use')}</strong></p>
+          <p>{t('help_how_to_use_desc')}</p>
 
-          <p className="pt-2"><strong>Tarjeta "Mi Balance" - ¿Que muestra?</strong></p>
-          <p>Muestra tu saldo actual en Trueques ({currency}). Este numero puede ser:</p>
+          <p className="pt-2"><strong>{t('help_balance_card')}</strong></p>
+          <p>{t('help_balance_card_desc', { currency })}</p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li><strong>Positivo (ej: +350):</strong> Tienes credito. Alguien te debe o recibiste pagos. Significa que la comunidad te debe bienes/servicios por ese monto.</li>
-            <li><strong>Negativo (ej: -120):</strong> Debes a la comunidad. Es completamente normal: significa que recibiste bienes/servicios y despues pagaras vendiendo o trabajando. No es una deuda "mala", es como un credito rotatorio.</li>
-            <li><strong>Cero (0):</strong> No has hecho transacciones todavia, o tus entradas y salidas se compensaron exactamente.</li>
+            <li><strong>{t('help_balance_positive')}</strong> {t('help_balance_positive_desc')}</li>
+            <li><strong>{t('help_balance_negative')}</strong> {t('help_balance_negative_desc')}</li>
+            <li><strong>{t('help_balance_zero')}</strong> {t('help_balance_zero_desc')}</li>
           </ul>
-          <p className="text-xs text-gray-500">Ejemplo: Si tu balance es -80 {currency}, significa que has recibido 80 {currency} en bienes/servicios que aun no has compensado.</p>
+          <p className="text-xs text-gray-500">{t('help_balance_example', { currency })}</p>
 
-          <p className="pt-2"><strong>¿Que es el Balance?</strong></p>
-          <p>El balance es la suma de todas tus transacciones. Cada vez que recibes Trueques, sube. Cada vez que envias, baja. El sistema funciona como una contabilidad de doble entrada: lo que uno entrega, otro recibe. La suma de todos los balances de todos los usuarios siempre da cero. Nadie "crea" dinero de la nada.</p>
+          <p className="pt-2"><strong>{t('help_what_is_balance')}</strong></p>
+          <p>{t('help_what_is_balance_desc')}</p>
 
-          <p className="pt-2"><strong>¿Que significan los limites de credito y debito?</strong></p>
-          <p>Debajo del balance veras dos numeros:</p>
+          <p className="pt-2"><strong>{t('help_limits_title')}</strong></p>
+          <p>{t('help_limits_intro')}</p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li><strong>Limite credito (ej: +1000):</strong> Es el maximo que puedes tener a favor. Si tu balance llega a +1000, no puedes recibir mas hasta que gastes algo. Evita que una sola persona acumule demasiado credito sin aportar.</li>
-            <li><strong>Limite debito (ej: -1000):</strong> Es el maximo que puedes deber. Si tu balance llega a -1000, no puedes gastar mas hasta que recibas Trueques (vendiendo o trabajando). Evita que alguien compre sin limite.</li>
+            <li><strong>{t('help_credit_limit')}</strong> {t('help_credit_limit_desc')}</li>
+            <li><strong>{t('help_debit_limit')}</strong> {t('help_debit_limit_desc')}</li>
           </ul>
-          <p className="text-xs text-gray-500">Ejemplo: Si tu limite de debito es -500 y tu balance es -480, solo puedes gastar 20 {currency} mas antes de llegar al tope.</p>
-          <p>Estos limites los define tu comunidad y se pueden ajustar en la configuracion del nodo.</p>
+          <p className="text-xs text-gray-500">{t('help_limits_example', { currency })}</p>
+          <p>{t('help_limits_community')}</p>
 
-          <p className="pt-2"><strong>Tarjeta "Nodos Federados" - ¿Que muestra?</strong></p>
-          <p>Muestra cuantas comunidades (nodos) estan conectadas a la tuya mediante la federacion. La federacion permite intercambiar Trueques entre comunidades distintas. Si dice 0, tu nodo esta solo y solo puedes transferir entre usuarios de tu misma comunidad.</p>
+          <p className="pt-2"><strong>{t('help_federated_nodes_card')}</strong></p>
+          <p>{t('help_federated_nodes_desc')}</p>
 
-          <p className="pt-2"><strong>Tarjeta "Avisos Activos" - ¿Que muestra?</strong></p>
-          <p>Muestra alertas cuando te acercas a los limites de federacion (deuda o credito con otros nodos). Si dice 0, no hay problemas. Si hay avisos, revisa la seccion "Avisos de Limites" para ver el detalle.</p>
+          <p className="pt-2"><strong>{t('help_warnings_card')}</strong></p>
+          <p>{t('help_warnings_desc')}</p>
 
-          <p className="pt-2"><strong>Seccion "Nodos Conectados"</strong></p>
-          <p>Lista cada comunidad federada y el saldo que tienes con ella:</p>
+          <p className="pt-2"><strong>{t('help_connected_nodes_section')}</strong></p>
+          <p>{t('help_connected_nodes_desc')}</p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li><strong>Saldo negativo (rojo):</strong> Debes a esa comunidad. Compraste a alguien de alli y despues pagaras.</li>
-            <li><strong>Saldo positivo (verde):</strong> Te deben. Vendiste a alguien de alli y despues recibiras.</li>
+            <li><strong>{t('help_negative_balance')}</strong> {t('help_negative_balance_desc')}</li>
+            <li><strong>{t('help_positive_balance')}</strong> {t('help_positive_balance_desc')}</li>
           </ul>
 
-          <p className="pt-2"><strong>Acciones Rapidas - ¿Como se usan?</strong></p>
-          <p>Debajo de las tarjetas hay botones grandes que te llevan directamente a las paginas mas usadas:</p>
+          <p className="pt-2"><strong>{t('help_quick_actions_title')}</strong></p>
+          <p>{t('help_quick_actions_desc')}</p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li><strong>Transferir:</strong> Envia Trueques a otra persona</li>
-            <li><strong>Historial:</strong> Ver todas tus transacciones pasadas</li>
-            <li><strong>Comprar:</strong> Ver productos disponibles en la tienda</li>
-            <li><strong>Calcular:</strong> Usar la calculadora de equivalencias</li>
+            <li><strong>{t('transfer')}:</strong> {t('help_transfer_desc')}</li>
+            <li><strong>{t('history')}:</strong> {t('help_history_desc')}</li>
+            <li><strong>{t('help_buy')}:</strong> {t('help_buy_desc')}</li>
+            <li><strong>{t('calculator')}:</strong> {t('help_calculator_desc')}</li>
           </ul>
-          <p className="text-xs text-gray-500">Solo haz clic en el boton y te llevara a esa pagina. Es un atajo para no buscar en el menu lateral.</p>
+          <p className="text-xs text-gray-500">{t('help_quick_actions_tip')}</p>
 
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline block pt-2">Cerrar ayuda</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline block pt-2">{t('close_help')}</button>
         </div>
       )}
 
@@ -127,7 +127,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center gap-3 mb-2">
             <Wallet className="text-trueque-600" size={24} />
-            <h2 className="text-lg font-semibold">Mi Balance</h2>
+            <h2 className="text-lg font-semibold">{t('balance')}</h2>
           </div>
           {userDisplay && (
             <p className="text-xs text-gray-500 mb-1">@{userName} ({userDisplay})</p>
@@ -137,15 +137,15 @@ export default function Dashboard() {
           </p>
           {creditLimit !== null && debitLimit !== null && (
             <p className="text-xs text-gray-500 mt-2">
-              Tope credito (piso): {fmtTQ(creditLimit)} {currency} | Tope debito (techo): {fmtTQ(debitLimit)} {currency}
+              {t('credit_limit_label', { value: fmtTQ(creditLimit), currency })} | {t('debit_limit_label', { value: fmtTQ(debitLimit), currency })}
             </p>
           )}
           <p className="text-xs text-gray-400 mt-1">
-            Saldo positivo = tienes credito (te deben). Saldo negativo = debes (es normal, pagaras despues). Ej: -80 significa que recibiste 80 {currency} en bienes que compensaras despues.
+            {t('balance_explanation', { currency })}
           </p>
           <div className="mt-3 flex gap-2">
             <button onClick={() => navigate('/app/wallet')} className="text-sm text-trueque-600 hover:text-trueque-700 font-medium">
-              Ver mi billetera →
+              {t('view_wallet')} →
             </button>
           </div>
         </div>
@@ -153,30 +153,30 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center gap-3 mb-2">
             <Network className="text-blue-600" size={24} />
-            <h2 className="text-lg font-semibold">Nodos Federados</h2>
+            <h2 className="text-lg font-semibold">{t('federated_nodes')}</h2>
           </div>
           <p className="text-3xl font-bold text-blue-700">{nodes.length}</p>
           <p className="text-xs text-gray-400 mt-2">
-            Comunidades conectadas a la tuya para intercambiar. Ej: 3 significa que puedes transferir con usuarios de 3 comunidades distintas.
+            {t('federated_nodes_explanation')}
           </p>
         </div>
 
         <div className="card">
           <div className="flex items-center gap-3 mb-2">
             <AlertTriangle className="text-orange-600" size={24} />
-            <h2 className="text-lg font-semibold">Avisos Activos</h2>
+            <h2 className="text-lg font-semibold">{t('active_warnings')}</h2>
           </div>
           <p className="text-3xl font-bold text-orange-600">{warnings.length}</p>
           <p className="text-xs text-gray-400 mt-2">
-            Alertas de limites de federacion cercanos al tope. Ej: 2 significa que te acercas al limite con 2 nodos.
+            {t('warnings_explanation')}
           </p>
         </div>
       </div>
 
       {warnings.length > 0 && (
         <div className="card">
-          <h2 className="text-lg font-semibold mb-3">Avisos de Limites</h2>
-          <p className="text-xs text-gray-500 mb-3">Estas alertas indican que te estas acercando al limite de deuda o credito con otros nodos.</p>
+          <h2 className="text-lg font-semibold mb-3">{t('limit_warnings')}</h2>
+          <p className="text-xs text-gray-500 mb-3">{t('limit_warnings_desc')}</p>
           <div className="space-y-2">
             {warnings.map((w, i) => (
               <div key={i} className="flex items-center gap-2 text-sm bg-orange-50 border border-orange-200 rounded-lg p-3">
@@ -189,28 +189,28 @@ export default function Dashboard() {
       )}
 
       <div className="card">
-        <h2 className="text-lg font-semibold mb-1">Acciones Rapidas</h2>
-        <p className="text-xs text-gray-500 mb-3">Atajos a las paginas mas usadas. Haz clic en cualquier boton para ir directamente.</p>
+        <h2 className="text-lg font-semibold mb-1">{t('quick_actions')}</h2>
+        <p className="text-xs text-gray-500 mb-3">{t('quick_actions_desc')}</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <button onClick={() => navigate('/app/transfer')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
             <Send className="text-trueque-600" size={24} />
-            <span className="text-sm font-medium">Transferir</span>
-            <span className="text-xs text-gray-400">Enviar Trueques</span>
+            <span className="text-sm font-medium">{t('transfer')}</span>
+            <span className="text-xs text-gray-400">{t('transfer_desc')}</span>
           </button>
           <button onClick={() => navigate('/app/history')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
             <HistoryIcon className="text-blue-600" size={24} />
-            <span className="text-sm font-medium">Historial</span>
-            <span className="text-xs text-gray-400">Ver transacciones</span>
+            <span className="text-sm font-medium">{t('history')}</span>
+            <span className="text-xs text-gray-400">{t('history_desc')}</span>
           </button>
           <button onClick={() => navigate('/app/store')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
             <ShoppingBag className="text-trueque-600" size={24} />
-            <span className="text-sm font-medium">Comprar</span>
-            <span className="text-xs text-gray-400">Ver tienda</span>
+            <span className="text-sm font-medium">{t('buy')}</span>
+            <span className="text-xs text-gray-400">{t('store_desc')}</span>
           </button>
           <button onClick={() => navigate('/app/calculator')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
             <Calculator className="text-blue-600" size={24} />
-            <span className="text-sm font-medium">Calcular</span>
-            <span className="text-xs text-gray-400">Equivalencias</span>
+            <span className="text-sm font-medium">{t('calculator')}</span>
+            <span className="text-xs text-gray-400">{t('calculator_desc')}</span>
           </button>
         </div>
       </div>
@@ -221,13 +221,13 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Building2 className="text-purple-600" size={20} />
-              Mis Organizaciones
+              {t('my_organizations')}
             </h2>
             <button onClick={() => navigate('/app/organizations')} className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">
-              Ver todas <ChevronRight size={14} />
+              {t('view_all')} <ChevronRight size={14} />
             </button>
           </div>
-          <p className="text-xs text-gray-500 mb-3">Organizaciones donde tienes un rol. Entras con tu usuario y la organizacion sabe quien eres y que puedes hacer.</p>
+          <p className="text-xs text-gray-500 mb-3">{t('organizations_desc')}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {myOrgs.map((org) => (
               <button
@@ -239,11 +239,11 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm text-gray-800">{org.display_name}</div>
                   <div className="text-xs text-gray-500">
-                    Rol: <span className="font-medium">{org.role}</span>
-                    {org.is_board_member && <span className="text-purple-600"> · Junta Directiva</span>}
+                    {t('role')}: <span className="font-medium">{org.role}</span>
+                    {org.is_board_member && <span className="text-purple-600"> · {t('board_member')}</span>}
                   </div>
                   {org.can_transfer && (
-                    <div className="text-xs text-green-600 mt-0.5">Puede transferir</div>
+                    <div className="text-xs text-green-600 mt-0.5">{t('can_transfer')}</div>
                   )}
                 </div>
                 <ChevronRight size={16} className="text-gray-400" />
@@ -259,13 +259,13 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <UsersIcon className="text-teal-600" size={20} />
-              Mis Departamentos
+              {t('my_departments')}
             </h2>
             <button onClick={() => navigate('/app/departments')} className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1">
-              Ver todos <ChevronRight size={14} />
+              {t('view_all')} <ChevronRight size={14} />
             </button>
           </div>
-          <p className="text-xs text-gray-500 mb-3">Comisiones y departamentos donde eres miembro. Entras con tu usuario y ves segun tu rol.</p>
+          <p className="text-xs text-gray-500 mb-3">{t('departments_desc')}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {myDepts.map((dept) => (
               <button
@@ -277,8 +277,8 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm text-gray-800">{dept.name}</div>
                   <div className="text-xs text-gray-500">
-                    Rol: <span className="font-medium">{dept.role}</span>
-                    {dept.can_manage && <span className="text-teal-600"> · Puede gestionar</span>}
+                    {t('role')}: <span className="font-medium">{dept.role}</span>
+                    {dept.can_manage && <span className="text-teal-600"> · {t('can_manage')}</span>}
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-gray-400" />
@@ -294,10 +294,10 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Calendar className="text-purple-600" size={20} />
-              Asambleas Pendientes
+              {t('upcoming_assemblies')}
             </h2>
             <button onClick={() => navigate('/app/assembly')} className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">
-              Ver todas <ChevronRight size={14} />
+              {t('view_all')} <ChevronRight size={14} />
             </button>
           </div>
           <div className="space-y-2">
@@ -330,12 +330,12 @@ export default function Dashboard() {
       )}
 
       <div className="card">
-        <h2 className="text-lg font-semibold mb-1">Nodos Conectados</h2>
-        <p className="text-xs text-gray-500 mb-3">Lista de comunidades federadas y el saldo con cada una. Saldo negativo = debes a esa comunidad. Saldo positivo = te deben.</p>
+        <h2 className="text-lg font-semibold mb-1">{t('connected_nodes')}</h2>
+        <p className="text-xs text-gray-500 mb-3">{t('connected_nodes_desc')}</p>
         {nodes.length === 0 ? (
           <div className="text-center text-gray-500 py-6">
-            <p>No hay nodos federados conectados.</p>
-            <p className="text-xs mt-2">Para federar con otra comunidad, ve a Limites de Federacion y registra un nodo remoto.</p>
+            <p>{t('no_federated_nodes')}</p>
+            <p className="text-xs mt-2">{t('no_federated_nodes_desc')}</p>
           </div>
         ) : (
           <div className="space-y-2">
