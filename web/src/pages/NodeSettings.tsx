@@ -1097,11 +1097,11 @@ export default function NodeSettings() {
           ) : (
           <>
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Que es la tarifa energetica:</strong> Es la base para calcular precios justos. 1 {config.currency_name} = 1 kWh de energia incorporada. Todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.</p>
-            <p><strong>Como funciona:</strong> Se calcula la energia necesaria para mantener viva a una persona por dia (canasta vital en kWh). Luego se divide entre las horas de trabajo para obtener la tarifa por hora. Los factores de esfuerzo ajustan segun el tipo de trabajo.</p>
-            <p><strong>Valores reales (basados en ICE Database, Agribalyse, Ecoinvent, Pimentel):</strong> Una persona en una comunidad agroecologica necesita ~8 kWh/dia (alimentacion 3 + agua 1 + vivienda 2 + servicios 2). Con 8 horas de trabajo, la tarifa base es 1.0 {config.currency_name}/hora.</p>
-            <p><strong>Factores de esfuerzo reales:</strong> Administrativo = 1.0 (base metabolica). Tecnico = 3.0 (metabolico + herramientas electricas). Agricola = 0.61 (consumo metabolico real ~525 kcal/h).</p>
-            <p><strong>Quien la configura:</strong> La asamblea. Cambiar estos valores afecta todos los calculos de precios.</p>
+            <p><strong>{t('tariff_help_what_label', 'Que es la tarifa energetica:')}</strong> {t('tariff_help_what', 'Es la base para calcular precios justos. 1 kWh de energia incorporada. Todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.')}</p>
+            <p><strong>{t('tariff_help_how_label', 'Como funciona:')}</strong> {t('tariff_help_how', 'Se calcula la energia necesaria para mantener viva a una persona por dia (canasta vital en kWh). Luego se divide entre las horas de trabajo para obtener la tarifa por hora. Los factores de esfuerzo ajustan segun el tipo de trabajo.')}</p>
+            <p><strong>{t('tariff_help_values_label', 'Valores reales (basados en ICE Database, Agribalyse, Ecoinvent, Pimentel):')}</strong> {t('tariff_help_values', 'Una persona en una comunidad agroecologica necesita ~8 kWh/dia (alimentacion 3 + agua 1 + vivienda 2 + servicios 2). Con 8 horas de trabajo, la tarifa base es 1.0/hora.')}</p>
+            <p><strong>{t('tariff_help_effort_label', 'Factores de esfuerzo reales:')}</strong> {t('tariff_help_effort', 'Administrativo = 1.0 (base metabolica). Tecnico = 3.0 (metabolico + herramientas electricas). Agricola = 0.61 (consumo metabolico real ~525 kcal/h).')}</p>
+            <p><strong>{t('tariff_help_who_label', 'Quien la configura:')}</strong> {t('tariff_help_who', 'La asamblea. Cambiar estos valores afecta todos los calculos de precios.')}</p>
           </div>
 
           <h3 className="font-medium text-sm">Canasta vital diaria (en {config.currency_name})</h3>
@@ -2460,10 +2460,10 @@ export default function NodeSettings() {
 
           {/* Info adicional */}
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <h3 className="font-medium flex items-center gap-2"><HelpCircle size={16} />Como funciona</h3>
-            <p><strong>Descargar:</strong> Genera un archivo JSON con todas las tablas de la base de datos. Guardalo en un lugar seguro (USB, nube, etc).</p>
-            <p><strong>Restaurar:</strong> Sube un archivo JSON de backup. Los registros que ya existan no se duplican. Los que no existan se agregaran.</p>
-            <p><strong>Frecuencia recomendada:</strong> Descarga una copia al menos una vez por semana, o antes de hacer cambios importantes.</p>
+            <h3 className="font-medium flex items-center gap-2"><HelpCircle size={16} />{t('backup_help_title', 'Como funciona')}</h3>
+            <p><strong>{t('backup_help_download_label', 'Descargar:')}</strong> {t('backup_help_download', 'Genera un archivo JSON con todas las tablas de la base de datos. Guardalo en un lugar seguro (USB, nube, etc).')}</p>
+            <p><strong>{t('backup_help_restore_label', 'Restaurar:')}</strong> {t('backup_help_restore', 'Sube un archivo JSON de backup. Los registros que ya existan no se duplican. Los que no existan se agregaran.')}</p>
+            <p><strong>{t('backup_help_freq_label', 'Frecuencia recomendada:')}</strong> {t('backup_help_freq', 'Descarga una copia al menos una vez por semana, o antes de hacer cambios importantes.')}</p>
           </div>
 
           {/* ===== BACKUPS AUTOMATICOS ===== */}

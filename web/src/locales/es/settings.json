@@ -22,7 +22,6 @@
   "debit_limit": "Limite de debito",
   "tax_rate": "Tasa de impuesto",
   "demo_mode": "Modo demo",
-
   "net_title": "Red Privada Federada",
   "net_loading": "Cargando...",
   "net_mode": "Modo",
@@ -106,7 +105,6 @@
   "net_ula_generated": "Prefijo ULA generado: {{ula}}",
   "net_domain_and_key_required": "Dominio y clave publica son obligatorios",
   "net_name_and_ipv6_required": "Nombre y IPv6 son obligatorios",
-
   "net_error_generating_keys": "Error al generar claves",
   "net_error_generating_ula": "Error al generar ULA",
   "net_error_registering_openwrt": "Error al registrar en OpenWrt",
@@ -182,5 +180,22 @@
   "tab_backup": "Copia de Seguridad",
   "propose_change": "Proponer cambio",
   "save_tariff": "Guardar Tarifa",
-  "save_config": "Guardar configuracion"
+  "save_config": "Guardar configuracion",
+  "tariff_help_what_label": "Que es la tarifa energetica:",
+  "tariff_help_what": "Es la base para calcular precios justos. 1 kWh de energia incorporada. Todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.",
+  "tariff_help_how_label": "Como funciona:",
+  "tariff_help_how": "Se calcula la energia necesaria para mantener viva a una persona por dia (canasta vital en kWh). Luego se divide entre las horas de trabajo para obtener la tarifa por hora.",
+  "tariff_help_values_label": "Valores reales (basados en ICE Database, Agribalyse, Ecoinvent, Pimentel):",
+  "tariff_help_values": "Una persona en una comunidad agroecologica necesita ~8 kWh/dia. Con 8 horas de trabajo, la tarifa base es 1.0/hora.",
+  "tariff_help_effort_label": "Factores de esfuerzo reales:",
+  "tariff_help_effort": "Administrativo = 1.0 (base metabolica). Tecnico = 3.0 (metabolico + herramientas electricas). Agricola = 0.61 (consumo metabolico real ~525 kcal/h).",
+  "tariff_help_who_label": "Quien la configura:",
+  "tariff_help_who": "La asamblea. Cambiar estos valores afecta todos los calculos de precios.",
+  "backup_help_title": "Como funciona",
+  "backup_help_download_label": "Descargar:",
+  "backup_help_download": "Genera un archivo JSON con todas las tablas de la base de datos. Guardalo en un lugar seguro.",
+  "backup_help_restore_label": "Restaurar:",
+  "backup_help_restore": "Sube un archivo JSON de backup. Los registros que ya existan no se duplican. Los que no existan se agregaran.",
+  "backup_help_freq_label": "Frecuencia recomendada:",
+  "backup_help_freq": "Descarga una copia al menos una vez por semana, o antes de hacer cambios importantes."
 }
