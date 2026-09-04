@@ -24,7 +24,6 @@
   "node_key": "Clave publica del nodo",
   "copy_key": "Copiar clave",
   "key_copied": "Clave copiada",
-
   "parity_reports": "Reportes de Paridad",
   "parity_no_data": "Sin datos",
   "parity_only_imports": "Solo importas",
@@ -51,7 +50,6 @@
   "parity_limit_export": "Uso del limite (export):",
   "parity_suggestion": "Sugerencia:",
   "parity_close": "Cerrar",
-
   "limits_title": "Limites de Federacion",
   "limits_propose_bilateral": "Proponer Bilateral",
   "limits_global_config": "Configuracion Global",
@@ -85,7 +83,6 @@
   "limits_send_assembly": "Enviar a Asamblea",
   "limits_must_be_positive": "Los limites deben ser mayores a 0",
   "limits_error_creating": "Error al crear la solicitud",
-
   "merge_title": "Conflictos de Fusion",
   "merge_how_works": "Como funciona",
   "merge_how_works_desc": "Cuando dos nodos se federan, si hay usuarios registrados en ambos con el mismo ID nacional, ambas asambleas deben consensuar en cual nodo se queda cada persona y que hacer con el saldo. Mientras haya conflictos sin resolver, la federacion no se puede completar.",
@@ -123,7 +120,6 @@
   "merge_notes": "Notas (opcional)",
   "merge_cancel": "Cancelar",
   "merge_send_proposal": "Enviar Propuesta",
-
   "discover_tab_discovered": "Nodos Descubiertos ({{count}})",
   "discover_tab_requests": "Solicitudes de Contacto",
   "discover_tab_config": "Configuracion",
@@ -204,7 +200,6 @@
   "discover_response_message": "Mensaje de respuesta",
   "discover_send_response": "Enviar respuesta",
   "discover_send_and_contact": "Enviar y contactar despues",
-
   "gov_title": "Federacion",
   "gov_federated_gov": "Gobernanza Federada.",
   "gov_subtab_proposals": "Propuestas",
@@ -258,7 +253,6 @@
   "gov_vote_consensus": "Voto registrado. Consenso alcanzado - cambio aplicado automaticamente.",
   "gov_must_enter_value": "Debes ingresar un valor propuesto",
   "gov_must_enter_domain": "Debes ingresar el dominio del nodo a expulsar",
-
   "peers_title": "Federacion de Nodos",
   "peers_your_node": "Tu nodo",
   "peers_name": "Nombre:",
@@ -320,7 +314,6 @@
   "peers_remove_confirm": "Eliminar {{domain}} de la lista de nodos descubiertos?",
   "peers_node_removed": "Nodo eliminado",
   "peers_help_close": "Cerrar",
-
   "gov_federated_gov_desc": "Algunos valores afectan a TODA la federacion (como la canasta basica interna). No se pueden cambiar por nodo individual. Para cambiarlos, se crea una propuesta y todos los nodos federados deben aprobarla.",
   "gov_default_threshold": "Por defecto se requiere el 75% de los nodos",
   "gov_default_threshold_desc": "(mayoria debe aprobar). Este umbral se puede cambiar, pero para cambiarlo se necesita la aprobacion bajo el umbral actual. Es decir: si el umbral actual es 75%, cambiarlo a 100% o 50%+1 requiere que se apruebe bajo el 75%. Una vez cambiado, las futuras propuestas se aprueban con el nuevo umbral.",
@@ -338,14 +331,12 @@
   "gov_expel_warning_title": "Expulsion de un nodo.",
   "gov_expel_warning_desc": "Esta es una accion grave. Se crea una propuesta de expulsion que los nodos deben aprobar (bajo el umbral actual, por defecto 75%). Si se aprueba, el nodo expulsado no podra participar en la federacion. Para volver a entrar, debera solicitar ingreso nuevamente y aceptara automaticamente todas las reglas existentes.",
   "gov_description": "Descripcion:",
-
   "limits_close_help": "Cerrar",
   "limits_credit": "Credito",
   "limits_debit": "Debito",
   "limits_credit_hint": "Maximo saldo positivo (a tu favor) con este nodo.",
   "limits_debit_hint": "Maximo saldo negativo (deuda) con este nodo.",
   "limits_current_limits": "Limites actuales",
-
   "discover_request_sent": "Solicitud de contacto enviada a {{domain}}",
   "discover_error_sending": "Error enviando solicitud",
   "discover_response_sent": "Respuesta enviada",
@@ -365,5 +356,8 @@
   "discover_config_saved": "Configuracion guardada",
   "discover_error_saving_config": "Error guardando config",
   "discover_error_title": "Error",
-  "discover_cancel": "Cancelar"
+  "discover_cancel": "Cancelar",
+  "gov_nodes_desc": "Aqui aparecen todos los nodos que pertenecen a la federacion, aunque no estes federado directamente con todos. Las decisiones globales (votaciones) aplican a todos los nodos de la red, porque forman una cadena: si A esta federado con B, y B con C, las decisiones de A afectan a C aunque no esten directamente federados.",
+  "gov_updated": "Actualizado:",
+  "merge_error_loading": "Error al cargar conflictos"
 }

@@ -24,7 +24,6 @@
   "node_key": "Node public key",
   "copy_key": "Copy key",
   "key_copied": "Key copied",
-
   "parity_reports": "Parity Reports",
   "parity_no_data": "No data",
   "parity_only_imports": "Only imports",
@@ -51,7 +50,6 @@
   "parity_limit_export": "Limit usage (export):",
   "parity_suggestion": "Suggestion:",
   "parity_close": "Close",
-
   "limits_title": "Federation Limits",
   "limits_propose_bilateral": "Propose Bilateral",
   "limits_global_config": "Global Configuration",
@@ -85,7 +83,6 @@
   "limits_send_assembly": "Send to Assembly",
   "limits_must_be_positive": "Limits must be greater than 0",
   "limits_error_creating": "Error creating the request",
-
   "merge_title": "Merge Conflicts",
   "merge_how_works": "How it works",
   "merge_how_works_desc": "When two nodes federate, if there are users registered in both with the same national ID, both assemblies must agree on which node each person stays and what to do with the balance. While there are unresolved conflicts, federation cannot be completed.",
@@ -123,7 +120,6 @@
   "merge_notes": "Notes (optional)",
   "merge_cancel": "Cancel",
   "merge_send_proposal": "Send Proposal",
-
   "discover_tab_discovered": "Discovered Nodes ({{count}})",
   "discover_tab_requests": "Contact Requests",
   "discover_tab_config": "Configuration",
@@ -204,7 +200,6 @@
   "discover_response_message": "Response message",
   "discover_send_response": "Send response",
   "discover_send_and_contact": "Send and contact later",
-
   "gov_title": "Federation",
   "gov_federated_gov": "Federated Governance.",
   "gov_subtab_proposals": "Proposals",
@@ -258,7 +253,6 @@
   "gov_vote_consensus": "Vote registered. Consensus reached - change applied automatically.",
   "gov_must_enter_value": "You must enter a proposed value",
   "gov_must_enter_domain": "You must enter the domain of the node to expel",
-
   "peers_title": "Node Federation",
   "peers_your_node": "Your node",
   "peers_name": "Name:",
@@ -320,7 +314,6 @@
   "peers_remove_confirm": "Remove {{domain}} from the discovered nodes list?",
   "peers_node_removed": "Node removed",
   "peers_help_close": "Close",
-
   "gov_federated_gov_desc": "Some values affect the ENTIRE federation (like the internal basic basket). They cannot be changed per individual node. To change them, a proposal is created and all federated nodes must approve it.",
   "gov_default_threshold": "By default 75% of nodes are required",
   "gov_default_threshold_desc": "(majority must approve). This threshold can be changed, but changing it requires approval under the current threshold. That is: if the current threshold is 75%, changing it to 100% or 50%+1 requires approval under 75%. Once changed, future proposals are approved with the new threshold.",
@@ -338,14 +331,12 @@
   "gov_expel_warning_title": "Expulsion of a node.",
   "gov_expel_warning_desc": "This is a serious action. An expulsion proposal is created that nodes must approve (under the current threshold, default 75%). If approved, the expelled node cannot participate in the federation. To re-enter, it must request admission again and will automatically accept all existing rules.",
   "gov_description": "Description:",
-
   "limits_close_help": "Close",
   "limits_credit": "Credit",
   "limits_debit": "Debit",
   "limits_credit_hint": "Maximum positive balance (in your favor) with this node.",
   "limits_debit_hint": "Maximum negative balance (debt) with this node.",
   "limits_current_limits": "Current limits",
-
   "discover_request_sent": "Contact request sent to {{domain}}",
   "discover_error_sending": "Error sending request",
   "discover_response_sent": "Response sent",
@@ -365,5 +356,8 @@
   "discover_config_saved": "Configuration saved",
   "discover_error_saving_config": "Error saving config",
   "discover_error_title": "Error",
-  "discover_cancel": "Cancel"
+  "discover_cancel": "Cancel",
+  "gov_nodes_desc": "Aqui aparecen todos los nodos que pertenecen a la federacion, aunque no estes federado directamente con todos. Las decisiones globales (votaciones) aplican a todos los nodos de la red, porque forman una cadena: si A esta federado con B, y B con C, las decisiones de A afectan a C aunque no esten directamente federados.",
+  "gov_updated": "Actualizado:",
+  "merge_error_loading": "Error al cargar conflictos"
 }
