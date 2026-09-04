@@ -398,27 +398,27 @@ export default function FederatedServices() {
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_how_install', 'Como instalo un servicio?')}</h4>
               <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>Busca el servicio en el catalogo (usa el buscador o filtra por categoria).</li>
-                <li>Haz clic en <strong>Detalles</strong> para ver requisitos de RAM, disco, puerto y subdominio.</li>
-                <li>Verifica que tu servidor tiene suficiente RAM y disco.</li>
-                <li>Haz clic en <strong>Instalar</strong>. El sistema genera el <code className="bg-gray-200 px-1 rounded">docker-compose.yml</code> y las instrucciones.</li>
-                <li>El servicio aparece como <strong>Corriendo</strong> o <strong>Detenido</strong>. Puedes iniciarlo, detenerlo o desinstalarlo cuando quieras.</li>
+                <li>{t('help_install_step1', 'Busca el servicio en el catalogo (usa el buscador o filtra por categoria).')}</li>
+                <li>{t('help_install_step2', 'Haz clic en Detalles para ver requisitos de RAM, disco, puerto y subdominio.')}</li>
+                <li>{t('help_install_step3', 'Verifica que tu servidor tiene suficiente RAM y disco.')}</li>
+                <li>{t('help_install_step4', 'Haz clic en Instalar. El sistema genera el docker-compose.yml y las instrucciones.')}</li>
+                <li>{t('help_install_step5', 'El servicio aparece como Corriendo o Detenido. Puedes iniciarlo, detenerlo o desinstalarlo cuando quieras.')}</li>
               </ol>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_download_docker_q', 'Que significa "Descargar Docker"?')}</h4>
-              <p>Si prefieres instalar el servicio manualmente en otro servidor (o revisar la configuracion antes de instalar), haz clic en <strong>Descargar</strong>. Se descarga un archivo con el <code className="bg-gray-200 px-1 rounded">docker-compose.yml</code> y un <code className="bg-gray-200 px-1 rounded">README.md</code> con instrucciones paso a paso. Puedes copiar ese archivo al servidor destino y ejecutar <code className="bg-gray-200 px-1 rounded">docker compose up -d</code>.</p>
+              <p>{t('help_download_docker_desc', 'Si prefieres instalar el servicio manualmente en otro servidor (o revisar la configuracion antes de instalar), haz clic en Descargar. Se descarga un archivo con el docker-compose.yml y un README.md con instrucciones paso a paso. Puedes copiar ese archivo al servidor destino y ejecutar docker compose up -d.')}</p>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_subdomain_q', 'Que es el subdominio sugerido?')}</h4>
-              <p>Cada servicio tiene un subdominio sugerido (ej: <code className="bg-gray-200 px-1 rounded">video.{nodeDomain}</code>). Si tienes OpenWrt configurado, el subdominio se registra automaticamente en la intranet. Si no tienes OpenWrt, puedes configurar el DNS manualmente apuntando ese subdominio a la IP de tu servidor.</p>
+              <p>{t('help_subdomain_desc', 'Cada servicio tiene un subdominio sugerido (ej: video.dominio). Si tienes OpenWrt configurado, el subdominio se registra automaticamente en la intranet. Si no tienes OpenWrt, puedes configurar el DNS manualmente apuntando ese subdominio a la IP de tu servidor.')}</p>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_add_service_q', 'Como agrego un servicio que no esta en el catalogo?')}</h4>
-              <p>El catalogo esta definido en el codigo del backend (<code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>). Para agregar un servicio nuevo:</p>
+              <p>{t('help_add_service_desc', 'El catalogo esta definido en el codigo del backend (internal/api/services_catalog.go). Para agregar un servicio nuevo:')}</p>
               <ol className="list-decimal list-inside space-y-1 ml-2 mt-1">
                 <li>Abre el archivo <code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>.</li>
                 <li>Agrega una entrada al slice <code className="bg-gray-200 px-1 rounded">catalog</code> con: <code>id</code>, <code>name</code>, <code>category</code>, <code>icon</code>, <code>what_is</code>, <code>replaces</code>, <code>used_for</code>, <code>protocol</code>, <code>docker</code>, <code>min_ram_mb</code>, <code>min_disk_gb</code>, <code>default_port</code> y <code>subdomain</code>.</li>
@@ -440,11 +440,11 @@ export default function FederatedServices() {
 
             <div className="border-t pt-3">
               <h4 className="font-semibold text-gray-900">{t('help_email_services', 'Servicios de Correo: como funcionan')}</h4>
-              <p className="mb-2">El correo electronico tiene tres componentes que se instalan por separado:</p>
+              <p className="mb-2">{t('help_email_components_desc', 'El correo electronico tiene tres componentes que se instalan por separado:')}</p>
               <ul className="list-disc list-inside space-y-1 ml-2">
-                <li><strong>Servidor de correo</strong> (Mailu o Mailcow): se instala en el nodo. Recibe y envia correos. Crea cuentas para cada miembro. Configura cuotas de espacio por usuario.</li>
-                <li><strong>Webmail</strong> (SnappyMail): interfaz web para leer correo desde el navegador sin instalar nada. Se conecta al servidor de correo.</li>
-                <li><strong>Cliente de chat</strong> (Delta Chat): app que se instala en el celular/PC de cada miembro. Se ve como WhatsApp pero usa el servidor de correo del nodo. No se instala en el servidor.</li>
+                <li><strong>{t('help_email_server_label', 'Servidor de correo')}</strong> {t('help_email_server_desc', '(Mailu o Mailcow): se instala en el nodo. Recibe y envia correos. Crea cuentas para cada miembro. Configura cuotas de espacio por usuario.')}</li>
+                <li><strong>{t('help_email_webmail_label', 'Webmail')}</strong> {t('help_email_webmail_desc', '(SnappyMail): interfaz web para leer correo desde el navegador sin instalar nada. Se conecta al servidor de correo.')}</li>
+                <li><strong>{t('help_email_chat_label', 'Cliente de chat')}</strong> {t('help_email_chat_desc', '(Delta Chat): app que se instala en el celular/PC de cada miembro. Se ve como WhatsApp pero usa el servidor de correo del nodo. No se instala en el servidor.')}</li>
               </ul>
             </div>
 
@@ -505,18 +505,18 @@ export default function FederatedServices() {
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_mail_rules', 'Reglas y cuotas del servidor de correo')}</h4>
-              <p>Desde el panel de administracion de Mailu o Mailcow puedes configurar:</p>
+              <p>{t('help_mail_rules_desc', 'Desde el panel de administracion de Mailu o Mailcow puedes configurar:')}</p>
               <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
-                <li><strong>Cuota de espacio</strong> por usuario (ej: 1 GB, 5 GB, ilimitado)</li>
-                <li><strong>Limite de tamano</strong> de archivos adjuntos (ej: 25 MB)</li>
-                <li><strong>Dominios</strong> aceptados para enviar/recibir</li>
-                <li><strong>Aliases</strong> (ej: info@tu-dominio redirige a maria@tu-dominio)</li>
-                <li><strong>Filtros antispam</strong> y nivel de sensibilidad</li>
-                <li><strong>Antivirus</strong> on/off</li>
-                <li><strong>Reglas de reenvio</strong> automatico</li>
-                <li><strong>Bloqueo de remitentes</strong> o dominios externos</li>
+                <li><strong>{t('help_mail_quota_label', 'Cuota de espacio')}</strong> {t('help_mail_quota_desc', 'por usuario (ej: 1 GB, 5 GB, ilimitado)')}</li>
+                <li><strong>{t('help_mail_attach_label', 'Limite de tamano')}</strong> {t('help_mail_attach_desc', 'de archivos adjuntos (ej: 25 MB)')}</li>
+                <li><strong>{t('help_mail_domains_label', 'Dominios')}</strong> {t('help_mail_domains_desc', 'aceptados para enviar/recibir')}</li>
+                <li><strong>{t('help_mail_aliases_label', 'Aliases')}</strong> {t('help_mail_aliases_desc', '(ej: info@tu-dominio redirige a maria@tu-dominio)')}</li>
+                <li><strong>{t('help_mail_spam_label', 'Filtros antispam')}</strong> {t('help_mail_spam_desc', 'y nivel de sensibilidad')}</li>
+                <li><strong>{t('help_mail_antivirus_label', 'Antivirus')}</strong> {t('help_mail_antivirus_desc', 'on/off')}</li>
+                <li><strong>{t('help_mail_forward_label', 'Reglas de reenvio')}</strong> {t('help_mail_forward_desc', 'automatico')}</li>
+                <li><strong>{t('help_mail_block_label', 'Bloqueo de remitentes')}</strong> {t('help_mail_block_desc', 'o dominios externos')}</li>
               </ul>
-              <p className="text-xs text-gray-500 mt-1">Estas reglas se configuran desde el panel web del servidor de correo, no desde el sistema de gobernanza. El admin con permiso config.manage decide las reglas segun lo que la Asamblea acuerde.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('help_mail_rules_note', 'Estas reglas se configuran desde el panel web del servidor de correo, no desde el sistema de gobernanza. El admin con permiso config.manage decide las reglas segun lo que la Asamblea acuerde.')}</p>
             </div>
           </div>
 
