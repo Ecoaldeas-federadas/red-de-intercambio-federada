@@ -40,6 +40,7 @@ COPY --from=go-builder /app/config.yaml /app/config.yaml
 COPY --from=go-builder /app/config.demo.yaml /app/config.demo.yaml
 COPY --from=go-builder /app/firmware /app/firmware
 COPY --from=frontend-builder /web/dist /app/web/dist
+COPY --from=frontend-builder /web/src/locales /app/web/src/locales
 
 EXPOSE 8080 8443
 
