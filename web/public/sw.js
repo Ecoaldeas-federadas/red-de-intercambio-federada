@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trueque-v6'
+const CACHE_NAME = 'trueque-v7'
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (e) => {
@@ -24,14 +24,17 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url)
 
   // NUNCA cachear respuestas de API - siempre ir a la red
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(fetch(e.request))
+  // (manejar /api/ y /main/api/ y /demo/api/)
+  if (url.pathname.startsWith('/api/') || url.pathname.includes('/api/')) {
+    e.respondWith(fetch(e.request).catch(() => new Response('', { status: 504 })))
     return
   }
 
   // No cachear assets con hash (index-XXXX.js, index-XXXX.css)
-  if (url.pathname.startsWith('/assets/')) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)))
+  // Manejar /assets/ y /main/assets/ y /demo/assets/
+  if (url.pathname.startsWith('/assets/') || url.pathname.includes('/assets/')) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request)).then(r => r || new Response('', { status: 504 })))
     return
   }
   e.respondWith(
