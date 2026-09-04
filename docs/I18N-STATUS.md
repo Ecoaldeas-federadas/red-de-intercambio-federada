@@ -2,7 +2,7 @@
 
 ## Resumen ejecutivo
 
-Sistema de internacionalización del proyecto "red de intercambio federada". Infraestructura completa (Fases 1-8). Auditoría del 4 Sep 2026: aunque 47/48 páginas tienen `useTranslation` importado, quedan **~356+ strings hardcoded en español** en prácticamente todas las páginas. Trabajo en progreso para eliminar todos los strings restantes.
+Sistema de internacionalización del proyecto "red de intercambio federada". Infraestructura completa (Fases 1-8). Auditoría y corrección del 4 Sep 2026: **todas las páginas y componentes ahora incluyen el namespace `common`** en sus llamadas `useTranslation`. Se reemplazaron masivamente botones comunes (Guardar, Cancelar, Cerrar, Eliminar, Editar, Cargando, Guardando) con llamadas `t('common.*')`. Aún quedan ~109 strings "No hay" y textos descriptivos en español que requieren traducción individual por página.
 
 ---
 
@@ -171,31 +171,21 @@ Sistema de internacionalización del proyecto "red de intercambio federada". Inf
 
 ## 7. Plan de trabajo (Sep 4, 2026)
 
-### Fase 1: Traducir páginas con más strings (Lote A)
-1. Assembly.tsx — config tabs, quorum help, status labels, botones
-2. NodeSettings.tsx — tab content, botones, mensajes
-3. ExternalBridge.tsx — strings restantes
-4. NFCTerminals.tsx — strings restantes
-5. Products.tsx — strings restantes
-6. Profile.tsx — strings restantes
+### Completado ✅
+1. **I18N-STATUS.md actualizado** con estado real
+2. **Namespaces comunes**: Todas las páginas y componentes ahora incluyen `common` como segundo namespace
+3. **Botones comunes reemplazados**: Guardar, Cancelar, Cerrar, Eliminar, Editar, Cargando, Guardando → `t('common.*')`
+4. **Assembly.tsx**: PROPOSAL_LABELS, PROPOSAL_HELP, botones, mensajes vacíos traducidos
+5. **NodeSettings.tsx**: tabs, botones, sub-componentes (QuorumConfigCard, NodeUpdateSection, MemberSearchAndPerms) con `useTranslation`
+6. **Locale files**: Nuevas claves en `assembly.json` (es/en) y `settings.json` (es/en)
+7. **Build exitoso** y push a origin/main
 
-### Fase 2: Traducir páginas medianas (Lote B)
-7. FederatedServices.tsx
-8. WebsiteAdmin.tsx
-9. NodeDiscovery.tsx
-10. NotificationSettings.tsx
-11. MyTerminals.tsx
-12. NetworkConfig.tsx
-
-### Fase 3: Traducir páginas pequeñas (Lote C)
-13-38. Resto de páginas con <5 strings cada una
-
-### Fase 4: Traducir componentes
-- LivePageEditor, ThemeCustomizer, PublicBlocks, PublicSite, DynamicAdmissionForm
-
-### Fase 5: Verificación final
-- Build, commit, push
-- Actualizar este documento
+### Pendiente (futuro)
+- ~109 strings "No hay X" requieren traducción individual por página (cada uno tiene contexto diferente)
+- Textos descriptivos largos (help, explicaciones) en Assembly, NodeSettings, FederatedServices, etc.
+- `OrganizationDetail.tsx` (única página sin `useTranslation`)
+- Componentes públicos: PublicBlocks, PublicFederationPage, PublicGovernancePage, ThemeCustomizer, LivePageEditor
+- Strings en comentarios (no visibles para usuarios, baja prioridad)
 
 ---
 
@@ -208,4 +198,4 @@ Si se pierde el historial de trabajo, este documento contiene:
 4. **Historial de commits** para reconstruir contexto
 5. **Información de infraestructura** completa
 
-Última actualización: Sep 4, 2026 02:45
+Última actualización: Sep 4, 2026 03:15 — Commit 342a449
