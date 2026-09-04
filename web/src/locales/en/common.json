@@ -653,5 +653,14 @@
   "settings.sunday": "Domingo",
   "settings.timezone_label": "Zona horaria para mostrar fechas y horas",
   "settings.today": "hoy",
-  "time_format": "12h"
+  "time_format": "12h",
+  "calculator.help_what_label": "Que es la calculadora:",
+  "calculator.help_purpose_label": "Para que sirve:",
+  "calculator.help_usage_label": "Como funciona:",
+  "calculator.help_direct_label": "Que es la energia directa:",
+  "calculator.help_human_label": "Que es la energia humana:",
+  "calculator.help_inputs_label": "Que es la energia de insumos:",
+  "calculator.help_effort_label": "Que es el factor de esfuerzo:",
+  "calculator.help_final_label": "Como se calcula el precio final:",
+  "calculator.energy_cost": "Costo energetico:"
 }

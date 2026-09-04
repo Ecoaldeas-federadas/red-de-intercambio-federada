@@ -500,29 +500,29 @@ export default function NFCTerminals() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Terminales NFC - Ayuda</strong></p>
-          <p><strong>Que son:</strong> Los terminales NFC son dispositivos fisicos basados en ESP32 que se instalan en comercios para aceptar pagos con tarjetas NFC. Cada usuario puede tener una tarjeta NFC vinculada a su cuenta que contiene su identificador unico.</p>
-          <p><strong>Para que sirve:</strong> Permiten realizar transacciones de la red de intercambio de forma presencial, sin necesidad de un computador o telefono. El usuario acerca su tarjeta al terminal, ingresa el monto y su PIN, y el pago se procesa automaticamente.</p>
-          <p><strong>Tipos de terminal:</strong></p>
+          <p><strong>{tt('help_title', 'Terminales NFC - Ayuda')}</strong></p>
+          <p><strong>{tt('help_what_label', 'Que son:')}</strong> {tt('help_what', 'Los terminales NFC son dispositivos fisicos basados en ESP32 que se instalan en comercios para aceptar pagos con tarjetas NFC. Cada usuario puede tener una tarjeta NFC vinculada a su cuenta que contiene su identificador unico.')}</p>
+          <p><strong>{tt('help_purpose_label', 'Para que sirve:')}</strong> {tt('help_purpose', 'Permiten realizar transacciones de la red de intercambio de forma presencial, sin necesidad de un computador o telefono. El usuario acerca su tarjeta al terminal, ingresa el monto y su PIN, y el pago se procesa automaticamente.')}</p>
+          <p><strong>{tt('help_types_label', 'Tipos de terminal:')}</strong></p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li><strong>Keypad (teclado):</strong> Terminal con encoder rotativo y display. El comercio ingresa el monto con el encoder y el usuario confirma con su PIN.</li>
-            <li><strong>Touch (pantalla tactil):</strong> Terminal con pantalla tactil ILI9341. El comercio ingresa el monto tocando la pantalla.</li>
-            <li><strong>Web:</strong> El monto se envia desde la app web o movil. El terminal solo confirma la tarjeta y el PIN.</li>
-            <li><strong>Community (comunitario):</strong> Terminal de doble tarjeta: el usuario acerca su tarjeta y la del comercio. No requiere PIN, ideal para mercados comunitarios.</li>
-            <li><strong>BLE Reader (Bluetooth):</strong> Lector NFC que se conecta via Bluetooth a un telefono o computador. Util cuando no hay WiFi disponible.</li>
+            <li><strong>{tt('help_keypad_label', 'Keypad (teclado):')}</strong> {tt('help_keypad', 'Terminal con encoder rotativo y display. El comercio ingresa el monto con el encoder y el usuario confirma con su PIN.')}</li>
+            <li><strong>{tt('help_touch_label', 'Touch (pantalla tactil):')}</strong> {tt('help_touch', 'Terminal con pantalla tactil ILI9341. El comercio ingresa el monto tocando la pantalla.')}</li>
+            <li><strong>{tt('help_web_label', 'Web:')}</strong> {tt('help_web', 'El monto se envia desde la app web o movil. El terminal solo confirma la tarjeta y el PIN.')}</li>
+            <li><strong>{tt('help_community_label', 'Community (comunitario):')}</strong> {tt('help_community', 'Terminal de doble tarjeta: el usuario acerca su tarjeta y la del comercio. No requiere PIN, ideal para mercados comunitarios.')}</li>
+            <li><strong>{tt('help_ble_label', 'BLE Reader (Bluetooth):')}</strong> {tt('help_ble', 'Lector NFC que se conecta via Bluetooth a un telefono o computador. Util cuando no hay WiFi disponible.')}</li>
           </ul>
-          <p><strong>Como se usa esta pagina:</strong></p>
+          <p><strong>{tt('help_usage_label', 'Como se usa esta pagina:')}</strong></p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li><strong>Terminales:</strong> Lista de los terminales ESP32 registrados en el nodo. Muestra si estan activos y cuando se vieron por ultima vez.</li>
-            <li><strong>Provisionar:</strong> Proceso de configurar un terminal ESP32 nuevo. Necesitas conectarlo por USB, leer su chip ID, y descargar el firmware compilado.</li>
-            <li><strong>Tarjetas:</strong> Emitir tarjetas NFC para usuarios y cambiar PINs. La tarjeta solo contiene el ID del usuario, no la clave privada. Si se pierde, se desactiva y se emite otra.</li>
-            <li><strong>Transacciones:</strong> Historial de pagos realizados a traves de los terminales NFC.</li>
+            <li><strong>{tt('help_tab_terminals_label', 'Terminales:')}</strong> {tt('help_tab_terminals', 'Lista de los terminales ESP32 registrados en el nodo. Muestra si estan activos y cuando se vieron por ultima vez.')}</li>
+            <li><strong>{tt('help_tab_provision_label', 'Provisionar:')}</strong> {tt('help_tab_provision', 'Proceso de configurar un terminal ESP32 nuevo. Necesitas conectarlo por USB, leer su chip ID, y descargar el firmware compilado.')}</li>
+            <li><strong>{tt('help_tab_cards_label', 'Tarjetas:')}</strong> {tt('help_tab_cards', 'Emitir tarjetas NFC para usuarios y cambiar PINs. La tarjeta solo contiene el ID del usuario, no la clave privada. Si se pierde, se desactiva y se emite otra.')}</li>
+            <li><strong>{tt('help_tab_tx_label', 'Transacciones:')}</strong> {tt('help_tab_tx', 'Historial de pagos realizados a traves de los terminales NFC.')}</li>
           </ul>
-          <p><strong>Que es el chip ID:</strong> Es un identificador unico de 12 caracteres hexadecimales grabado en cada chip ESP32 de fabrica. No se puede modificar y sirve para identificar univocamente cada terminal fisico. Se lee con el sketch chip-id-reader.ino o escaneando via USB con Web Serial.</p>
-          <p><strong>Que es el token de registro:</strong> Es un codigo secreto que genera el servidor al registrar o provisionar un terminal. Se copia en el archivo config.h del firmware del ESP32 para que el terminal pueda autenticarse con el nodo al conectarse por primera vez.</p>
-          <p><strong>Como vincular tarjetas:</strong> El administrador emite una tarjeta NFC asignandola a un usuario (User ID) y registrando el UID de la tarjeta fisica. La tarjeta se entrega al usuario con un PIN inicial que debe cambiar la primera vez que la use.</p>
-          <p><strong>Que es el PIN:</strong> Es un codigo de 4 digitos que protege la tarjeta NFC. Se pide al usuario en cada transaccion (excepto en modo comunitario). Si se olvida, el administrador puede resetearlo a un valor por defecto.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{tt('cancel', tt('common:close'))}</button>
+          <p><strong>{tt('help_chipid_label', 'Que es el chip ID:')}</strong> {tt('help_chipid', 'Es un identificador unico de 12 caracteres hexadecimales grabado en cada chip ESP32 de fabrica. No se puede modificar y sirve para identificar univocamente cada terminal fisico. Se lee con el sketch chip-id-reader.ino o escaneando via USB con Web Serial.')}</p>
+          <p><strong>{tt('help_token_label', 'Que es el token de registro:')}</strong> {tt('help_token', 'Es un codigo secreto que genera el servidor al registrar o provisionar un terminal. Se copia en el archivo config.h del firmware del ESP32 para que el terminal pueda autenticarse con el nodo al conectarse por primera vez.')}</p>
+          <p><strong>{tt('help_pairing_label', 'Como vincular tarjetas:')}</strong> {tt('help_pairing', 'El administrador emite una tarjeta NFC asignandola a un usuario (User ID) y registrando el UID de la tarjeta fisica. La tarjeta se entrega al usuario con un PIN inicial que debe cambiar la primera vez que la use.')}</p>
+          <p><strong>{tt('help_pin_label', 'Que es el PIN:')}</strong> {tt('help_pin', 'Es un codigo de 4 digitos que protege la tarjeta NFC. Se pide al usuario en cada transaccion (excepto en modo comunitario). Si se olvida, el administrador puede resetearlo a un valor por defecto.')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{tt('common:close')}</button>
         </div>
       )}
 
@@ -1085,7 +1085,7 @@ export default function NFCTerminals() {
             </div>
             <div className="flex gap-2">
               <button onClick={registerTerminal} className="btn-primary flex-1">{tt('register_btn', 'Registrar')}</button>
-              <button onClick={() => setShowRegister(false)} className="btn-secondary">{tt('cancel', tt('common:cancel'))}</button>
+              <button onClick={() => setShowRegister(false)} className="btn-secondary">{tt('common:cancel')}</button>
             </div>
           </div>
         </div>
@@ -1313,7 +1313,7 @@ export default function NFCTerminals() {
 
             <div className="flex gap-2 pt-2">
               <button onClick={saveEditTerminal} className="btn-primary flex-1">{tt('save_changes', 'Guardar cambios')}</button>
-              <button onClick={() => setShowEditModal(null)} className="btn-secondary">{tt('cancel', tt('common:cancel'))}</button>
+              <button onClick={() => setShowEditModal(null)} className="btn-secondary">{tt('common:cancel')}</button>
             </div>
           </div>
         </div>
@@ -1378,7 +1378,7 @@ export default function NFCTerminals() {
                 {assigning ? tt('assigning', 'Asignando...') : tt('assign_btn', 'Asignar')}
               </button>
               <button onClick={() => setShowAssignModal(null)} disabled={assigning} className="btn-secondary">
-                {tt('cancel', tt('common:cancel'))}
+                {tt('common:cancel')}
               </button>
             </div>
           </div>
