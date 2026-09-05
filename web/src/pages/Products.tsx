@@ -713,13 +713,13 @@ export default function Products() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Productos del Catálogo Comunitario - Ayuda</strong></p>
-          <p><strong>Tres pestañas:</strong></p>
-          <p><strong>1. Federación:</strong> Todos los productos base que existen en toda la red de nodos federados, INCLUYENDO los de tu propio nodo (porque tu nodo es parte de la federación). Aquí puedes ver todos los productos y decidir cuáles están permitidos o no permitidos en tu nodo usando los botones "Permitir" y "No Permitir".</p>
-          <p><strong>2. Mi Nodo:</strong> Los productos base que pertenecen a tu aldea. Tiene dos sub-pestañas: <strong>Permitidos</strong> (productos que se pueden vender/usar) y <strong>No Permitidos</strong> (productos explícitamente prohibidos). Puedes editarlos, crear nuevos, y moverlos entre permitido y no permitido.</p>
-          <p><strong>3. Compuestos:</strong> Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Si todos los ingredientes ya están permitidos, el compuesto aparece directamente aquí sin necesidad de aprobación. Si algún ingrediente es nuevo o no está aprobado, el compuesto pasa a "Pendientes de Aprobación". Un compuesto se puede promover a producto base con el botón "Solicitar como base" para que aparezca en toda la federación y pueda usarse como ingrediente de otros compuestos.</p>
-          <p><strong>Búsqueda:</strong> Escribe parte del nombre en el campo de búsqueda para encontrar productos rápidamente.</p>
-          <p><strong>Página pública:</strong> Los productos aprobados aparecen automáticamente en la página pública si usas el bloque "Catálogo desde Backend".</p>
+          <p><strong>{t('help_title', 'Productos del Catalogo Comunitario - Ayuda')}</strong></p>
+          <p><strong>{t('help_tabs_label', 'Tres pestanas:')}</strong></p>
+          <p><strong>{t('help_federation_label', '1. Federacion:')}</strong> {t('help_federation_desc', 'Todos los productos base que existen en toda la red de nodos federados, INCLUYENDO los de tu propio nodo. Aqui puedes ver todos los productos y decidir cuales estan permitidos o no permitidos en tu nodo.')}</p>
+          <p><strong>{t('help_my_node_label', '2. Mi Nodo:')}</strong> {t('help_my_node_desc', 'Los productos base que pertenecen a tu aldea. Tiene dos sub-pestanas: Permitidos (productos que se pueden vender/usar) y No Permitidos (productos explicitamente prohibidos). Puedes editarlos, crear nuevos, y moverlos entre permitido y no permitido.')}</p>
+          <p><strong>{t('help_compounds_label', '3. Compuestos:')}</strong> {t('help_compounds_desc', 'Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Si todos los ingredientes ya estan permitidos, el compuesto aparece directamente aqui sin necesidad de aprobacion.')}</p>
+          <p><strong>{t('help_search_label', 'Busqueda:')}</strong> {t('help_search_desc', 'Escribe parte del nombre en el campo de busqueda para encontrar productos rapidamente.')}</p>
+          <p><strong>{t('help_public_page_label', 'Pagina publica:')}</strong> {t('help_public_page_desc', 'Los productos aprobados aparecen automaticamente en la pagina publica si usas el bloque Catalogo desde Backend.')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common:close'))}</button>
         </div>
       )}

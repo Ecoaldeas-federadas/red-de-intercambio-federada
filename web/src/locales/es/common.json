@@ -687,5 +687,9 @@
   "cluster.option_a_desc": "Agrega un nuevo servicio en docker-compose.yml copiando yugabytedb2, cambiando el hostname, puertos y volumenes.",
   "cluster.option_b": "Opcion B: Servidor separado (produccion)",
   "cluster.option_b_desc": "Instala YugabyteDB en otro servidor y unelo con --join=IP_DEL_NODO1. Cada servidor agrega ~534 tabletas al limite.",
-  "cluster.docker_example": "Ejemplo docker-compose:"
+  "cluster.docker_example": "Ejemplo docker-compose:",
+  "g": "o",
+  "I": "m",
+  "p": "a",
+  "N": "o"
 }

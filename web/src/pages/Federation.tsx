@@ -105,6 +105,7 @@ export default function Federation() {
 // PeersNetInfo muestra la info de red y servicios de los nodos federados.
 // Esta info se sincroniza automaticamente cuando un nodo cambia su config.
 function PeersNetInfo() {
+  const { t } = useTranslation(['federation', 'common'])
   const [peers, setPeers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -133,17 +134,17 @@ function PeersNetInfo() {
       // Forzar sincronizacion: llamar al endpoint de mi info para que
       // el backend la envie a los peers
       await api.get('/network/my-info')
-      setMsg({ type: 'success', text: 'Sincronizacion iniciada. Los nodos federados recibiran la info actualizada.' })
+      setMsg({ type: 'success', text: t('federation_sync_started', 'Sincronizacion iniciada. Los nodos federados recibiran la info actualizada.') })
       await loadPeers()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error al sincronizar' })
+      setMsg({ type: 'error', text: e.message || t('federation_sync_error', 'Error al sincronizar') })
     } finally {
       setSyncing(false)
     }
   }
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-8">Cargando nodos federados...</div>
+    return <div className="text-center text-gray-500 py-8">{t('federation_loading_peers', 'Cargando nodos federados...')}</div>
   }
 
   return (
@@ -151,12 +152,10 @@ function PeersNetInfo() {
       {/* Explicacion */}
       <div className="card p-4 bg-blue-50 border-blue-200">
         <h3 className="font-semibold flex items-center gap-2 mb-2">
-          <Server size={18} className="text-blue-600" /> Nodos Federados
+          <Server size={18} className="text-blue-600" /> {t('federation_nodes_title', 'Nodos Federados')}
         </h3>
         <p className="text-sm text-gray-600">
-          Esta informacion se <strong>sincroniza automaticamente</strong> entre nodos federados.
-          Cuando un nodo cambia su dominio, IP, WireGuard o servicios, todos los demas
-          lo reciben automaticamente. No necesitas compartir nada manualmente.
+          {t('federation_sync_desc', 'Esta informacion se')} <strong>{t('federation_sync_auto', 'sincroniza automaticamente')}</strong> {t('federation_sync_desc2', 'entre nodos federados. Cuando un nodo cambia su dominio, IP, WireGuard o servicios, todos los demas lo reciben automaticamente. No necesitas compartir nada manualmente.')}
         </p>
         <button
           onClick={syncNow}
@@ -164,7 +163,7 @@ function PeersNetInfo() {
           className="mt-3 px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-50"
         >
           <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-          {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+          {syncing ? t('federation_syncing', 'Sincronizando...') : t('federation_sync_now', 'Sincronizar ahora')}
         </button>
         {msg && (
           <div className={`mt-2 p-2 rounded text-sm ${msg.type === 'success' ? 'bg-green-100 text-green-700' : msg.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -177,8 +176,8 @@ function PeersNetInfo() {
       {peers.length === 0 ? (
         <div className="card p-6 text-center text-gray-500">
           <Server size={32} className="mx-auto mb-2 text-gray-300" />
-          <p>No hay nodos federados con info de red.</p>
-          <p className="text-xs mt-1">Federate con otra aldea en "Federar Aldeas" para ver su info aqui.</p>
+          <p>{t('federation_no_peers', 'No hay nodos federados con info de red.')}</p>
+          <p className="text-xs mt-1">{t('federation_no_peers_hint', 'Federate con otra aldea en "Federar Aldeas" para ver su info aqui.')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -194,7 +193,7 @@ function PeersNetInfo() {
                   <div className="text-xs text-gray-500 font-mono">{peer.node_domain}</div>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded ${peer.network_mode === 'both' ? 'bg-purple-100 text-purple-700' : peer.network_mode === 'intranet' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                  {peer.network_mode === 'both' ? 'Internet + Intranet' : peer.network_mode === 'intranet' ? 'Intranet' : 'Internet'}
+                  {peer.network_mode === 'both' ? t('federation_mode_both', 'Internet + Intranet') : peer.network_mode === 'intranet' ? t('federation_mode_intranet', 'Intranet') : t('federation_mode_internet', 'Internet')}
                 </span>
               </div>
 
@@ -202,25 +201,25 @@ function PeersNetInfo() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                 {peer.public_domain && (
                   <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-xs text-gray-500">Dominio / IP publica</div>
+                    <div className="text-xs text-gray-500">{t('federation_public_domain', 'Dominio / IP publica')}</div>
                     <div className="font-mono text-sm">{peer.public_domain}</div>
                   </div>
                 )}
                 {peer.ipv6_ula && (
                   <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-xs text-gray-500">IPv6 ULA (intranet)</div>
+                    <div className="text-xs text-gray-500">{t('federation_ipv6_ula', 'IPv6 ULA (intranet)')}</div>
                     <div className="font-mono text-sm">{peer.ipv6_ula}</div>
                   </div>
                 )}
                 {peer.wireguard_endpoint && (
                   <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-xs text-gray-500">Endpoint WireGuard</div>
+                    <div className="text-xs text-gray-500">{t('federation_wg_endpoint', 'Endpoint WireGuard')}</div>
                     <div className="font-mono text-sm">{peer.wireguard_endpoint}</div>
                   </div>
                 )}
                 {peer.wireguard_public_key && (
                   <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-xs text-gray-500">Clave publica WireGuard</div>
+                    <div className="text-xs text-gray-500">{t('federation_wg_pubkey', 'Clave publica WireGuard')}</div>
                     <div className="font-mono text-xs break-all">{peer.wireguard_public_key}</div>
                   </div>
                 )}
@@ -230,7 +229,7 @@ function PeersNetInfo() {
               {peer.services && Array.isArray(peer.services) && peer.services.length > 0 && (
                 <div>
                   <div className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
-                    <Wifi size={12} /> Servicios levantados ({peer.services.length})
+                    <Wifi size={12} /> {t('federation_services_running', 'Servicios levantados')} ({peer.services.length})
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {peer.services.map((svc: any, i: number) => (
@@ -246,7 +245,7 @@ function PeersNetInfo() {
 
               {/* Ultima actualizacion */}
               <div className="text-xs text-gray-400 border-t pt-2">
-                Actualizado: {fmtDateTime(peer.last_updated)}
+                {t('federation_updated', 'Actualizado:')} {fmtDateTime(peer.last_updated)}
               </div>
             </div>
           ))}

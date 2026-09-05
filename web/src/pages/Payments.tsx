@@ -441,7 +441,7 @@ export default function Payments() {
               <p><strong>{t('payments.nfc_user', 'Usuario:')}</strong> {nfcResult.user_id}</p>
               <p><strong>{t('payments.nfc_active', 'Activa:')}</strong> {nfcResult.is_active ? t('payments.nfc_yes', 'Si') : t('payments.nfc_no', 'No')}</p>
               {nfcResult.is_local === false && (
-                <p className="text-amber-700"><strong>Nota:</strong> {t('payments.nfc_external_note', 'Tarjeta de otro nodo - se consultara via federation')}</p>
+                <p className="text-amber-700"><strong>{t('payments.note_label', 'Nota:')}</strong> {t('payments.nfc_external_note', 'Tarjeta de otro nodo - se consultara via federation')}</p>
               )}
             </div>
           )}

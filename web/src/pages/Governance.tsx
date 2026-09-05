@@ -201,7 +201,7 @@ export default function Governance() {
       {/* Aviso: cambios requieren aprobacion de asamblea */}
       {canManage && (
         <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg mb-4 text-sm">
-          <strong>Importante:</strong> {t('governance.important_notice', 'Cualquier cambio a las reglas de gobernanza (crear, modificar o eliminar) requiere aprobacion de la Asamblea General. Al hacer un cambio, se crea una propuesta que debe ser votada y aprobada. La regla no se activara hasta que la asamblea la apruebe.')}
+          <strong>{t('governance.important_label', 'Importante:')}</strong> {t('governance.important_notice', 'Cualquier cambio a las reglas de gobernanza (crear, modificar o eliminar) requiere aprobacion de la Asamblea General. Al hacer un cambio, se crea una propuesta que debe ser votada y aprobada. La regla no se activara hasta que la asamblea la apruebe.')}
         </div>
       )}
 

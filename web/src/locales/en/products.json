@@ -234,5 +234,15 @@
   "help_my_store_label": "Mi Tienda:",
   "help_my_store": "Muestra los productos que tu ofreces y tu inventario personal.",
   "help_search_label": "Buscar Productos:",
-  "help_search": "Busca que productos estan disponibles en todas las tiendas de la red."
+  "help_search": "Busca que productos estan disponibles en todas las tiendas de la red.",
+  "help_tabs_label": "Tres pestanas:",
+  "help_federation_label": "1. Federacion:",
+  "help_federation_desc": "Todos los productos base que existen en toda la red de nodos federados, INCLUYENDO los de tu propio nodo. Aqui puedes ver todos los productos y decidir cuales estan permitidos o no permitidos en tu nodo.",
+  "help_my_node_label": "2. Mi Nodo:",
+  "help_my_node_desc": "Los productos base que pertenecen a tu aldea. Tiene dos sub-pestanas: Permitidos (productos que se pueden vender/usar) y No Permitidos (productos explicitamente prohibidos). Puedes editarlos, crear nuevos, y moverlos entre permitido y no permitido.",
+  "help_compounds_label": "3. Compuestos:",
+  "help_compounds_desc": "Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Si todos los ingredientes ya estan permitidos, el compuesto aparece directamente aqui sin necesidad de aprobacion.",
+  "help_search_desc": "Escribe parte del nombre en el campo de busqueda para encontrar productos rapidamente.",
+  "help_public_page_label": "Pagina publica:",
+  "help_public_page_desc": "Los productos aprobados aparecen automaticamente en la pagina publica si usas el bloque Catalogo desde Backend."
 }
