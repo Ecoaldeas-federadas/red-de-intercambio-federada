@@ -2,7 +2,7 @@
 
 ## Resumen ejecutivo
 
-Sistema de internacionalización del proyecto "red de intercambio federada". Infraestructura completa (Fases 1-8). Auditoría y corrección del 4 Sep 2026: **todas las páginas y componentes ahora incluyen el namespace `common`** en sus llamadas `useTranslation`. Se reemplazaron masivamente botones comunes (Guardar, Cancelar, Cerrar, Eliminar, Editar, Cargando, Guardando) con llamadas `t('common.*')`. Aún quedan ~109 strings "No hay" y textos descriptivos en español que requieren traducción individual por página.
+Sistema de internacionalización del proyecto "red de intercambio federada". Infraestructura completa (Fases 1-8). Auditoría del 4 Sep 2026: **todas las páginas y componentes incluyen el namespace `common`**. NodeSettings.tsx completamente internacionalizado (589 claves `settings_*` extraídas y agregadas a es/en). FederatedServices.tsx (VoIP) corregido. Namespace `settings` expandido de 199 a 788 claves. Aún quedan ~109 strings "No hay" y textos descriptivos en otras páginas que requieren traducción individual.
 
 ---
 
@@ -67,11 +67,11 @@ Sistema de internacionalización del proyecto "red de intercambio federada". Inf
 | public | 29 | ✅ |
 | satellite | 42 | ✅ |
 | services | 162 | ✅ |
-| settings | 156+ | ✅ (expandido con tabs) |
+| settings | 788 | ✅ (expandido: tabs + NodeSettings completo + NodeUpdateSection + VoIP) |
 | transfer | 128+ | ✅ (expandido con wallet.*) |
 | translations | 34 | ✅ |
 | website | 172 | ✅ |
-| **TOTAL** | **2,597** | |
+| **TOTAL** | **3,229** | |
 
 ---
 
@@ -94,12 +94,12 @@ Sistema de internacionalización del proyecto "red de intercambio federada". Inf
 | Página | Strings aprox | Estado |
 |--------|---------------|--------|
 | Assembly.tsx | ~50+ | Parcial (PROPOSAL_LABELS traducido, queda config/help/status) |
-| NodeSettings.tsx | ~40+ | Parcial (tabs traducidos, queda contenido) |
+| NodeSettings.tsx | 0 | ✅ Completado (589 claves settings_* agregadas a es/en) |
 | ExternalBridge.tsx | ~20+ | Parcial |
 | NFCTerminals.tsx | ~15+ | Parcial |
 | Products.tsx | ~15+ | Parcial |
 | Profile.tsx | ~15+ | Parcial |
-| FederatedServices.tsx | ~15+ | Parcial |
+| FederatedServices.tsx | ~5+ | Casi completo (VoIP corregido, quedan placeholders técnicos) |
 | WebsiteAdmin.tsx | ~15+ | Parcial |
 | NodeDiscovery.tsx | ~12+ | Parcial |
 | NotificationSettings.tsx | ~10+ | Parcial |
@@ -176,16 +176,18 @@ Sistema de internacionalización del proyecto "red de intercambio federada". Inf
 2. **Namespaces comunes**: Todas las páginas y componentes ahora incluyen `common` como segundo namespace
 3. **Botones comunes reemplazados**: Guardar, Cancelar, Cerrar, Eliminar, Editar, Cargando, Guardando → `t('common.*')`
 4. **Assembly.tsx**: PROPOSAL_LABELS, PROPOSAL_HELP, botones, mensajes vacíos traducidos
-5. **NodeSettings.tsx**: tabs, botones, sub-componentes (QuorumConfigCard, NodeUpdateSection, MemberSearchAndPerms) con `useTranslation`
-6. **Locale files**: Nuevas claves en `assembly.json` (es/en) y `settings.json` (es/en)
-7. **Build exitoso** y push a origin/main
+5. **NodeSettings.tsx**: COMPLETAMENTE internacionalizado — 589 claves `settings_*` extraídas del código y agregadas a `es/settings.json` y `en/settings.json`. Todas las secciones: General, Niveles, Organización, Tarifa, Horarios, Perfil del Nodo, Trabajo Comunitario, Banco Semillas, Cayapa, NFC, FRNE, Biodinamica, Páginas Públicas, Backup, Base de Datos, Nodo Demo, NodeUpdateSection
+6. **FederatedServices.tsx**: Strings VoIP corregidos (mensajes de error, confirmaciones, guardado)
+7. **Locale files**: `settings.json` (es/en) expandido de 199 a 788 claves idénticas
+8. **Build exitoso** y push a origin/main
 
 ### Pendiente (futuro)
 - ~109 strings "No hay X" requieren traducción individual por página (cada uno tiene contexto diferente)
-- Textos descriptivos largos (help, explicaciones) en Assembly, NodeSettings, FederatedServices, etc.
+- Textos descriptivos largos (help, explicaciones) en Assembly, FederatedServices, etc.
 - `OrganizationDetail.tsx` (única página sin `useTranslation`)
 - Componentes públicos: PublicBlocks, PublicFederationPage, PublicGovernancePage, ThemeCustomizer, LivePageEditor
 - Strings en comentarios (no visibles para usuarios, baja prioridad)
+- Traducciones en `en/settings.json`: las 589 claves nuevas tienen texto en español como placeholder — requieren traducción manual al inglés
 
 ---
 
@@ -198,4 +200,4 @@ Si se pierde el historial de trabajo, este documento contiene:
 4. **Historial de commits** para reconstruir contexto
 5. **Información de infraestructura** completa
 
-Última actualización: Sep 4, 2026 03:15 — Commit 342a449
+Última actualización: Sep 4, 2026 22:25

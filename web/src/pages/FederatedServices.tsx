@@ -1126,13 +1126,13 @@ function VoIPPanel() {
       setMsg({ type: 'success', text: res.message })
       await loadRoutes()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error' })
+      setMsg({ type: 'error', text: e.message || t('common:error', 'Error') })
     }
   }
 
   const createPSTNGateway = async () => {
     if (!newGateway.name || !newGateway.sip_server || !newGateway.sip_username || !newGateway.sip_password) {
-      setMsg({ type: 'error', text: 'Nombre, servidor, usuario y password son obligatorios' })
+      setMsg({ type: 'error', text: t('voip_fields_required', 'Nombre, servidor, usuario y password son obligatorios') })
       return
     }
     try {
@@ -1141,28 +1141,31 @@ function VoIPPanel() {
       setNewGateway({ name: '', provider: '', sip_server: '', sip_username: '', sip_password: '', inbound_number: '', cost_per_minute: 0, max_concurrent_calls: 2 })
       await loadPSTNGateways()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error' })
+      setMsg({ type: 'error', text: e.message || t('common:error', 'Error') })
     }
   }
 
   const deletePSTNGateway = async (id: string) => {
-    if (!confirm('Eliminar pasarela PSTN?')) return
+    if (!confirm(t('voip_confirm_delete_gateway', 'Eliminar pasarela PSTN?'))) return
     try {
       await api.delete(`/voip/pstn-gateways/${id}`)
       await loadPSTNGateways()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error' })
+      setMsg({ type: 'error', text: e.message || t('common:error', 'Error') })
     }
   }
 
   const rechargeVoIP = async () => {
-    if (rechargeAmount <= 0) { setMsg({ type: 'error', text: 'Monto debe ser positivo' }); return }
+    if (rechargeAmount <= 0) {
+      setMsg({ type: 'error', text: t('voip_amount_positive', 'Monto debe ser positivo') });
+      return
+    }
     try {
       const res: any = await api.post('/voip/recharge', { amount: rechargeAmount, payment_method: rechargeMethod, reference: rechargeRef })
       setMsg({ type: 'success', text: res.message })
       setRechargeAmount(0); setRechargeRef('')
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error' })
+      setMsg({ type: 'error', text: e.message || t('common:error', 'Error') })
     }
   }
 
@@ -1193,7 +1196,7 @@ function VoIPPanel() {
       setMsg({ type: 'success', text: res.message })
       await loadConfig()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error' })
+      setMsg({ type: 'error', text: e.message || t('common:error', 'Error') })
     }
   }
 
@@ -1201,53 +1204,53 @@ function VoIPPanel() {
     if (!config) return
     try {
       await api.put('/voip/config', config)
-      setMsg({ type: 'success', text: 'Configuracion VoIP guardada' })
+      setMsg({ type: 'success', text: t('voip_config_saved', 'Configuracion VoIP guardada') })
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error' })
+      setMsg({ type: 'error', text: t('common:error', 'Error') })
     }
   }
 
   const createExt = async () => {
-    if (!newExt.extension) { setMsg({ type: 'error', text: 'Extension obligatoria' }); return }
+    if (!newExt.extension) { setMsg({ type: 'error', text: t('voip_extension_required', 'Extension obligatoria') }); return }
     try {
       const res: any = await api.post('/voip/extensions', newExt)
       setMsg({ type: 'success', text: res.message })
       setNewExt({ extension: '', display_name: '', password: '' })
       await loadExtensions()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error' })
+      setMsg({ type: 'error', text: e.message || t('common:error', 'Error') })
     }
   }
 
   const deleteExt = async (ext: string) => {
-    if (!confirm(`Eliminar extension ${ext}?`)) return
+    if (!confirm(t('voip_confirm_delete_extension', 'Eliminar extension {{ext}}?', { ext }))) return
     try {
       await api.delete(`/voip/extensions/${ext}`)
       await loadExtensions()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error' })
+      setMsg({ type: 'error', text: e.message || t('common:error', 'Error') })
     }
   }
 
   const createRoute = async () => {
-    if (!newRoute.remote_village_code) { setMsg({ type: 'error', text: 'Codigo de aldea remota obligatorio' }); return }
+    if (!newRoute.remote_village_code) { setMsg({ type: 'error', text: t('voip_remote_code_required', 'Codigo de aldea remota obligatorio') }); return }
     try {
       const res: any = await api.post('/voip/routes', newRoute)
       setMsg({ type: 'success', text: res.message })
       setNewRoute({ remote_village_code: 0, remote_village_name: '', remote_endpoint: '', remote_domain: '' })
       await loadRoutes()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error' })
+      setMsg({ type: 'error', text: t('common:error', 'Error') })
     }
   }
 
   const deleteRoute = async (code: string) => {
-    if (!confirm(`Eliminar ruta a aldea ${code}?`)) return
+    if (!confirm(t('voip_confirm_delete_route', 'Eliminar ruta a aldea {{code}}?', { code }))) return
     try {
       await api.delete(`/voip/routes/${code}`)
       await loadRoutes()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error' })
+      setMsg({ type: 'error', text: t('common:error', 'Error') })
     }
   }
 
