@@ -1022,24 +1022,33 @@ func (th *TranslationHandler) addSingleKey(w http.ResponseWriter, r *http.Reques
 
 // seedTranslations lee todos los JSON del filesystem e inserta las claves en la BD.
 // POST /api/translations/seed
-// No sobrescribe ediciones existentes.
+// Query params opcionales:
+//
+//	?lang=en   -> solo ese idioma (por defecto: todos los habilitados)
+//	?force=true -> sobrescribe valores existentes con los JSON (por defecto: no sobrescribe)
 func (th *TranslationHandler) seedTranslations(w http.ResponseWriter, r *http.Request) {
-	// Obtener idiomas habilitados
-	rows, err := th.Pool.Query(r.Context(),
-		`SELECT code FROM languages WHERE enabled = true`)
-	if err != nil {
-		writeJSON(w, 500, map[string]string{"error": "error querying languages"})
-		return
-	}
+	onlyLang := r.URL.Query().Get("lang")
+	force := r.URL.Query().Get("force") == "true"
+
 	var langs []string
-	for rows.Next() {
-		var code string
-		if err := rows.Scan(&code); err != nil {
-			continue
+	if onlyLang != "" {
+		langs = []string{onlyLang}
+	} else {
+		// Obtener idiomas habilitados
+		rows, err := th.Pool.Query(r.Context(),
+			`SELECT code FROM languages WHERE enabled = true`)
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": "error querying languages"})
+			return
 		}
-		langs = append(langs, code)
+		for rows.Next() {
+			var code string
+			if err := rows.Scan(&code); err == nil {
+				langs = append(langs, code)
+			}
+		}
+		rows.Close()
 	}
-	rows.Close()
 
 	namespaces := []string{
 		"common", "dashboard", "transfer", "nfc", "federation", "assembly",
@@ -1050,12 +1059,26 @@ func (th *TranslationHandler) seedTranslations(w http.ResponseWriter, r *http.Re
 
 	userID, _ := getUserID(r)
 	inserted := 0
+	updated := 0
 	skipped := 0
 
 	for _, lang := range langs {
 		for _, ns := range namespaces {
 			defaults := th.loadJSONDefaults(lang, ns)
 			for key, value := range defaults {
+				if force {
+					// Sobrescribir siempre con el valor del JSON
+					_, err := th.Pool.Exec(r.Context(), `
+						INSERT INTO translations (key, namespace, language, value, node_domain, updated_by)
+						VALUES ($1, $2, $3, $4, $5, $6)
+						ON CONFLICT (key, namespace, language, node_domain)
+						DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
+						key, ns, lang, value, th.NodeDomain, userID)
+					if err == nil {
+						updated++
+					}
+					continue
+				}
 				// Solo insertar si no existe ya en la BD
 				var exists bool
 				err := th.Pool.QueryRow(r.Context(),
@@ -1080,11 +1103,14 @@ func (th *TranslationHandler) seedTranslations(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	log.Printf("[i18n] Seed completed: %d inserted, %d skipped", inserted, skipped)
+	log.Printf("[i18n] Seed completed: %d inserted, %d updated, %d skipped (force=%v, lang=%s)", inserted, updated, skipped, force, onlyLang)
 	writeJSON(w, 200, map[string]interface{}{
 		"status":   "ok",
 		"inserted": inserted,
+		"updated":  updated,
 		"skipped":  skipped,
+		"force":    force,
+		"lang":     onlyLang,
 	})
 }
 
