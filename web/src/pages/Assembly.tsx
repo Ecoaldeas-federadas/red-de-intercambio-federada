@@ -465,7 +465,7 @@ function DeptListWithRoles({
   }
 
   if (depts.length === 0) {
-    return <p className="text-sm text-gray-500 py-4">No hay departamentos en esta categoria.</p>
+    return <p className="text-sm text-gray-500 py-4">{t('assembly_no_depts', 'No hay departamentos en esta categoria.')}</p>
   }
 
   return (
@@ -495,7 +495,7 @@ function DeptListWithRoles({
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400">{d.group_type}</span>
               <span className={`text-xs px-2 py-0.5 rounded ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                {d.is_active ? 'Activo' : 'Inactivo'}
+                {d.is_active ? t('assembly_active', 'Activo') : t('assembly_inactive', 'Inactivo')}
               </span>
               <span className="text-gray-400 text-xs">{expandedDept === d.id ? '▼' : '▶'}</span>
             </div>
@@ -507,17 +507,17 @@ function DeptListWithRoles({
               {/* Roles */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium">Roles</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_roles', 'Roles')}</h4>
                   {canManage && (
                     <button
                       onClick={() => { setShowCreateRole(showCreateRole === d.id ? null : d.id); setShowRolePerms(null); setShowAssignMember(null) }}
                       className="text-xs text-trueque-600 hover:text-trueque-700 flex items-center gap-1"
                     >
-                      <Plus size={12} /> Nuevo Rol
+                      <Plus size={12} /> {t('assembly_new_role', 'Nuevo Rol')}
                     </button>
                   )}
                 </div>
-                {deptRoles.length === 0 && <p className="text-xs text-gray-400">Sin roles</p>}
+                {deptRoles.length === 0 && <p className="text-xs text-gray-400">{t('assembly_no_roles', 'Sin roles')}</p>}
                 <div className="space-y-1">
                   {deptRoles.map((role: any) => (
                     <div key={role.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
@@ -536,7 +536,7 @@ function DeptListWithRoles({
                         }}
                         className="text-xs text-trueque-600"
                       >
-                        Permisos
+                        {t('assembly_permissions', 'Permisos')}
                       </button>
                     </div>
                   ))}
@@ -546,7 +546,7 @@ function DeptListWithRoles({
               {/* Panel de permisos del rol */}
               {showRolePerms && deptRoles.some((r: any) => r.id === showRolePerms) && (
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <h4 className="text-sm font-medium">Permisos del rol "{deptRoles.find((r: any) => r.id === showRolePerms)?.name}"</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_role_perms', 'Permisos del rol')} "{deptRoles.find((r: any) => r.id === showRolePerms)?.name}"</h4>
                   {/* Agrupar por categoria */}
                   {(() => {
                     const grouped: Record<string, any[]> = {}
@@ -570,7 +570,7 @@ function DeptListWithRoles({
                                   className="accent-trueque-600"
                                 />
                                 <span>{perm.name}</span>
-                                {perm.requires_multisig && <span className="text-amber-600">[multisig]</span>}
+                                {perm.requires_multisig && <span className="text-amber-600">[{t('assembly_multisig', 'multisig')}]</span>}
                               </label>
                             )
                           })}
@@ -584,37 +584,37 @@ function DeptListWithRoles({
               {/* Formulario crear rol */}
               {showCreateRole === d.id && (
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <h4 className="text-sm font-medium">Nuevo Rol</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_new_role', 'Nuevo Rol')}</h4>
                   <input
                     className="input"
-                    placeholder="Nombre del rol (ej: Coordinador)"
+                    placeholder={t('assembly_role_name_ph', 'Nombre del rol (ej: Coordinador)')}
                     value={newRole.name}
                     onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
                   />
                   <input
                     className="input"
-                    placeholder="Descripcion (opcional)"
+                    placeholder={t('assembly_role_desc_ph', 'Descripcion (opcional)')}
                     value={newRole.description}
                     onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
                   />
-                  <button onClick={() => createRole(d.id)} className="btn-primary text-sm">Crear Rol</button>
+                  <button onClick={() => createRole(d.id)} className="btn-primary text-sm">{t('assembly_create_role', 'Crear Rol')}</button>
                 </div>
               )}
 
               {/* Miembros del departamento */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium">Miembros ({deptMembers.length})</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_members_count', 'Miembros')} ({deptMembers.length})</h4>
                   {canManage && (
                     <button
                       onClick={() => { setShowAssignMember(showAssignMember === d.id ? null : d.id); setShowCreateRole(null); setShowRolePerms(null) }}
                       className="text-xs text-trueque-600 hover:text-trueque-700 flex items-center gap-1"
                     >
-                      <Plus size={12} /> Asignar Miembro
+                      <Plus size={12} /> {t('assembly_assign_member', 'Asignar Miembro')}
                     </button>
                   )}
                 </div>
-                {deptMembers.length === 0 && <p className="text-xs text-gray-400">Sin miembros asignados</p>}
+                {deptMembers.length === 0 && <p className="text-xs text-gray-400">{t('assembly_no_members', 'Sin miembros asignados')}</p>}
                 <div className="space-y-1">
                   {deptMembers.map((m: any) => (
                     <div key={m.user_id || m.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
@@ -638,13 +638,13 @@ function DeptListWithRoles({
               {/* Formulario asignar miembro */}
               {showAssignMember === d.id && (
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <h4 className="text-sm font-medium">Asignar Miembro</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_assign_member', 'Asignar Miembro')}</h4>
                   <select
                     className="input"
                     value={newMember.user_id}
                     onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })}
                   >
-                    <option value="">Seleccionar miembro...</option>
+                    <option value="">{t('assembly_select_member', 'Seleccionar miembro...')}</option>
                     {allMembers.map((m: any) => (
                       <option key={m.id} value={m.id}>{m.display_name || m.username} (@{m.username})</option>
                     ))}
@@ -654,12 +654,12 @@ function DeptListWithRoles({
                     value={newMember.role_id}
                     onChange={(e) => setNewMember({ ...newMember, role_id: e.target.value })}
                   >
-                    <option value="">Seleccionar rol...</option>
+                    <option value="">{t('assembly_select_role', 'Seleccionar rol...')}</option>
                     {deptRoles.map((r: any) => (
                       <option key={r.id} value={r.id}>{r.name}</option>
                     ))}
                   </select>
-                  <button onClick={() => assignMember(d.id)} className="btn-primary text-sm">Asignar</button>
+                  <button onClick={() => assignMember(d.id)} className="btn-primary text-sm">{t('assembly_assign', 'Asignar')}</button>
                 </div>
               )}
             </div>
@@ -701,17 +701,17 @@ function MemberSearchAndPerms({
     <>
       {/* Buscador de miembros */}
       <div className="card">
-        <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />Buscar Miembros ({members.length})</h3>
+        <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />{t('assembly_search_members', 'Buscar Miembros')} ({members.length})</h3>
         <input
           type="text"
           className="input mb-3"
-          placeholder="Buscar por nombre o usuario..."
+          placeholder={t('assembly_search_ph', 'Buscar por nombre o usuario...')}
           value={memberSearch}
           onChange={(e) => setMemberSearch(e.target.value)}
         />
 
         {members.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4">No hay miembros en esta categoria.</p>
+          <p className="text-sm text-gray-500 py-4">{t('assembly_no_members_cat', 'No hay miembros en esta categoria.')}</p>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto">
             {members
@@ -734,11 +734,11 @@ function MemberSearchAndPerms({
                   </div>
                   <div className="flex items-center gap-2">
                     {m.is_super_admin && m.super_admin_enabled && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Super Admin</span>
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{t('assembly_super_admin', 'Super Admin')}</span>
                     )}
                     <span className={`text-xs px-2 py-0.5 rounded ${getBadgeColor(m)}`}>{getBadgeLabel(m)}</span>
                     {m.permissions && m.permissions.length > 0 && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{m.permissions.length} permisos</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{m.permissions.length} {t('assembly_perms', 'permisos')}</span>
                     )}
                   </div>
                 </div>
@@ -753,22 +753,22 @@ function MemberSearchAndPerms({
           <div className="flex items-center justify-between">
             <h3 className="font-medium flex items-center gap-2">
               <KeyRound size={16} />
-              Permisos de {selectedMember.display_name || selectedMember.username}
+              {t('assembly_perms_of', 'Permisos de')} {selectedMember.display_name || selectedMember.username}
             </h3>
             <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common:close')}</button>
           </div>
 
           {selectedMember.is_super_admin && selectedMember.super_admin_enabled && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-              Este usuario es Super Admin habilitado: tiene TODOS los permisos automaticamente.
+              {t('assembly_super_admin_desc', 'Este usuario es Super Admin habilitado: tiene TODOS los permisos automaticamente.')}
             </div>
           )}
 
           {/* Permisos actuales */}
           <div>
-            <h4 className="text-sm font-medium mb-2">Permisos actuales ({memberPerms.length})</h4>
+            <h4 className="text-sm font-medium mb-2">{t('assembly_current_perms', 'Permisos actuales')} ({memberPerms.length})</h4>
             {memberPerms.length === 0 ? (
-              <p className="text-sm text-gray-500">No tiene permisos directos.</p>
+              <p className="text-sm text-gray-500">{t('assembly_no_direct_perms', 'No tiene permisos directos.')}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {memberPerms.map((p: string) => (
@@ -800,7 +800,7 @@ function MemberSearchAndPerms({
           {/* Asignar nuevo permiso */}
           {canManage && (
             <div>
-              <h4 className="text-sm font-medium mb-2">Asignar nuevo permiso</h4>
+              <h4 className="text-sm font-medium mb-2">{t('assembly_assign_new_perm', 'Asignar nuevo permiso')}</h4>
               <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
                 {allPerms
                   .filter((p: any) => !memberPerms.includes(p.name))
@@ -809,7 +809,7 @@ function MemberSearchAndPerms({
                       <div>
                         <span className="text-sm font-medium">{p.name}</span>
                         <span className="text-xs text-gray-500 ml-2">({p.category})</span>
-                        {p.requires_multisig && <span className="text-xs text-amber-600 ml-1">[multisig]</span>}
+                        {p.requires_multisig && <span className="text-xs text-amber-600 ml-1">[{t('assembly_multisig', 'multisig')}]</span>}
                       </div>
                       <button
                         onClick={async () => {
@@ -824,14 +824,13 @@ function MemberSearchAndPerms({
                         }}
                         className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
                       >
-                        + Asignar
+                        + {t('assembly_assign', 'Asignar')}
                       </button>
                     </div>
                   ))}
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                Los permisos marcados como [multisig] requieren votacion de la Asamblea.
-                Al asignarlos directamente, se otorgan sin votacion (requiere permiso config.manage).
+                {t('assembly_multisig_note', 'Los permisos marcados como [multisig] requieren votacion de la Asamblea. Al asignarlos directamente, se otorgan sin votacion (requiere permiso config.manage).')}
               </p>
             </div>
           )}
@@ -1322,7 +1321,7 @@ export default function Assembly() {
             value={value}
             onChange={(e) => setProposalFields({ ...proposalFields, [field.key]: e.target.value })}
           >
-            <option value="">-- Selecciona una opcion --</option>
+            <option value="">{t('assembly_select_option', '-- Selecciona una opcion --')}</option>
             {field.options?.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -1471,7 +1470,7 @@ export default function Assembly() {
                     {fundData?.balance != null ? `${fundData.balance >= 0 ? '+' : ''}${fmtTQ(fundData.balance)}` : '...'} {currency}
                   </p>
                   <p className="text-amber-200 text-xs mt-2">
-                    Cuenta: @{fundData?.username || 'asamblea'}
+                    Cuenta: @{fundData?.username || t('assembly_asamblea', 'asamblea')}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@asamblea</span>
@@ -1544,12 +1543,12 @@ export default function Assembly() {
               {PROPOSAL_FIELDS(currency)[proposalType]?.map((field) => renderProposalField(field))}
 
               <div>
-                <label className="label">Descripcion de la propuesta</label>
-                <textarea className="input" rows={3} placeholder="Explica la propuesta para que los miembros puedan votar informados" value={proposalDesc} onChange={(e) => setProposalDesc(e.target.value)} />
-                <p className="text-xs text-gray-400 mt-1">Explica claramente la decision que se somete a votacion. Los miembros usaran este texto para decidir su voto.</p>
+                <label className="label">{t('assembly_proposal_desc', 'Descripcion de la propuesta')}</label>
+                <textarea className="input" rows={3} placeholder={t('assembly_proposal_desc_ph', 'Explica la propuesta para que los miembros puedan votar informados')} value={proposalDesc} onChange={(e) => setProposalDesc(e.target.value)} />
+                <p className="text-xs text-gray-400 mt-1">{t('assembly_proposal_desc_hint', 'Explica claramente la decision que se somete a votacion. Los miembros usaran este texto para decidir su voto.')}</p>
               </div>
 
-              <button onClick={createProposal} className="btn-primary">Crear Propuesta</button>
+              <button onClick={createProposal} className="btn-primary">{t('assembly_create_proposal', 'Crear Propuesta')}</button>
             </div>
           )}
 
@@ -1564,9 +1563,9 @@ export default function Assembly() {
               {proposals.filter((p: any) => p.status === 'proposed').length > 0 && (
                 <div className="space-y-2">
                   <h3 className="font-medium text-sm text-purple-700 flex items-center gap-2">
-                    <Clock size={16} />Pendientes de revision por la asamblea ({proposals.filter((p: any) => p.status === 'proposed').length})
+                    <Clock size={16} />{t('assembly_pending_review', 'Pendientes de revision por la asamblea')} ({proposals.filter((p: any) => p.status === 'proposed').length})
                   </h3>
-                  <p className="text-xs text-gray-500">Estas propuestas fueron creadas pero el Secretario o persona autorizada todavia no las ha aprobado para incluir en la minuta y abrir votacion.</p>
+                  <p className="text-xs text-gray-500">{t('assembly_pending_review_desc', 'Estas propuestas fueron creadas pero el Secretario o persona autorizada todavia no las ha aprobado para incluir en la minuta y abrir votacion.')}</p>
                   {proposals.filter((p: any) => p.status === 'proposed').map((p: any, i: number) => (
                     <div key={i} className="card border-purple-200">
                       <div className="flex items-center justify-between">
@@ -1605,28 +1604,28 @@ export default function Assembly() {
                             onClick={() => { setVotingModal({ id: p.id, title: p.description }); setVotingDuration(1440); setVotingMode('remoto') }}
                             className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                           >
-                            Aprobar y abrir votacion
+                            {t('assembly_approve_open_voting', 'Aprobar y abrir votacion')}
                           </button>
                         )}
                         {/* Super admin o persona autorizada puede aprobar directamente sin votacion */}
                         {isSuperAdmin && superAdminEnabled && (
                           <button
                             onClick={async () => {
-                              if (!confirm('Aprobar y ejecutar esta propuesta directamente sin votacion?')) return
+                              if (!confirm(t('assembly_confirm_direct_approve', 'Aprobar y ejecutar esta propuesta directamente sin votacion?'))) return
                               try {
                                 await api.post(`/assembly/proposals/${p.id}/direct-approve`, {})
                                 load()
                               } catch (e: any) {
-                                setError(e?.message || 'Error al aprobar directamente')
+                                setError(e?.message || t('assembly_error_direct_approve', 'Error al aprobar directamente'))
                               }
                             }}
                             className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700"
                           >
-                            Aprobar directamente
+                            {t('assembly_direct_approve', 'Aprobar directamente')}
                           </button>
                         )}
                         {!canApproveProposals && !isSuperAdmin && !p.created_by && (
-                          <span className="text-xs text-gray-400 italic">Esperando aprobacion del Secretario</span>
+                          <span className="text-xs text-gray-400 italic">{t('assembly_waiting_approval', 'Esperando aprobacion del Secretario')}</span>
                         )}
                       </div>
                     </div>
@@ -1638,7 +1637,7 @@ export default function Assembly() {
               {proposals.filter((p: any) => p.status !== 'proposed').length > 0 && (
                 <div className="space-y-2">
                   <h3 className="font-medium text-sm text-gray-700 flex items-center gap-2">
-                    <VoteIcon size={16} />En votacion y resultados ({proposals.filter((p: any) => p.status !== 'proposed').length})
+                    <VoteIcon size={16} />{t('assembly_voting_results', 'En votacion y resultados')} ({proposals.filter((p: any) => p.status !== 'proposed').length})
                   </h3>
                   {proposals.filter((p: any) => p.status !== 'proposed').map((p: any, i: number) => (
                     <div key={i} className="card">
@@ -1651,7 +1650,7 @@ export default function Assembly() {
                         p.status === 'expired' ? 'bg-orange-100 text-orange-700' :
                         p.status === 'approved' ? 'bg-blue-100 text-blue-700' :
                         'bg-yellow-100 text-yellow-700'
-                      }`}>{p.status === 'expired' ? 'vencida' : p.status === 'pending' ? 'en votacion' : p.status === 'approved' ? 'aprobada' : p.status === 'executed' ? 'ejecutada' : p.status === 'rejected' ? 'rechazada' : p.status === 'proposed' ? 'pendiente de revision' : p.status}</span>
+                      }`}>{p.status === 'expired' ? t('assembly_status_expired', 'vencida') : p.status === 'pending' ? t('assembly_status_voting', 'en votacion') : p.status === 'approved' ? t('assembly_status_approved', 'aprobada') : p.status === 'executed' ? t('assembly_status_executed', 'ejecutada') : p.status === 'rejected' ? t('assembly_status_rejected', 'rechazada') : p.status === 'proposed' ? t('assembly_status_proposed', 'pendiente de revision') : p.status}</span>
                     </div>
                     <span className="text-xs text-gray-400">{p.created_at?.slice(0, 10)}</span>
                   </div>
@@ -1659,12 +1658,12 @@ export default function Assembly() {
 
                   {/* Votos (secreto: solo cantidades, no quien voto) */}
                   <div className="flex items-center gap-4 mt-3 text-sm flex-wrap">
-                    <span className="text-green-600 font-medium">A favor: {p.votes_for || 0}</span>
-                    <span className="text-red-600 font-medium">En contra: {p.votes_against || 0}</span>
-                    <span className="text-gray-500 font-medium">Abstencion: {p.votes_abstain || 0}</span>
-                    <span className="text-gray-400 font-medium">No emitidos: {p.votes_not_cast ?? 0}</span>
+                    <span className="text-green-600 font-medium">{t('assembly_votes_for', 'A favor:')} {p.votes_for || 0}</span>
+                    <span className="text-red-600 font-medium">{t('assembly_votes_against', 'En contra:')} {p.votes_against || 0}</span>
+                    <span className="text-gray-500 font-medium">{t('assembly_votes_abstain', 'Abstencion:')} {p.votes_abstain || 0}</span>
+                    <span className="text-gray-400 font-medium">{t('assembly_votes_not_cast', 'No emitidos:')} {p.votes_not_cast ?? 0}</span>
                     {p.total_voting_members > 0 && (
-                      <span className="text-gray-400 text-xs">de {p.total_voting_members} con derecho a voto</span>
+                      <span className="text-gray-400 text-xs">{t('assembly_of_voting_members', 'de')} {p.total_voting_members} {t('assembly_with_vote_right', 'con derecho a voto')}</span>
                     )}
                   </div>
 
@@ -1675,29 +1674,29 @@ export default function Assembly() {
                         const deadline = new Date(p.voting_deadline).getTime()
                         const now = Date.now()
                         const remaining = deadline - now
-                        if (remaining <= 0) return 'Tiempo agotado'
+                        if (remaining <= 0) return t('assembly_time_up', 'Tiempo agotado')
                         const mins = Math.floor(remaining / 60000)
                         const hrs = Math.floor(mins / 60)
                         const days = Math.floor(hrs / 24)
-                        if (days > 0) return `Quedan ${days}d ${hrs % 24}h para votar`
-                        if (hrs > 0) return `Quedan ${hrs}h ${mins % 60}m para votar`
-                        return `Quedan ${mins} minutos para votar`
+                        if (days > 0) return t('assembly_time_left_days', 'Quedan') + ` ${days}d ${hrs % 24}h ` + t('assembly_to_vote', 'para votar')
+                        if (hrs > 0) return t('assembly_time_left_days', 'Quedan') + ` ${hrs}h ${mins % 60}m ` + t('assembly_to_vote', 'para votar')
+                        return t('assembly_time_left_days', 'Quedan') + ` ${mins} ` + t('assembly_minutes_to_vote', 'minutos para votar')
                       })()}
                     </div>
                   )}
                   {p.status === 'expired' && (
                     <div className="mt-2 text-xs text-orange-600">
-                      El tiempo de votacion expiro. Crea una propuesta nueva para revotar.
+                      {t('assembly_voting_expired', 'El tiempo de votacion expiro. Crea una propuesta nueva para revotar.')}
                     </div>
                   )}
 
                   {/* Botones de voto */}
                   {(p.status === 'pending' || p.status === 'voting') && (
                     <div className="flex gap-2 mt-3">
-                      <button onClick={() => vote(p.id, 'for')} className="btn-secondary text-green-600 flex items-center gap-1"><Check size={16} />A favor</button>
-                      <button onClick={() => vote(p.id, 'against')} className="btn-secondary text-red-600 flex items-center gap-1"><X size={16} />En contra</button>
-                      <button onClick={() => vote(p.id, 'abstain')} className="btn-secondary flex items-center gap-1">Abstener</button>
-                      <button onClick={() => execute(p.id)} className="btn-primary ml-auto">Ejecutar decision</button>
+                      <button onClick={() => vote(p.id, 'for')} className="btn-secondary text-green-600 flex items-center gap-1"><Check size={16} />{t('assembly_vote_for', 'A favor')}</button>
+                      <button onClick={() => vote(p.id, 'against')} className="btn-secondary text-red-600 flex items-center gap-1"><X size={16} />{t('assembly_vote_against', 'En contra')}</button>
+                      <button onClick={() => vote(p.id, 'abstain')} className="btn-secondary flex items-center gap-1">{t('assembly_abstain', 'Abstener')}</button>
+                      <button onClick={() => execute(p.id)} className="btn-primary ml-auto">{t('assembly_execute', 'Ejecutar decision')}</button>
                     </div>
                   )}
 
@@ -1707,7 +1706,7 @@ export default function Assembly() {
                       onClick={() => setShowProposalDetail(p)}
                       className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                     >
-                      Ver detalles
+                      {t('view_details', 'Ver detalles')}
                     </button>
                   </div>
                 </div>
@@ -1722,81 +1721,81 @@ export default function Assembly() {
       {/* ===== INFORMES DE VOTACION ===== */}
       {tab === 'reports' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><FileText size={18} />Informes de Votacion</h2>
+          <h2 className="font-semibold flex items-center gap-2"><FileText size={18} />{t('assembly_reports_title', 'Informes de Votacion')}</h2>
 
           {/* Estadisticas generales */}
           {reportsStats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="card text-center">
                 <div className="text-2xl font-bold text-trueque-600">{reportsStats.total_proposals}</div>
-                <div className="text-xs text-gray-500">Total propuestas</div>
+                <div className="text-xs text-gray-500">{t('assembly_total_proposals', 'Total propuestas')}</div>
               </div>
               <div className="card text-center">
                 <div className="text-2xl font-bold text-green-600">{reportsStats.approved}</div>
-                <div className="text-xs text-gray-500">Aprobadas</div>
+                <div className="text-xs text-gray-500">{t('assembly_approved', 'Aprobadas')}</div>
               </div>
               <div className="card text-center">
                 <div className="text-2xl font-bold text-red-600">{reportsStats.rejected}</div>
-                <div className="text-xs text-gray-500">Rechazadas</div>
+                <div className="text-xs text-gray-500">{t('assembly_rejected', 'Rechazadas')}</div>
               </div>
               <div className="card text-center">
                 <div className="text-2xl font-bold text-orange-600">{reportsStats.expired}</div>
-                <div className="text-xs text-gray-500">Vencidas</div>
+                <div className="text-xs text-gray-500">{t('assembly_expired', 'Vencidas')}</div>
               </div>
             </div>
           )}
 
           {reportsStats && (
             <div className="card text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-gray-500">Participacion promedio:</span><span className="font-medium">{reportsStats.avg_participation}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Miembros con derecho a voto:</span><span className="font-medium">{reportsStats.total_voting_members}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Propuestas pendientes:</span><span className="font-medium">{reportsStats.pending}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">{t('assembly_avg_participation', 'Participacion promedio:')}</span><span className="font-medium">{reportsStats.avg_participation}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">{t('assembly_voting_members', 'Miembros con derecho a voto:')}</span><span className="font-medium">{reportsStats.total_voting_members}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">{t('assembly_pending_proposals', 'Propuestas pendientes:')}</span><span className="font-medium">{reportsStats.pending}</span></div>
             </div>
           )}
 
           {/* Boton cargar */}
           {reports.length === 0 && !filterType && !filterFrom && !filterTo && !filterStatus && (
-            <button onClick={loadReports} className="btn-primary">Cargar informes</button>
+            <button onClick={loadReports} className="btn-primary">{t('assembly_load_reports', 'Cargar informes')}</button>
           )}
 
           {/* Filtros de busqueda */}
           {(reports.length > 0 || filterType || filterFrom || filterTo || filterStatus) && (
             <div className="card space-y-3">
-              <h3 className="font-medium text-sm">Buscar votaciones por fecha, tipo o resultado</h3>
+              <h3 className="font-medium text-sm">{t('assembly_search_votes', 'Buscar votaciones por fecha, tipo o resultado')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Tipo de votacion</label>
+                  <label className="text-xs text-gray-500 block mb-1">{t('assembly_vote_type', 'Tipo de votacion')}</label>
                   <select
                     value={filterType}
                     onChange={e => setFilterType(e.target.value)}
                     className="input text-sm"
                   >
-                    <option value="">Todos los tipos</option>
-                    <option value="limit_change">Cambio de limites</option>
-                    <option value="tax_change">Cambio de impuesto</option>
-                    <option value="member_level">Nivel de miembro</option>
-                    <option value="org_level">Nivel de organizacion</option>
-                    <option value="admission">Admision</option>
-                    <option value="expulsion">Expulsion</option>
-                    <option value="budget_increase">Aumento de presupuesto</option>
-                    <option value="fund_distribution">Distribucion de fondos</option>
-                    <option value="energy_rate_change">Cambio tarifa energetica</option>
-                    <option value="federation_config">Configuracion federacion</option>
-                    <option value="recovery_config">Configuracion recuperacion</option>
-                    <option value="policy">Politica general</option>
-                    <option value="create_account">Creacion de cuenta contable</option>
-                    <option value="product_modification">Modificacion de producto</option>
-                    <option value="product_approval">Aprobacion de producto</option>
-                    <option value="product_disapproval">Desaprobacion de producto</option>
-                    <option value="product_remove">Eliminacion de producto</option>
-                    <option value="product_import">Importar producto federado</option>
-                    <option value="product_to_base">Convertir a producto base</option>
-                    <option value="governance_rule">Regla de gobernanza</option>
-                    <option value="free_proposal">Propuesta libre</option>
+                    <option value="">{t('assembly_all_types', 'Todos los tipos')}</option>
+                    <option value="limit_change">{t('assembly_type_limit_change', 'Cambio de limites')}</option>
+                    <option value="tax_change">{t('assembly_type_tax_change', 'Cambio de impuesto')}</option>
+                    <option value="member_level">{t('assembly_type_member_level', 'Nivel de miembro')}</option>
+                    <option value="org_level">{t('assembly_type_org_level', 'Nivel de organizacion')}</option>
+                    <option value="admission">{t('assembly_type_admission', 'Admision')}</option>
+                    <option value="expulsion">{t('assembly_type_expulsion', 'Expulsion')}</option>
+                    <option value="budget_increase">{t('assembly_type_budget', 'Aumento de presupuesto')}</option>
+                    <option value="fund_distribution">{t('assembly_type_fund_dist', 'Distribucion de fondos')}</option>
+                    <option value="energy_rate_change">{t('assembly_type_energy', 'Cambio tarifa energetica')}</option>
+                    <option value="federation_config">{t('assembly_type_federation', 'Configuracion federacion')}</option>
+                    <option value="recovery_config">{t('assembly_type_recovery', 'Configuracion recuperacion')}</option>
+                    <option value="policy">{t('assembly_type_policy', 'Politica general')}</option>
+                    <option value="create_account">{t('assembly_type_create_account', 'Creacion de cuenta contable')}</option>
+                    <option value="product_modification">{t('assembly_type_product_mod', 'Modificacion de producto')}</option>
+                    <option value="product_approval">{t('assembly_type_product_approval', 'Aprobacion de producto')}</option>
+                    <option value="product_disapproval">{t('assembly_type_product_disapproval', 'Desaprobacion de producto')}</option>
+                    <option value="product_remove">{t('assembly_type_product_remove', 'Eliminacion de producto')}</option>
+                    <option value="product_import">{t('assembly_type_product_import', 'Importar producto federado')}</option>
+                    <option value="product_to_base">{t('assembly_type_product_to_base', 'Convertir a producto base')}</option>
+                    <option value="governance_rule">{t('assembly_type_governance', 'Regla de gobernanza')}</option>
+                    <option value="free_proposal">{t('assembly_type_free', 'Propuesta libre')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Desde</label>
+                  <label className="text-xs text-gray-500 block mb-1">{t('assembly_from', 'Desde')}</label>
                   <input
                     type="date"
                     value={filterFrom}
@@ -1805,7 +1804,7 @@ export default function Assembly() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Hasta</label>
+                  <label className="text-xs text-gray-500 block mb-1">{t('assembly_to', 'Hasta')}</label>
                   <input
                     type="date"
                     value={filterTo}
@@ -1814,27 +1813,27 @@ export default function Assembly() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Resultado</label>
+                  <label className="text-xs text-gray-500 block mb-1">{t('assembly_result', 'Resultado')}</label>
                   <select
                     value={filterStatus}
                     onChange={e => setFilterStatus(e.target.value)}
                     className="input text-sm"
                   >
-                    <option value="">Todos</option>
-                    <option value="pending">Pendientes</option>
-                    <option value="executed">Aprobadas</option>
-                    <option value="rejected">Rechazadas</option>
-                    <option value="expired">Vencidas</option>
+                    <option value="">{t('assembly_all', 'Todos')}</option>
+                    <option value="pending">{t('assembly_pending', 'Pendientes')}</option>
+                    <option value="executed">{t('assembly_approved', 'Aprobadas')}</option>
+                    <option value="rejected">{t('assembly_rejected', 'Rechazadas')}</option>
+                    <option value="expired">{t('assembly_expired', 'Vencidas')}</option>
                   </select>
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={loadReports} className="btn-primary text-sm">Buscar</button>
+                <button onClick={loadReports} className="btn-primary text-sm">{t('assembly_search_btn', 'Buscar')}</button>
                 <button
                   onClick={() => { setFilterType(''); setFilterFrom(''); setFilterTo(''); setFilterStatus(''); loadReports() }}
                   className="btn-secondary text-sm"
                 >
-                  Limpiar filtros
+                  {t('assembly_clear_filters', 'Limpiar filtros')}
                 </button>
               </div>
             </div>
@@ -1844,8 +1843,8 @@ export default function Assembly() {
           {reports.length > 0 && (
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">{reports.length} votaciones registradas</span>
-                <button onClick={loadReports} className="text-xs text-blue-600 underline">Actualizar</button>
+                <span className="text-sm text-gray-500">{reports.length} {t('assembly_votes_registered', 'votaciones registradas')}</span>
+                <button onClick={loadReports} className="text-xs text-blue-600 underline">{t('assembly_refresh', 'Actualizar')}</button>
               </div>
               {reports.map((rp: any, i: number) => (
                 <div key={i} className="card">
@@ -1858,18 +1857,18 @@ export default function Assembly() {
                           rp.status === 'rejected' ? 'bg-red-100 text-red-700' :
                           rp.status === 'expired' ? 'bg-orange-100 text-orange-700' :
                           'bg-yellow-100 text-yellow-700'
-                        }`}>{rp.result === 'approved' ? 'aprobada' : rp.result === 'rejected' ? 'rechazada' : rp.result === 'expired' ? 'vencida' : rp.result}</span>
+                        }`}>{rp.result === 'approved' ? t('assembly_status_approved', 'aprobada') : rp.result === 'rejected' ? t('assembly_status_rejected', 'rechazada') : rp.result === 'expired' ? t('assembly_status_expired', 'vencida') : rp.result}</span>
                       </div>
                       <p className="text-xs text-gray-600 mb-2">{rp.description}</p>
                       <div className="flex flex-wrap gap-3 text-xs">
-                        <span className="text-green-600">A favor: {rp.votes_for}</span>
-                        <span className="text-red-600">En contra: {rp.votes_against}</span>
-                        <span className="text-gray-500">Abstencion: {rp.votes_abstain}</span>
-                        <span className="text-gray-400">No emitidos: {rp.votes_not_cast}</span>
+                        <span className="text-green-600">{t('assembly_votes_for', 'A favor:')} {rp.votes_for}</span>
+                        <span className="text-red-600">{t('assembly_votes_against', 'En contra:')} {rp.votes_against}</span>
+                        <span className="text-gray-500">{t('assembly_votes_abstain', 'Abstencion:')} {rp.votes_abstain}</span>
+                        <span className="text-gray-400">{t('assembly_votes_not_cast', 'No emitidos:')} {rp.votes_not_cast}</span>
                       </div>
                       <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-1">
-                        <span>Participacion: {fmtNumber(rp.participation_pct, 1)}%</span>
-                        <span>Aprobacion: {fmtNumber(rp.approval_pct, 1)}%</span>
+                        <span>{t('assembly_participation', 'Participacion:')} {fmtNumber(rp.participation_pct, 1)}%</span>
+                        <span>{t('assembly_approval', 'Aprobacion:')} {fmtNumber(rp.approval_pct, 1)}%</span>
                         <span>{rp.created_at?.slice(0, 16).replace('T', ' ')}</span>
                       </div>
                     </div>
@@ -1877,7 +1876,7 @@ export default function Assembly() {
                       onClick={() => loadReportDetail(rp.id)}
                       className="text-xs text-blue-600 underline ml-2"
                     >
-                      Ver detalle
+                      {t('assembly_view_detail', 'Ver detalle')}
                     </button>
                   </div>
                 </div>
@@ -1890,7 +1889,7 @@ export default function Assembly() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedReport(null)}>
               <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-bold">Informe de Votacion</h3>
+                  <h3 className="font-bold">{t('assembly_report_title', 'Informe de Votacion')}</h3>
                   <button onClick={() => setSelectedReport(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
                 </div>
                 <div className="p-4 space-y-4 text-sm">
@@ -1900,15 +1899,15 @@ export default function Assembly() {
                     <div className="flex justify-between"><span className="text-gray-500">{t('report.status', 'Estado')}:</span><span className="font-medium">{selectedReport.result}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">{t('report.created_at', 'Fecha de creacion')}:</span><span className="font-medium">{selectedReport.created_at?.replace('T', ' ').slice(0, 19)}</span></div>
                     {selectedReport.executed_at && <div className="flex justify-between"><span className="text-gray-500">{t('report.executed_at', 'Fecha de ejecucion')}:</span><span className="font-medium">{selectedReport.executed_at?.replace('T', ' ').slice(0, 19)}</span></div>}
-                    <div className="flex justify-between"><span className="text-gray-500">Tiempo configurado:</span><span className="font-medium">{selectedReport.configured_duration}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Duracion real de votacion:</span><span className="font-medium">{selectedReport.actual_voting_duration || 'sin votos'}</span></div>
-                    {selectedReport.first_vote_at && <div className="flex justify-between"><span className="text-gray-500">Primer voto:</span><span className="font-medium">{selectedReport.first_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
-                    {selectedReport.last_vote_at && <div className="flex justify-between"><span className="text-gray-500">Ultimo voto:</span><span className="font-medium">{selectedReport.last_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-500">{t('assembly_configured_time', 'Tiempo configurado:')}:</span><span className="font-medium">{selectedReport.configured_duration}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('assembly_actual_voting_duration', 'Duracion real de votacion:')}:</span><span className="font-medium">{selectedReport.actual_voting_duration || t('assembly_no_votes', 'sin votos')}</span></div>
+                    {selectedReport.first_vote_at && <div className="flex justify-between"><span className="text-gray-500">{t('assembly_first_vote', 'Primer voto:')}:</span><span className="font-medium">{selectedReport.first_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
+                    {selectedReport.last_vote_at && <div className="flex justify-between"><span className="text-gray-500">{t('assembly_last_vote', 'Ultimo voto:')}:</span><span className="font-medium">{selectedReport.last_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
                   </div>
 
                   {/* Descripcion */}
                   <div className="card bg-gray-50">
-                    <div className="text-xs text-gray-500 mb-1">Descripcion</div>
+                    <div className="text-xs text-gray-500 mb-1">{t('assembly_description', 'Descripcion')}</div>
                     <p className="text-sm">{selectedReport.description}</p>
                   </div>
 
@@ -1916,33 +1915,33 @@ export default function Assembly() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="card text-center bg-green-50">
                       <div className="text-2xl font-bold text-green-600">{selectedReport.votes_for}</div>
-                      <div className="text-xs text-gray-500">A favor</div>
+                      <div className="text-xs text-gray-500">{t('assembly_vote_for', 'A favor')}</div>
                     </div>
                     <div className="card text-center bg-red-50">
                       <div className="text-2xl font-bold text-red-600">{selectedReport.votes_against}</div>
-                      <div className="text-xs text-gray-500">En contra</div>
+                      <div className="text-xs text-gray-500">{t('assembly_vote_against', 'En contra')}</div>
                     </div>
                     <div className="card text-center bg-gray-50">
                       <div className="text-2xl font-bold text-gray-600">{selectedReport.votes_abstain}</div>
-                      <div className="text-xs text-gray-500">Abstencion</div>
+                      <div className="text-xs text-gray-500">{t('assembly_votes_abstain', 'Abstencion')}</div>
                     </div>
                     <div className="card text-center bg-gray-50">
                       <div className="text-2xl font-bold text-gray-400">{selectedReport.votes_not_cast}</div>
-                      <div className="text-xs text-gray-500">No emitidos</div>
+                      <div className="text-xs text-gray-500">{t('assembly_votes_not_cast', 'No emitidos')}</div>
                     </div>
                   </div>
 
                   {/* Porcentajes */}
                   <div className="card space-y-1">
-                    <div className="flex justify-between"><span className="text-gray-500">Total votos emitidos:</span><span className="font-medium">{selectedReport.total_votes_cast} de {selectedReport.total_voting_members}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Participacion:</span><span className="font-medium">{selectedReport.participation_pct}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Aprobacion (sobre emitidos):</span><span className="font-medium">{selectedReport.approval_pct}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('assembly_total_votes_cast', 'Total votos emitidos:')}:</span><span className="font-medium">{selectedReport.total_votes_cast} {t('assembly_of', 'de')} {selectedReport.total_voting_members}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('assembly_participation', 'Participacion:')}:</span><span className="font-medium">{selectedReport.participation_pct}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('assembly_approval_on_cast', 'Aprobacion (sobre emitidos):')}:</span><span className="font-medium">{selectedReport.approval_pct}</span></div>
                   </div>
 
                   {/* Timeline de votos (secreto: sin nombres) */}
                   {selectedReport.vote_timeline && selectedReport.vote_timeline.length > 0 && (
                     <div>
-                      <h4 className="font-medium mb-2">Timeline de votos (orden de emision, voto secreto)</h4>
+                      <h4 className="font-medium mb-2">{t('assembly_vote_timeline', 'Timeline de votos (orden de emision, voto secreto)')}</h4>
                       <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
                         {selectedReport.vote_timeline.map((v: any, i: number) => (
                           <div key={i} className="flex justify-between text-xs">
@@ -1959,7 +1958,7 @@ export default function Assembly() {
                   )}
 
                   <div className="text-xs text-gray-400 text-center pt-2">
-                    El voto es secreto. Este informe muestra cantidades y tiempos, no quien voto.
+                    {t('assembly_secret_vote_note', 'El voto es secreto. Este informe muestra cantidades y tiempos, no quien voto.')}
                   </div>
                 </div>
               </div>
@@ -1971,41 +1970,40 @@ export default function Assembly() {
 
       {tab === 'members' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Users size={18} />Miembros</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Users size={18} />{t('assembly_members_title', 'Miembros')}</h2>
 
           {/* Sub-pestanas de Miembros */}
           <div className="flex gap-2 flex-wrap">
-            <button onClick={() => setMemberSubTab('voice_vote')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'voice_vote' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Con Voz y Voto</button>
-            <button onClick={() => setMemberSubTab('voice')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'voice' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Con Voz</button>
-            <button onClick={() => setMemberSubTab('levels')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Niveles de Miembro</button>
-            <button onClick={() => setMemberSubTab('orgs')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Organizaciones</button>
+            <button onClick={() => setMemberSubTab('voice_vote')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'voice_vote' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('assembly_voice_vote', 'Con Voz y Voto')}</button>
+            <button onClick={() => setMemberSubTab('voice')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'voice' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('assembly_voice', 'Con Voz')}</button>
+            <button onClick={() => setMemberSubTab('levels')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('assembly_member_levels', 'Niveles de Miembro')}</button>
+            <button onClick={() => setMemberSubTab('orgs')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />{t('assembly_organizations', 'Organizaciones')}</button>
           </div>
 
           {/* ===== SUB-PESTANA: Niveles de Miembro ===== */}
           {memberSubTab === 'levels' && (
             <div className="space-y-4">
               <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-                <p>Los niveles de miembro definen si tienen voz, voto, y si cuentan para el quorum.
-                Cada nivel tiene sus propios limites de credito/debito y tasa de impuesto.</p>
+                <p>{t('assembly_levels_desc', 'Los niveles de miembro definen si tienen voz, voto, y si cuentan para el quorum. Cada nivel tiene sus propios limites de credito/debito y tasa de impuesto.')}</p>
               </div>
               {memberLevels.length > 0 ? (
                 <div className="card">
-                  <h3 className="font-medium mb-3">Niveles de Miembro</h3>
+                  <h3 className="font-medium mb-3">{t('assembly_member_levels', 'Niveles de Miembro')}</h3>
                   <div className="space-y-2">
                     {memberLevels.map((ml, i) => (
                       <div key={i} className="border-b border-gray-100 py-2 last:border-0">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{ml.name} (Nivel {ml.level})</span>
                           <div className="flex gap-2 text-xs">
-                            {ml.has_voice && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Voz</span>}
-                            {ml.has_vote && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">Voto</span>}
-                            {ml.counts_in_quorum && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Quorum</span>}
+                            {ml.has_voice && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t('assembly_voice_short', 'Voz')}</span>}
+                            {ml.has_vote && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('assembly_vote_short', 'Voto')}</span>}
+                            {ml.counts_in_quorum && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{t('assembly_quorum_short', 'Quorum')}</span>}
                           </div>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">{ml.description}</p>
                         <p className="text-xs text-gray-400 mt-1">
-                          Limite credito: {fmtTQ(ml.credit_limit)} {currency} | Limite debito: {fmtTQ(ml.debit_limit)} {currency}
-                          {ml.tax_rate && ` | Impuesto: ${fmtNumber(ml.tax_rate * 100, 2)}%`}
+                          {t('assembly_credit_limit', 'Limite credito:')} {fmtTQ(ml.credit_limit)} {currency} | {t('assembly_debit_limit', 'Limite debito:')} {fmtTQ(ml.debit_limit)} {currency}
+                          {ml.tax_rate && ` | ${t('assembly_tax', 'Impuesto:')} ${fmtNumber(ml.tax_rate * 100, 2)}%`}
                         </p>
                       </div>
                     ))}
@@ -2023,7 +2021,7 @@ export default function Assembly() {
           {memberSubTab === 'voice_vote' && (
             <div className="space-y-4">
               <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-                <p>Miembros con voz y voto en la asamblea. Pueden participar en debates y votar decisiones.</p>
+                <p>{t('assembly_voice_vote_desc', 'Miembros con voz y voto en la asamblea. Pueden participar en debates y votar decisiones.')}</p>
               </div>
               <MemberSearchAndPerms
                 members={allMembers.filter((m: any) => m.has_voice && m.has_vote)}
@@ -2038,7 +2036,7 @@ export default function Assembly() {
                 permMsg={permMsg}
                 setPermMsg={setPermMsg}
                 setAllMembers={setAllMembers}
-                badgeLabel="Voz + Voto"
+                badgeLabel={t('assembly_voice_plus_vote', 'Voz + Voto')}
                 badgeColor="bg-green-100 text-green-700"
               />
             </div>
@@ -2048,7 +2046,7 @@ export default function Assembly() {
           {memberSubTab === 'voice' && (
             <div className="space-y-4">
               <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-                <p>Todos los miembros con voz en la asamblea. Incluye los que tienen voto y los que solo tienen voz (sin voto).</p>
+                <p>{t('assembly_voice_desc', 'Todos los miembros con voz en la asamblea. Incluye los que tienen voto y los que solo tienen voz (sin voto).')}</p>
               </div>
               <MemberSearchAndPerms
                 members={allMembers.filter((m: any) => m.has_voice)}
@@ -2063,7 +2061,7 @@ export default function Assembly() {
                 permMsg={permMsg}
                 setPermMsg={setPermMsg}
                 setAllMembers={setAllMembers}
-                badgeLabel={(_m: any) => _m.has_vote ? 'Voz + Voto' : 'Solo Voz'}
+                badgeLabel={(_m: any) => _m.has_vote ? t('assembly_voice_plus_vote', 'Voz + Voto') : t('assembly_voice_only', 'Solo Voz')}
                 badgeColor={(_m: any) => _m.has_vote ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}
               />
             </div>
@@ -2073,23 +2071,22 @@ export default function Assembly() {
           {memberSubTab === 'orgs' && (
             <div className="space-y-4">
               <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-                <p>Las organizaciones del nodo. Tambien pueden tener permisos asignados.
-                Las organizaciones de la Asamblea (is_assembly_owned) pertenecen directamente al nodo.</p>
+                <p>{t('assembly_orgs_desc', 'Las organizaciones del nodo. Tambien pueden tener permisos asignados. Las organizaciones de la Asamblea (is_assembly_owned) pertenecen directamente al nodo.')}</p>
               </div>
 
               {/* Buscador de organizaciones */}
               <div className="card">
-                <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />Buscar Organizaciones</h3>
+                <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />{t('assembly_search_orgs', 'Buscar Organizaciones')}</h3>
                 <input
                   type="text"
                   className="input mb-3"
-                  placeholder="Buscar por nombre o usuario..."
+                  placeholder={t('assembly_search_ph', 'Buscar por nombre o usuario...')}
                   value={orgSearch}
                   onChange={(e) => setOrgSearch(e.target.value)}
                 />
 
                 {allOrgs.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-4">No hay organizaciones cargadas.</p>
+                  <p className="text-sm text-gray-500 py-4">{t('assembly_no_orgs', 'No hay organizaciones cargadas.')}</p>
                 ) : (
                   <div className="space-y-1 max-h-64 overflow-y-auto">
                     {allOrgs
@@ -2110,9 +2107,9 @@ export default function Assembly() {
                             <span className="text-xs text-gray-500 ml-2">@{o.username}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {o.is_assembly_owned && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Asamblea</span>}
+                            {o.is_assembly_owned && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{t('assembly_assembly_owned', 'Asamblea')}</span>}
                             {o.permissions && o.permissions.length > 0 && (
-                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{o.permissions.length} permisos</span>
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{o.permissions.length} {t('assembly_perms', 'permisos')}</span>
                             )}
                           </div>
                         </div>
@@ -2127,16 +2124,16 @@ export default function Assembly() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium flex items-center gap-2">
                       <KeyRound size={16} />
-                      Permisos de {selectedOrg.display_name || selectedOrg.username}
+                      {t('assembly_perms_of', 'Permisos de')} {selectedOrg.display_name || selectedOrg.username}
                     </h3>
                     <button onClick={() => setSelectedOrg(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common:close')}</button>
                   </div>
 
                   {/* Permisos actuales */}
                   <div>
-                    <h4 className="text-sm font-medium mb-2">Permisos actuales ({orgPerms.length})</h4>
+                    <h4 className="text-sm font-medium mb-2">{t('assembly_current_perms', 'Permisos actuales')} ({orgPerms.length})</h4>
                     {orgPerms.length === 0 ? (
-                      <p className="text-sm text-gray-500">No tiene permisos directos.</p>
+                      <p className="text-sm text-gray-500">{t('assembly_no_direct_perms', 'No tiene permisos directos.')}</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {orgPerms.map((p: string) => (
@@ -2168,7 +2165,7 @@ export default function Assembly() {
                   {/* Asignar nuevo permiso */}
                   {canManage && (
                     <div>
-                      <h4 className="text-sm font-medium mb-2">Asignar nuevo permiso</h4>
+                      <h4 className="text-sm font-medium mb-2">{t('assembly_assign_new_perm', 'Asignar nuevo permiso')}</h4>
                       <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
                         {allPerms
                           .filter((p: any) => !orgPerms.includes(p.name))
@@ -2191,7 +2188,7 @@ export default function Assembly() {
                                 }}
                                 className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
                               >
-                                + Asignar
+                                + {t('assembly_assign', 'Asignar')}
                               </button>
                             </div>
                           ))}
@@ -2215,40 +2212,40 @@ export default function Assembly() {
       {tab === 'board' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><Crown size={18} />Junta Directiva</h2>
+            <h2 className="font-semibold flex items-center gap-2"><Crown size={18} />{t('assembly_board_title', 'Junta Directiva')}</h2>
             {canManageBoard && (
-              <button onClick={() => setShowAddBoard(!showAddBoard)} className="btn-primary flex items-center gap-2"><Plus size={18} />Asignar Miembro</button>
+              <button onClick={() => setShowAddBoard(!showAddBoard)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('assembly_assign_member', 'Asignar Miembro')}</button>
             )}
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p>La junta directiva puede tomar decisiones con multi-firma sin necesidad de asamblea completa. Cada cargo tiene responsabilidades especificas.</p>
+            <p>{t('assembly_board_desc', 'La junta directiva puede tomar decisiones con multi-firma sin necesidad de asamblea completa. Cada cargo tiene responsabilidades especificas.')}</p>
           </div>
 
           {showAddBoard && canManageBoard && (
             <div className="card space-y-4">
-              <h3 className="font-semibold">Asignar Miembro de Junta</h3>
+              <h3 className="font-semibold">{t('assembly_assign_board_member', 'Asignar Miembro de Junta')}</h3>
               <div>
-                <label className="label">Usuario</label>
+                <label className="label">{t('assembly_user', 'Usuario')}</label>
                 <select className="input" value={newBoard.user_id} onChange={(e) => setNewBoard({ ...newBoard, user_id: e.target.value })}>
-                  <option value="">Seleccionar miembro...</option>
+                  <option value="">{t('assembly_select_member', 'Seleccionar miembro...')}</option>
                   {votingMembers.map((m: any) => (
                     <option key={m.user_id || m.id} value={m.user_id || m.id}>
                       {m.display_name || m.username} {m.level_name ? `(${m.level_name})` : ''}
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">Solo puedes asignar miembros existentes del nodo.</p>
+                <p className="text-xs text-gray-400 mt-1">{t('assembly_only_existing_members', 'Solo puedes asignar miembros existentes del nodo.')}</p>
               </div>
               <div>
-                <label className="label">Cargo</label>
+                <label className="label">{t('assembly_position', 'Cargo')}</label>
                 <select className="input" value={newBoard.position} onChange={(e) => setNewBoard({ ...newBoard, position: e.target.value })}>
                   {BOARD_POSITIONS.map((p) => (
                     <option key={p.value} value={p.value}>{p.label}</option>
                   ))}
                 </select>
               </div>
-              <button onClick={addBoard} className="btn-primary">Asignar</button>
+              <button onClick={addBoard} className="btn-primary">{t('assembly_assign', 'Asignar')}</button>
             </div>
           )}
 
@@ -2283,9 +2280,9 @@ export default function Assembly() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><Calendar size={18} />
-              {meetingType === 'board' ? 'Sesiones de Junta Directiva' : 'Sesiones de Asamblea'}
+              {meetingType === 'board' ? t('assembly_board_sessions', 'Sesiones de Junta Directiva') : t('assembly_assembly_sessions', 'Sesiones de Asamblea')}
             </h2>
-            <button onClick={() => setShowNewSession(!showNewSession)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Sesion</button>
+            <button onClick={() => setShowNewSession(!showNewSession)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('assembly_new_session', 'Nueva Sesion')}</button>
           </div>
 
           {/* Toggle: Asamblea vs Junta Directiva */}
@@ -2294,20 +2291,19 @@ export default function Assembly() {
               onClick={() => setMeetingType('assembly')}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${meetingType === 'assembly' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
             >
-              Asamblea (todos los miembros)
+              {t('assembly_all_members_tab', 'Asamblea (todos los miembros)')}
             </button>
             <button
               onClick={() => setMeetingType('board')}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${meetingType === 'board' ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}
             >
-              Junta Directiva (solo la junta)
+              {t('assembly_board_only_tab', 'Junta Directiva (solo la junta)')}
             </button>
           </div>
 
           {meetingType === 'board' && (
             <div className="card bg-purple-50 border-purple-200 text-sm text-purple-700">
-              Las sesiones de Junta Directiva son mas frecuentes y para decisiones operativas.
-              Solo pueden votar los miembros de la junta directiva. El quorum es mas bajo.
+              {t('assembly_board_sessions_desc', 'Las sesiones de Junta Directiva son mas frecuentes y para decisiones operativas. Solo pueden votar los miembros de la junta directiva. El quorum es mas bajo.')}
             </div>
           )}
 
@@ -2317,35 +2313,35 @@ export default function Assembly() {
               onClick={() => setSessionFilter('upcoming')}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${sessionFilter === 'upcoming' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
             >
-              {meetingType === 'board' ? 'Proximas juntas' : 'Proximas asambleas'}
+              {meetingType === 'board' ? t('assembly_upcoming_board', 'Proximas juntas') : t('assembly_upcoming_assembly', 'Proximas asambleas')}
             </button>
             <button
               onClick={() => setSessionFilter('past')}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${sessionFilter === 'past' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
             >
-              {meetingType === 'board' ? 'Juntas pasadas' : 'Asambleas pasadas'}
+              {meetingType === 'board' ? t('assembly_past_board', 'Juntas pasadas') : t('assembly_past_assembly', 'Asambleas pasadas')}
             </button>
           </div>
 
           {showNewSession && (
             <div className="card space-y-4">
-              <h3 className="font-semibold">Nueva Sesion</h3>
+              <h3 className="font-semibold">{t('assembly_new_session', 'Nueva Sesion')}</h3>
               <div>
-                <label className="label">Tipo de sesion</label>
+                <label className="label">{t('assembly_session_type', 'Tipo de sesion')}</label>
                 <select className="input" value={newSession.session_type} onChange={(e) => setNewSession({ ...newSession, session_type: e.target.value, start_time: '' })}>
-                  <option value="ordinaria">Ordinaria</option>
-                  <option value="extraordinaria">Extraordinaria</option>
-                  <option value="urgente">Urgente</option>
+                  <option value="ordinaria">{t('assembly_ordinary', 'Ordinaria')}</option>
+                  <option value="extraordinaria">{t('assembly_extraordinary', 'Extraordinaria')}</option>
+                  <option value="urgente">{t('assembly_urgent', 'Urgente')}</option>
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
-                  {newSession.session_type === 'ordinaria' && 'Ordinaria = planificada. Minimo 7 dias de anticipacion.'}
-                  {newSession.session_type === 'extraordinaria' && 'Extraordinaria = fuera de plan. Minimo 24 horas de anticipacion.'}
-                  {newSession.session_type === 'urgente' && 'Urgente = decision rapida. Minimo 1 hora de anticipacion.'}
+                  {newSession.session_type === 'ordinaria' && t('assembly_ordinary_desc', 'Ordinaria = planificada. Minimo 7 dias de anticipacion.')}
+                  {newSession.session_type === 'extraordinaria' && t('assembly_extraordinary_desc', 'Extraordinaria = fuera de plan. Minimo 24 horas de anticipacion.')}
+                  {newSession.session_type === 'urgente' && t('assembly_urgent_desc', 'Urgente = decision rapida. Minimo 1 hora de anticipacion.')}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Fecha</label>
+                  <label className="label">{t('assembly_date', 'Fecha')}</label>
                   <input
                     type="date"
                     className="input"
@@ -2354,7 +2350,7 @@ export default function Assembly() {
                   />
                 </div>
                 <div>
-                  <label className="label">Hora</label>
+                  <label className="label">{t('assembly_time', 'Hora')}</label>
                   <input
                     type="time"
                     className="input"
@@ -2364,17 +2360,17 @@ export default function Assembly() {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-1">
-                {newSession.session_type === 'ordinaria' && 'La fecha debe ser al menos 7 dias desde ahora.'}
-                {newSession.session_type === 'extraordinaria' && 'La fecha debe ser al menos 24 horas desde ahora.'}
-                {newSession.session_type === 'urgente' && 'La fecha debe ser al menos 1 hora desde ahora.'}
+                {newSession.session_type === 'ordinaria' && t('assembly_date_7d', 'La fecha debe ser al menos 7 dias desde ahora.')}
+                {newSession.session_type === 'extraordinaria' && t('assembly_date_24h', 'La fecha debe ser al menos 24 horas desde ahora.')}
+                {newSession.session_type === 'urgente' && t('assembly_date_1h', 'La fecha debe ser al menos 1 hora desde ahora.')}
               </p>
               <div>
-                <label className="label">Titulo</label>
-                <input className="input" placeholder="Ej: Asamblea mensual marzo" value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} />
+                <label className="label">{t('assembly_title', 'Titulo')}</label>
+                <input className="input" placeholder={t('assembly_title_ph', 'Ej: Asamblea mensual marzo')} value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} />
               </div>
               <div>
-                <label className="label">Descripcion (opcional)</label>
-                <textarea className="input" rows={2} placeholder="Temas a tratar" value={newSession.description} onChange={(e) => setNewSession({ ...newSession, description: e.target.value })} />
+                <label className="label">{t('assembly_desc_optional', 'Descripcion (opcional)')}</label>
+                <textarea className="input" rows={2} placeholder={t('assembly_topics', 'Temas a tratar')} value={newSession.description} onChange={(e) => setNewSession({ ...newSession, description: e.target.value })} />
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -2385,14 +2381,13 @@ export default function Assembly() {
                   className="accent-trueque-600"
                 />
                 <label htmlFor="is_presential" className="text-sm">
-                  <strong>Asamblea presencial</strong> - Solo pueden votar los miembros presentes en la lista de asistencia
+                  <strong>{t('assembly_presential', 'Asamblea presencial')}</strong> - {t('assembly_presential_desc', 'Solo pueden votar los miembros presentes en la lista de asistencia')}
                 </label>
               </div>
               <p className="text-xs text-gray-400">
-                Si es presencial, despues de crear la sesion debes pasar la lista de asistencia.
-                Los miembros que no esten en la lista no podran votar en esta asamblea.
+                {t('assembly_presential_note', 'Si es presencial, despues de crear la sesion debes pasar la lista de asistencia. Los miembros que no esten en la lista no podran votar en esta asamblea.')}
               </p>
-              <button onClick={createSession} className="btn-primary">Crear Sesion</button>
+              <button onClick={createSession} className="btn-primary">{t('assembly_create_session', 'Crear Sesion')}</button>
             </div>
           )}
 
@@ -2412,23 +2407,23 @@ export default function Assembly() {
                           className="input flex-1"
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
-                          placeholder="Titulo de la asamblea"
+                          placeholder={t('assembly_title_asamblea_ph', 'Titulo de la asamblea')}
                           autoFocus
                         />
                       ) : (
                         <span className="font-medium">{s.title}</span>
                       )}
                       {s.is_presential && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">Presencial</span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">{t('assembly_presential_badge', 'Presencial')}</span>
                       )}
                       {!s.is_presential && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">Remota</span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">{t('assembly_remote_badge', 'Remota')}</span>
                       )}
                       {canManage && editingSessionId !== s.id && (
                         <button
                           onClick={() => startEditSession(s)}
                           className="text-gray-400 hover:text-blue-600"
-                          title="Editar titulo y descripcion"
+                          title={t('assembly_edit_title_desc', 'Editar titulo y descripcion')}
                         >
                           <Pencil size={14} />
                         </button>
@@ -2442,9 +2437,9 @@ export default function Assembly() {
                       s.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                       'bg-gray-100 text-gray-600'
                     }`}>{
-                      s.status === 'waiting_quorum' ? 'esperando quorum' :
-                      s.status === 'rescheduled' ? 'reprogramada' :
-                      s.status === 'cancelled' ? 'cancelada' :
+                      s.status === 'waiting_quorum' ? t('assembly_status_waiting_quorum', 'esperando quorum') :
+                      s.status === 'rescheduled' ? t('assembly_status_rescheduled', 'reprogramada') :
+                      s.status === 'cancelled' ? t('assembly_status_cancelled', 'cancelada') :
                       s.status
                     }</span>
                   </div>
@@ -2455,7 +2450,7 @@ export default function Assembly() {
                         rows={2}
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
-                        placeholder="Descripcion / temas a tratar"
+                        placeholder={t('assembly_desc_topics_ph', 'Descripcion / temas a tratar')}
                       />
                       <div className="flex gap-2">
                         <button
@@ -2476,15 +2471,15 @@ export default function Assembly() {
                     <p className="text-xs text-gray-500 mt-1">{s.description}</p>
                   )}
                   <p className="text-xs text-gray-400 mt-1">
-                    Tipo: {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}
-                    {s.recall_number > 0 && <span className="text-orange-600"> | Llamado #{s.recall_number + 1}</span>}
-                    {s.quorum_verified && <span className="text-green-600"> | Quorum verificado</span>}
+                    {t('assembly_type_label', 'Tipo:')} {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}
+                    {s.recall_number > 0 && <span className="text-orange-600"> | {t('assembly_recall', 'Llamado')} #{s.recall_number + 1}</span>}
+                    {s.quorum_verified && <span className="text-green-600"> | {t('assembly_quorum_verified', 'Quorum verificado')}</span>}
                   </p>
 
                   {/* Minuta */}
                   {s.minutes && (
                     <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                      <strong>Minuta:</strong>
+                      <strong>{t('assembly_minutes_label', 'Minuta:')}</strong>
                       <p className="whitespace-pre-wrap mt-1 max-h-32 overflow-y-auto">{s.minutes}</p>
                     </div>
                   )}
@@ -2497,7 +2492,7 @@ export default function Assembly() {
                           onClick={() => { setSelectedSessionForAttendance(s.id); loadAttendance(s.id) }}
                           className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
                         >
-                          Pasar lista de asistencia
+                          {t('assembly_take_attendance', 'Pasar lista de asistencia')}
                         </button>
                       )}
                       {s.is_presential && (s.status === 'scheduled' || s.status === 'waiting_quorum') && (
@@ -2505,7 +2500,7 @@ export default function Assembly() {
                           onClick={() => verifyQuorum(s.id)}
                           className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                         >
-                          Verificar quorum
+                          {t('assembly_verify_quorum', 'Verificar quorum')}
                         </button>
                       )}
                       {s.is_presential && s.status === 'waiting_quorum' && (
@@ -2513,7 +2508,7 @@ export default function Assembly() {
                           onClick={() => selfCheckIn(s.id)}
                           className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
-                          Confirmar mi presencia
+                          {t('assembly_confirm_presence', 'Confirmar mi presencia')}
                         </button>
                       )}
                       {s.is_presential && (s.status === 'rescheduled' || s.status === 'waiting_quorum') && (
@@ -2521,14 +2516,14 @@ export default function Assembly() {
                           onClick={() => { setRescheduleSession(s); setRescheduleDate(''); setRescheduleTime('') }}
                           className="text-xs px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700"
                         >
-                          Reprogramar (segundo llamado)
+                          {t('assembly_reschedule', 'Reprogramar (segundo llamado)')}
                         </button>
                       )}
                       <button
                         onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || ''); setMinutesEditMode(false) }}
                         className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                       >
-                        {s.status === 'completed' ? 'Ver acta' : (s.minutes ? 'Ver minuta' : 'Escribir minuta')}
+                        {s.status === 'completed' ? t('assembly_view_acta', 'Ver acta') : (s.minutes ? t('assembly_view_minutes', 'Ver minuta') : t('assembly_write_minutes', 'Escribir minuta'))}
                       </button>
                       {(s.status === 'active' || s.status === 'waiting_quorum') && (
                         <button
@@ -2541,7 +2536,7 @@ export default function Assembly() {
                     </div>
                   ) : (
                     <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                      <strong>Programada</strong> — Esta asamblea aun no ha llegado. El registro de asistencia se abrira {attendanceWindowHours} {attendanceWindowHours === 1 ? 'hora' : 'horas'} antes de la hora programada.
+                      <strong>{t('assembly_scheduled', 'Programada')}</strong> — {t('assembly_not_yet_open', 'Esta asamblea aun no ha llegado. El registro de asistencia se abrira')} {attendanceWindowHours} {attendanceWindowHours === 1 ? t('assembly_hour', 'hora') : t('assembly_hours', 'horas')} {t('assembly_before_scheduled', 'antes de la hora programada.')}
                     </div>
                   )}
 
@@ -2554,11 +2549,11 @@ export default function Assembly() {
                     }`}>
                       <p className="font-medium">{quorumResult.message}</p>
                       <div className="flex gap-4 mt-1 text-xs">
-                        <span>Presentes: {quorumResult.present_count} de {quorumResult.total_voting_members}</span>
-                        <span>Asistencia: {quorumResult.attendance_pct}</span>
-                        <span>Quorum requerido: {quorumResult.applied_quorum_pct}%</span>
+                        <span>{t('assembly_present_count', 'Presentes:')} {quorumResult.present_count} {t('assembly_of', 'de')} {quorumResult.total_voting_members}</span>
+                        <span>{t('assembly_attendance_label', 'Asistencia:')} {quorumResult.attendance_pct}</span>
+                        <span>{t('assembly_quorum_required', 'Quorum requerido:')} {quorumResult.applied_quorum_pct}%</span>
                         {quorumResult.pending_confirmation > 0 && (
-                          <span className="text-blue-600">Pendientes por confirmar: {quorumResult.pending_confirmation}</span>
+                          <span className="text-blue-600">{t('assembly_pending_confirmation', 'Pendientes por confirmar:')} {quorumResult.pending_confirmation}</span>
                         )}
                       </div>
                     </div>
@@ -2573,12 +2568,12 @@ export default function Assembly() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSessionForAttendance(null)}>
               <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-bold">Lista de Asistencia</h3>
+                  <h3 className="font-bold">{t('assembly_attendance_list', 'Lista de Asistencia')}</h3>
                   <button onClick={() => setSelectedSessionForAttendance(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
                 </div>
                 <div className="p-4 space-y-4">
                   <p className="text-sm text-gray-600">
-                    Marca los miembros presentes en la asamblea. Solo los miembros marcados podran votar en esta sesion presencial.
+                    {t('assembly_attendance_desc', 'Marca los miembros presentes en la asamblea. Solo los miembros marcados podran votar en esta sesion presencial.')}
                   </p>
 
                   {/* Lista de miembros con checkbox */}
@@ -2594,7 +2589,7 @@ export default function Assembly() {
                             className="accent-trueque-600"
                           />
                           <span className="text-sm">{m.display_name || m.username}</span>
-                          {isPresent && <span className="text-xs text-green-600">Presente</span>}
+                          {isPresent && <span className="text-xs text-green-600">{t('assembly_present', 'Presente')}</span>}
                         </label>
                       )
                     })}
@@ -2602,7 +2597,7 @@ export default function Assembly() {
 
                   {attendanceList.length > 0 && (
                     <div className="text-sm text-gray-600">
-                      {attendanceList.length} miembros presentes
+                      {attendanceList.length} {t('assembly_members_present', 'miembros presentes')}
                     </div>
                   )}
 
@@ -2619,30 +2614,30 @@ export default function Assembly() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSessionForMinutes(null)}>
               <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-bold">{selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' ? 'Acta de la Asamblea' : 'Minuta de la Asamblea'}</h3>
+                  <h3 className="font-bold">{selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' ? t('assembly_acta_title', 'Acta de la Asamblea') : t('assembly_minuta_title', 'Minuta de la Asamblea')}</h3>
                   <button onClick={() => setSelectedSessionForMinutes(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
                 </div>
                 <div className="p-4 space-y-3">
                   {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' && (
                     <p className="text-sm text-gray-600">
-                      Esta es el acta oficial de la asamblea. {minutesEditMode ? 'Puedes agregar detalles adicionales pero las decisiones ya estan registradas.' : 'Solo lectura. Si tienes permiso, puedes editar con el boton abajo.'}
+                      {t('assembly_acta_desc', 'Esta es el acta oficial de la asamblea.')} {minutesEditMode ? t('assembly_acta_edit_desc', 'Puedes agregar detalles adicionales pero las decisiones ya estan registradas.') : t('assembly_acta_readonly_desc', 'Solo lectura. Si tienes permiso, puedes editar con el boton abajo.')}
                     </p>
                   )}
                   {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status !== 'completed' && !minutesEditMode && (
                     <p className="text-sm text-gray-600">
-                      {minutesText ? 'Minuta en lectura. Usa el boton editar para modificar.' : 'No hay minuta escrita aun. Usa el boton escribir para crearla.'}
+                      {minutesText ? t('assembly_minuta_read_desc', 'Minuta en lectura. Usa el boton editar para modificar.') : t('assembly_minuta_empty_desc', 'No hay minuta escrita aun. Usa el boton escribir para crearla.')}
                     </p>
                   )}
                   {minutesEditMode ? (
                     <textarea
                       className="input min-h-[300px]"
-                      placeholder="Ej:&#10;&#10;Asamblea del 15 de marzo de 2024&#10;&#10;1. Se aprobo por mayoria cambiar el limite de credito a 1000 TQ&#10;2. Se rechazo la propuesta de aumentar el impuesto al 3%&#10;3. Se admitio a Maria Rodriguez como miembro nuevo&#10;4. Pendiente: revisar el presupuesto del fondo comunitario"
+                      placeholder={t('assembly_minutes_ph', 'Ej:\n\nAsamblea del 15 de marzo de 2024\n\n1. Se aprobo por mayoria cambiar el limite de credito a 1000 TQ\n2. Se rechazo la propuesta de aumentar el impuesto al 3%\n3. Se admitio a Maria Rodriguez como miembro nuevo\n4. Pendiente: revisar el presupuesto del fondo comunitario')}
                       value={minutesText}
                       onChange={e => setMinutesText(e.target.value)}
                     />
                   ) : (
                     <div className="bg-gray-50 rounded-lg p-4 min-h-[300px] whitespace-pre-wrap text-sm text-gray-800">
-                      {minutesText || 'No hay contenido en el acta.'}
+                      {minutesText || t('assembly_no_acta_content', 'No hay contenido en el acta.')}
                     </div>
                   )}
                   <div className="flex gap-2 justify-end">
@@ -2654,7 +2649,7 @@ export default function Assembly() {
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
                       >
-                        <FileText size={16} /> Descargar Acta PDF
+                        <FileText size={16} /> {t('assembly_download_acta_pdf', 'Descargar Acta PDF')}
                       </a>
                     )}
                     {minutesEditMode ? (
@@ -2665,7 +2660,7 @@ export default function Assembly() {
                     ) : (
                       (canManageBoard || sessions.find(s => s.id === selectedSessionForMinutes)?.status !== 'completed') && (
                         <button onClick={() => setMinutesEditMode(true)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">
-                          {minutesText ? t('common:edit') : 'Escribir'}
+                          {minutesText ? t('common:edit') : t('assembly_write', 'Escribir')}
                         </button>
                       )
                     )}
@@ -2680,18 +2675,18 @@ export default function Assembly() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setRescheduleSession(null)}>
               <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-bold">Reprogramar Asamblea</h3>
+                  <h3 className="font-bold">{t('assembly_reschedule_title', 'Reprogramar Asamblea')}</h3>
                   <button onClick={() => setRescheduleSession(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
                 </div>
                 <div className="p-4 space-y-3">
                   <p className="text-sm text-gray-600">
-                    La asamblea no alcanzo el quorum en el llamado #{(rescheduleSession.recall_number || 0) + 1}.
-                    Al reprogramar, se crea el llamado #{(rescheduleSession.recall_number || 0) + 2} con un quorum mas bajo.
-                    La lista de asistencia se reinicia: los miembros deben volver a confirmar su presencia.
+                    {t('assembly_reschedule_desc', 'La asamblea no alcanzo el quorum en el llamado')} #{(rescheduleSession.recall_number || 0) + 1}.
+                    {t('assembly_reschedule_desc2', 'Al reprogramar, se crea el llamado')} #{(rescheduleSession.recall_number || 0) + 2} {t('assembly_reschedule_desc3', 'con un quorum mas bajo.')}
+                    {t('assembly_reschedule_desc4', 'La lista de asistencia se reinicia: los miembros deben volver a confirmar su presencia.')}
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="label">Fecha</label>
+                      <label className="label">{t('assembly_date', 'Fecha')}</label>
                       <input
                         type="date"
                         className="input"
@@ -2700,7 +2695,7 @@ export default function Assembly() {
                       />
                     </div>
                     <div>
-                      <label className="label">Hora</label>
+                      <label className="label">{t('assembly_time', 'Hora')}</label>
                       <input
                         type="time"
                         className="input"
@@ -2716,7 +2711,7 @@ export default function Assembly() {
                       className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                       disabled={!rescheduleTime}
                     >
-                      Reprogramar
+                      {t('assembly_reschedule_btn', 'Reprogramar')}
                     </button>
                   </div>
                 </div>
@@ -2729,26 +2724,26 @@ export default function Assembly() {
       {/* ===== IMPUESTOS ===== */}
       {tab === 'tax' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><DollarSign size={18} />Impuestos</h2>
+          <h2 className="font-semibold flex items-center gap-2"><DollarSign size={18} />{t('assembly_taxes_title', 'Impuestos')}</h2>
 
           {/* Explicacion */}
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Impuestos - Como funciona</strong></p>
-            <p>Los impuestos sobre las transacciones llegan automaticamente a la <strong>cuenta de la Asamblea General</strong>. No hay una cuenta separada de impuestos: la Asamblea es la que recibe los impuestos y administra el Fondo Comunitario. Es una sola cuenta con tres nombres: <b>@asamblea</b>, <b>@impuestos</b> y <b>@fondo_comunitario</b>.</p>
-            <p><strong>Como se calcula el impuesto:</strong> Cada nivel de miembro tiene su propia tasa de impuesto. Cuando un miembro hace una transaccion, se aplica la tasa de su nivel. Por ejemplo, un miembro "pleno" puede tener 2% y un miembro "aspirante" 0%. Las organizaciones y cooperativas tambien pueden tener tasas diferentes.</p>
-            <p><strong>Como cambiar las tasas:</strong> Los cambios se hacen por votacion en la Asamblea. Crea una propuesta de tipo <b>"Cambio de impuestos"</b> en la pestana <b>Propuestas</b>, indicando el nivel de miembro y la nueva tasa. La Asamblea decide segun su configuracion de aprobacion (voto de toda la asamblea, junta directiva, o persona designada).</p>
-            <p><strong>Como usar el dinero recaudado:</strong> Para distribuir los fondos, crea una propuesta de <b>"Distribucion de fondos"</b> indicando la cuenta destino (organizacion, departamento, responsable o proyecto) y el monto.</p>
+            <p><strong>{t('assembly_taxes_how_title', 'Impuestos - Como funciona')}</strong></p>
+            <p>{t('assembly_taxes_how_desc', 'Los impuestos sobre las transacciones llegan automaticamente a la')} <strong>{t('assembly_taxes_assembly_account', 'cuenta de la Asamblea General')}</strong>. {t('assembly_taxes_no_separate', 'No hay una cuenta separada de impuestos: la Asamblea es la que recibe los impuestos y administra el Fondo Comunitario. Es una sola cuenta con tres nombres:')} <b>@asamblea</b>, <b>@impuestos</b> {t('assembly_taxes_and', 'y')} <b>@fondo_comunitario</b>.</p>
+            <p><strong>{t('assembly_taxes_calc_title', 'Como se calcula el impuesto:')}</strong> {t('assembly_taxes_calc_desc', 'Cada nivel de miembro tiene su propia tasa de impuesto. Cuando un miembro hace una transaccion, se aplica la tasa de su nivel. Por ejemplo, un miembro "pleno" puede tener 2% y un miembro "aspirante" 0%. Las organizaciones y cooperativas tambien pueden tener tasas diferentes.')}</p>
+            <p><strong>{t('assembly_taxes_change_title', 'Como cambiar las tasas:')}</strong> {t('assembly_taxes_change_desc', 'Los cambios se hacen por votacion en la Asamblea. Crea una propuesta de tipo')} <b>{t('assembly_taxes_change_type', '"Cambio de impuestos"')}</b> {t('assembly_taxes_change_desc2', 'en la pestana')} <b>{t('tab_proposals', 'Propuestas')}</b>, {t('assembly_taxes_change_desc3', 'indicando el nivel de miembro y la nueva tasa. La Asamblea decide segun su configuracion de aprobacion (voto de toda la asamblea, junta directiva, o persona designada).')}</p>
+            <p><strong>{t('assembly_taxes_use_title', 'Como usar el dinero recaudado:')}</strong> {t('assembly_taxes_use_desc', 'Para distribuir los fondos, crea una propuesta de')} <b>{t('assembly_taxes_use_type', '"Distribucion de fondos"')}</b> {t('assembly_taxes_use_desc2', 'indicando la cuenta destino (organizacion, departamento, responsable o proyecto) y el monto.')}</p>
           </div>
 
           {/* Tasas por nivel de miembro */}
           {taxConfig?.level_taxes && taxConfig.level_taxes.length > 0 && (
             <div className="card">
-              <h3 className="font-medium mb-3">Tasas de Impuesto por Nivel de Miembro</h3>
+              <h3 className="font-medium mb-3">{t('assembly_tax_rates_by_level', 'Tasas de Impuesto por Nivel de Miembro')}</h3>
               <table className="w-full text-sm">
                 <thead><tr className="border-b text-left text-gray-600">
-                  <th className="py-2">Nivel</th>
-                  <th>Descripcion</th>
-                  <th>Tasa de impuesto</th>
+                  <th className="py-2">{t('assembly_level', 'Nivel')}</th>
+                  <th>{t('assembly_description', 'Descripcion')}</th>
+                  <th>{t('assembly_tax_rate', 'Tasa de impuesto')}</th>
                 </tr></thead>
                 <tbody>
                   {taxConfig.level_taxes.map((lt: any, i: number) => (
@@ -2756,14 +2751,14 @@ export default function Assembly() {
                       <td className="py-2 font-medium">{lt.name} (Nivel {lt.level})</td>
                       <td className="text-gray-500">{lt.description}</td>
                       <td className={lt.tax_rate > 0 ? 'text-amber-600 font-bold' : 'text-green-600'}>
-                        {lt.tax_rate > 0 ? `${fmtNumber(lt.tax_rate * 100, 2)}%` : 'Exento'}
+                        {lt.tax_rate > 0 ? `${fmtNumber(lt.tax_rate * 100, 2)}%` : t('assembly_exempt', 'Exento')}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <p className="text-xs text-gray-500 mt-2">
-                Cada nivel de miembro tiene su propia tasa. Para cambiar una tasa, crea una propuesta de "Cambio de impuestos" en la pestana Propuestas.
+                {t('assembly_tax_per_level_note', 'Cada nivel de miembro tiene su propia tasa. Para cambiar una tasa, crea una propuesta de "Cambio de impuestos" en la pestana Propuestas.')}
               </p>
             </div>
           )}
@@ -2771,25 +2766,25 @@ export default function Assembly() {
           {/* Configuracion global */}
           {taxConfig && (
             <div className="card">
-              <h3 className="font-medium mb-3">Configuracion Global de Impuestos</h3>
+              <h3 className="font-medium mb-3">{t('assembly_tax_global_config', 'Configuracion Global de Impuestos')}</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <label className="label">Tasa global por defecto</label>
+                  <label className="label">{t('assembly_tax_default_rate', 'Tasa global por defecto')}</label>
                   <b>{taxConfig.tax_rate ? `${fmtNumber(taxConfig.tax_rate * 100, 2)}%` : '0%'}</b>
-                  <p className="text-xs text-gray-400">Se aplica si el nivel del miembro no tiene tasa propia</p>
+                  <p className="text-xs text-gray-400">{t('assembly_tax_default_desc', 'Se aplica si el nivel del miembro no tiene tasa propia')}</p>
                 </div>
                 <div>
-                  <label className="label">Estado</label>
-                  <b>{taxConfig.is_active ? 'Activo' : 'Inactivo'}</b>
+                  <label className="label">{t('assembly_status', 'Estado')}</label>
+                  <b>{taxConfig.is_active ? t('assembly_active', 'Activo') : t('assembly_inactive', 'Inactivo')}</b>
                 </div>
                 <div>
-                  <label className="label">Monto minimo</label>
+                  <label className="label">{t('assembly_min_amount', 'Monto minimo')}</label>
                   <b>{fmtTQ(taxConfig.min_amount || 0)} {currency}</b>
-                  <p className="text-xs text-gray-400">Transacciones menores a este monto no pagan impuesto</p>
+                  <p className="text-xs text-gray-400">{t('assembly_min_amount_desc', 'Transacciones menores a este monto no pagan impuesto')}</p>
                 </div>
                 <div>
-                  <label className="label">Aplica a</label>
-                  <b>{taxConfig.applies_to === 'all' ? 'Todas las transacciones' : taxConfig.applies_to}</b>
+                  <label className="label">{t('assembly_applies_to', 'Aplica a')}</label>
+                  <b>{taxConfig.applies_to === 'all' ? t('assembly_all_transactions', 'Todas las transacciones') : taxConfig.applies_to}</b>
                 </div>
               </div>
             </div>
@@ -2798,20 +2793,18 @@ export default function Assembly() {
           {/* Cuenta de la Asamblea */}
           {taxAccount && (
             <div className="card">
-              <h3 className="font-medium mb-3">Cuenta de la Asamblea (donde llegan los impuestos)</h3>
+              <h3 className="font-medium mb-3">{t('assembly_tax_account_title', 'Cuenta de la Asamblea (donde llegan los impuestos)')}</h3>
               {taxAccount.tax_account ? (
                 <div className="text-sm">
-                  <p><span className="text-gray-500">Cuenta:</span> <b>{taxAccount.tax_account_display || taxAccount.tax_account_name || taxAccount.tax_account}</b></p>
-                  <p className="mt-1"><span className="text-gray-500">Balance:</span> <b className="text-trueque-700">{fmtTQ(taxAccount.balance)} {currency}</b></p>
+                  <p><span className="text-gray-500">{t('assembly_account_label', 'Cuenta:')}:</span> <b>{taxAccount.tax_account_display || taxAccount.tax_account_name || taxAccount.tax_account}</b></p>
+                  <p className="mt-1"><span className="text-gray-500">{t('assembly_balance', 'Balance:')}:</span> <b className="text-trueque-700">{fmtTQ(taxAccount.balance)} {currency}</b></p>
                   <p className="mt-2 text-xs text-gray-500">
-                    Los impuestos llegan automaticamente a esta cuenta. Es la misma cuenta de la Asamblea General y del Fondo Comunitario.
-                    Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.
+                    {t('assembly_tax_account_desc', 'Los impuestos llegan automaticamente a esta cuenta. Es la misma cuenta de la Asamblea General y del Fondo Comunitario. Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.')}
                   </p>
                 </div>
               ) : (
                 <p className="text-sm text-amber-600">
-                  No se encontro la cuenta de la Asamblea. Los impuestos se envian a la cuenta de la Asamblea General (@asamblea).
-                  Si no aparece, verifica que la Asamblea General exista en el sistema.
+                  {t('assembly_tax_account_not_found', 'No se encontro la cuenta de la Asamblea. Los impuestos se envian a la cuenta de la Asamblea General (@asamblea). Si no aparece, verifica que la Asamblea General exista en el sistema.')}
                 </p>
               )}
             </div>
@@ -2819,14 +2812,12 @@ export default function Assembly() {
 
           {canManageTax && (
             <div className="card border-amber-200">
-              <h3 className="font-medium mb-2">Administracion de Impuestos</h3>
+              <h3 className="font-medium mb-2">{t('assembly_tax_admin', 'Administracion de Impuestos')}</h3>
               <p className="text-xs text-gray-500 mb-3">
-                El administrador puede cambiar la tasa de impuesto global directamente durante la configuracion inicial del sistema.
-                Una vez que la asamblea este funcionando, los cambios se hacen por votacion.
-                Las tasas por nivel de miembro se cambian con propuestas de "Cambio de impuestos" en la pestana Propuestas.
+                {t('assembly_tax_admin_desc1', 'El administrador puede cambiar la tasa de impuesto global directamente durante la configuracion inicial del sistema. Una vez que la asamblea este funcionando, los cambios se hacen por votacion. Las tasas por nivel de miembro se cambian con propuestas de "Cambio de impuestos" en la pestana Propuestas.')}
               </p>
               <p className="text-xs text-gray-500">
-                Para distribuir los fondos recaudados, crea una propuesta de "Distribucion de fondos" indicando la cuenta destino y el monto.
+                {t('assembly_tax_admin_desc2', 'Para distribuir los fondos recaudados, crea una propuesta de "Distribucion de fondos" indicando la cuenta destino y el monto.')}
               </p>
             </div>
           )}
@@ -2835,19 +2826,19 @@ export default function Assembly() {
 
       {tab === 'departments' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Departamentos</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />{t('assembly_departments_title', 'Departamentos')}</h2>
 
           {/* Sub-pestanas de Departamentos */}
           <div className="flex gap-2 flex-wrap">
-            <button onClick={() => setDeptSubTab('assembly')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${deptSubTab === 'assembly' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>De la Asamblea</button>
-            <button onClick={() => setDeptSubTab('organizations')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${deptSubTab === 'organizations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>De Organizaciones</button>
+            <button onClick={() => setDeptSubTab('assembly')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${deptSubTab === 'assembly' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('assembly_depts_assembly', 'De la Asamblea')}</button>
+            <button onClick={() => setDeptSubTab('organizations')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${deptSubTab === 'organizations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('assembly_depts_orgs', 'De Organizaciones')}</button>
           </div>
 
           {/* ===== SUB-PESTANA: Departamentos de la Asamblea ===== */}
           {deptSubTab === 'assembly' && (
             <div className="space-y-4">
               <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-                <p>Departamentos de la Asamblea. La Asamblea no aparece en la pagina de Organizaciones, por eso sus departamentos se gestionan aqui.</p>
+                <p>{t('assembly_depts_assembly_desc', 'Departamentos de la Asamblea. La Asamblea no aparece en la pagina de Organizaciones, por eso sus departamentos se gestionan aqui.')}</p>
               </div>
               <DeptListWithRoles
                 depts={allDepts.filter((d: any) => !d.parent_organization_id || d.org_name === 'Asamblea General')}
@@ -2880,7 +2871,7 @@ export default function Assembly() {
           {deptSubTab === 'organizations' && (
             <div className="space-y-4">
               <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-                <p>Departamentos de otras organizaciones. Haz clic en una organizacion para desplegar sus departamentos.</p>
+                <p>{t('assembly_depts_orgs_desc', 'Departamentos de otras organizaciones. Haz clic en una organizacion para desplegar sus departamentos.')}</p>
               </div>
 
               {/* Agrupar por organizacion */}
@@ -2896,7 +2887,7 @@ export default function Assembly() {
                 const orgNames = Object.keys(grouped).sort()
 
                 if (orgNames.length === 0) {
-                  return <p className="text-sm text-gray-500 py-4">No hay departamentos de otras organizaciones.</p>
+                  return <p className="text-sm text-gray-500 py-4">{t('assembly_no_org_depts', 'No hay departamentos de otras organizaciones.')}</p>
                 }
 
                 return (
@@ -2914,7 +2905,7 @@ export default function Assembly() {
                           <div className="flex items-center gap-2">
                             <Building2 size={16} className="text-gray-500" />
                             <span className="font-medium text-sm">{orgName}</span>
-                            <span className="text-xs text-gray-500">({grouped[orgName].length} deptos)</span>
+                            <span className="text-xs text-gray-500">({grouped[orgName].length} {t('assembly_deptos', 'deptos')})</span>
                           </div>
                           <span className="text-gray-400 text-xs">{expandedDept === `org:${orgName}` ? '▼' : '▶'}</span>
                         </div>
@@ -2958,23 +2949,23 @@ export default function Assembly() {
 
       {tab === 'config' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />Configuracion de Asamblea</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />{t('assembly_config_title', 'Configuracion de Asamblea')}</h2>
 
           {/* ===== Configuracion de quorum - Asamblea ===== */}
           <div className="card bg-purple-50 border-purple-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Quorum de Asamblea - Ayuda</strong></p>
-            <p>El quorum es el porcentaje minimo de miembros con derecho a voto que deben estar presentes para que la asamblea sea valida.</p>
+            <p><strong>{t('assembly_quorum_help_title', 'Quorum de Asamblea - Ayuda')}</strong></p>
+            <p>{t('assembly_quorum_help_desc', 'El quorum es el porcentaje minimo de miembros con derecho a voto que deben estar presentes para que la asamblea sea valida.')}</p>
             <ul className="list-disc list-inside space-y-1">
-              <li><b>Primer llamado</b>: porcentaje requerido en la fecha original.</li>
-              <li><b>Segundo llamado</b>: porcentaje reducido si se reprograma (ej: 50% primer llamado, 30% segundo llamado).</li>
-              <li><b>Periodo de gracia</b>: horas que se esperan despues de la hora de inicio antes de declarar la asamblea invalida.</li>
-              <li><b>Maximo rellamados</b>: cuantas veces se puede reprogramar la misma asamblea.</li>
+              <li><b>{t('assembly_quorum_first_call', 'Primer llamado')}</b>: {t('assembly_quorum_first_call_desc', 'porcentaje requerido en la fecha original.')}</li>
+              <li><b>{t('assembly_quorum_second_call', 'Segundo llamado')}</b>: {t('assembly_quorum_second_call_desc', 'porcentaje reducido si se reprograma (ej: 50% primer llamado, 30% segundo llamado).')}</li>
+              <li><b>{t('assembly_quorum_grace', 'Periodo de gracia')}</b>: {t('assembly_quorum_grace_desc', 'horas que se esperan despues de la hora de inicio antes de declarar la asamblea invalida.')}</li>
+              <li><b>{t('assembly_quorum_max_recall', 'Maximo rellamados')}</b>: {t('assembly_quorum_max_recall_desc', 'cuantas veces se puede reprogramar la misma asamblea.')}</li>
             </ul>
-            <p>Si no se alcanza el quorum despues del periodo de gracia, la asamblea se puede reprogramar (si esta permitido) o se cancela.</p>
+            <p>{t('assembly_quorum_no_quorum_desc', 'Si no se alcanza el quorum despues del periodo de gracia, la asamblea se puede reprogramar (si esta permitido) o se cancela.')}</p>
           </div>
 
           {quorumConfigs.length === 0 ? (
-            <button onClick={loadQuorumConfigs} className="btn-primary">Cargar configuracion de quorum</button>
+            <button onClick={loadQuorumConfigs} className="btn-primary">{t('assembly_load_quorum_config', 'Cargar configuracion de quorum')}</button>
           ) : (
             <div className="space-y-3">
               {quorumConfigs.filter((qc: any) => qc.meeting_type !== 'board').map((qc: any) => (
@@ -2985,14 +2976,14 @@ export default function Assembly() {
 
           {/* ===== Configuracion de quorum - Junta Directiva ===== */}
           <div className="card bg-purple-50 border-purple-200 text-sm text-gray-700 space-y-2 mt-6">
-            <p><strong>Quorum de Junta Directiva - Ayuda</strong></p>
-            <p>El quorum de la junta directiva es el porcentaje minimo de miembros de la junta que deben estar presentes para que la reunion sea valida.</p>
-            <p>Como la junta tiene menos miembros (ej: 5-7), el quorum es sobre ese numero, no sobre todos los miembros del nodo.</p>
-            <p className="text-xs text-purple-600 mt-1"><strong>Importante:</strong> cambiar el quorum de la junta directiva es una decision de la Asamblea, no de la junta.</p>
+            <p><strong>{t('assembly_board_quorum_help_title', 'Quorum de Junta Directiva - Ayuda')}</strong></p>
+            <p>{t('assembly_board_quorum_help_desc', 'El quorum de la junta directiva es el porcentaje minimo de miembros de la junta que deben estar presentes para que la reunion sea valida.')}</p>
+            <p>{t('assembly_board_quorum_help_desc2', 'Como la junta tiene menos miembros (ej: 5-7), el quorum es sobre ese numero, no sobre todos los miembros del nodo.')}</p>
+            <p className="text-xs text-purple-600 mt-1"><strong>{t('assembly_important', 'Importante:')}</strong> {t('assembly_board_quorum_note', 'cambiar el quorum de la junta directiva es una decision de la Asamblea, no de la junta.')}</p>
           </div>
 
           {quorumConfigs.length === 0 ? (
-            <button onClick={loadQuorumConfigs} className="btn-primary">Cargar configuracion de quorum</button>
+            <button onClick={loadQuorumConfigs} className="btn-primary">{t('assembly_load_quorum_config', 'Cargar configuracion de quorum')}</button>
           ) : (
             <div className="space-y-3">
               {quorumConfigs.filter((qc: any) => qc.meeting_type === 'board').map((qc: any) => (
@@ -3002,43 +2993,43 @@ export default function Assembly() {
           )}
 
           {/* ===== Convocatoria automatica ===== */}
-          <h3 className="font-semibold flex items-center gap-2 mt-6"><Calendar size={18} />Convocatoria Automatica</h3>
+          <h3 className="font-semibold flex items-center gap-2 mt-6"><Calendar size={18} />{t('assembly_auto_convocation', 'Convocatoria Automatica')}</h3>
           <div className="card space-y-4">
-            <p className="text-sm text-gray-600">Configura cada cuanto se convoca la asamblea ordinaria. Al cerrar una asamblea, se agenda la siguiente automaticamente.</p>
-            <p className="text-xs text-blue-600 bg-blue-50 rounded p-2">Estos son ajustes basicos. No requieren aprobacion de asamblea. Pueden editarlos: administrador, junta directiva, director o secretario.</p>
+            <p className="text-sm text-gray-600">{t('assembly_auto_convocation_desc', 'Configura cada cuanto se convoca la asamblea ordinaria. Al cerrar una asamblea, se agenda la siguiente automaticamente.')}</p>
+            <p className="text-xs text-blue-600 bg-blue-50 rounded p-2">{t('assembly_auto_convocation_note', 'Estos son ajustes basicos. No requieren aprobacion de asamblea. Pueden editarlos: administrador, junta directiva, director o secretario.')}</p>
 
             {/* Modo lectura */}
             {!freqEditing ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <label className="label">Frecuencia</label>
+                    <label className="label">{t('assembly_frequency', 'Frecuencia')}</label>
                     <b>
-                      {freqConfig.ordinary_frequency_months === 0 && 'No auto-convocar'}
-                      {freqConfig.ordinary_frequency_months === 1 && 'Cada mes'}
-                      {freqConfig.ordinary_frequency_months === 2 && 'Cada 2 meses'}
-                      {freqConfig.ordinary_frequency_months === 3 && 'Cada 3 meses (trimestral)'}
-                      {freqConfig.ordinary_frequency_months === 6 && 'Cada 6 meses (semestral)'}
-                      {freqConfig.ordinary_frequency_months === 12 && 'Cada 12 meses (anual)'}
+                      {freqConfig.ordinary_frequency_months === 0 && t('assembly_no_auto_convocate', 'No auto-convocar')}
+                      {freqConfig.ordinary_frequency_months === 1 && t('assembly_every_month', 'Cada mes')}
+                      {freqConfig.ordinary_frequency_months === 2 && t('assembly_every_2_months', 'Cada 2 meses')}
+                      {freqConfig.ordinary_frequency_months === 3 && t('assembly_every_3_months', 'Cada 3 meses (trimestral)')}
+                      {freqConfig.ordinary_frequency_months === 6 && t('assembly_every_6_months', 'Cada 6 meses (semestral)')}
+                      {freqConfig.ordinary_frequency_months === 12 && t('assembly_every_12_months', 'Cada 12 meses (anual)')}
                     </b>
                   </div>
                   {freqConfig.ordinary_frequency_months > 0 && (
                     <>
                       <div>
-                        <label className="label">Dia preferido</label>
-                        <b>{freqConfig.preferred_day_of_month === 0 ? 'Cualquier dia' : `Dia ${freqConfig.preferred_day_of_month}`}</b>
+                        <label className="label">{t('assembly_preferred_day', 'Dia preferido')}</label>
+                        <b>{freqConfig.preferred_day_of_month === 0 ? t('assembly_any_day', 'Cualquier dia') : `${t('assembly_day', 'Dia')} ${freqConfig.preferred_day_of_month}`}</b>
                       </div>
                       <div>
-                        <label className="label">Hora preferida</label>
+                        <label className="label">{t('assembly_preferred_hour', 'Hora preferida')}</label>
                         <b>{freqConfig.preferred_hour.toString().padStart(2, '0')}:00</b>
                       </div>
                       <div>
-                        <label className="label">Notificar con anticipacion</label>
-                        <b>{freqConfig.notification_days_before} dias antes</b>
+                        <label className="label">{t('assembly_notify_before', 'Notificar con anticipacion')}</label>
+                        <b>{freqConfig.notification_days_before} {t('assembly_days_before', 'dias antes')}</b>
                       </div>
                       <div>
-                        <label className="label">Registrar asistencia</label>
-                        <b>{freqConfig.attendance_window_hours || 1} {freqConfig.attendance_window_hours === 1 ? 'hora' : 'horas'} antes</b>
+                        <label className="label">{t('assembly_register_attendance', 'Registrar asistencia')}</label>
+                        <b>{freqConfig.attendance_window_hours || 1} {freqConfig.attendance_window_hours === 1 ? t('assembly_hour', 'hora') : t('assembly_hours', 'horas')} {t('assembly_before', 'antes')}</b>
                       </div>
                     </>
                   )}
@@ -3049,29 +3040,29 @@ export default function Assembly() {
               /* Modo edicion */
               <div className="space-y-3">
                 <div>
-                  <label className="label">Frecuencia de asambleas ordinarias</label>
+                  <label className="label">{t('assembly_freq_ordinary', 'Frecuencia de asambleas ordinarias')}</label>
                   <select className="input" value={freqConfig.ordinary_frequency_months} onChange={e => setFreqConfig({ ...freqConfig, ordinary_frequency_months: parseInt(e.target.value) })}>
-                    <option value={0}>No auto-convocar</option>
-                    <option value={1}>Cada mes</option>
-                    <option value={2}>Cada 2 meses</option>
-                    <option value={3}>Cada 3 meses (trimestral)</option>
-                    <option value={6}>Cada 6 meses (semestral)</option>
-                    <option value={12}>Cada 12 meses (anual)</option>
+                    <option value={0}>{t('assembly_no_auto_convocate', 'No auto-convocar')}</option>
+                    <option value={1}>{t('assembly_every_month', 'Cada mes')}</option>
+                    <option value={2}>{t('assembly_every_2_months', 'Cada 2 meses')}</option>
+                    <option value={3}>{t('assembly_every_3_months', 'Cada 3 meses (trimestral)')}</option>
+                    <option value={6}>{t('assembly_every_6_months', 'Cada 6 meses (semestral)')}</option>
+                    <option value={12}>{t('assembly_every_12_months', 'Cada 12 meses (anual)')}</option>
                   </select>
                 </div>
                 {freqConfig.ordinary_frequency_months > 0 && (
                   <>
                     <div>
-                      <label className="label">Dia preferido del mes</label>
+                      <label className="label">{t('assembly_preferred_day_month', 'Dia preferido del mes')}</label>
                       <select className="input" value={freqConfig.preferred_day_of_month} onChange={e => setFreqConfig({ ...freqConfig, preferred_day_of_month: parseInt(e.target.value) })}>
-                        <option value={0}>Cualquier dia</option>
+                        <option value={0}>{t('assembly_any_day', 'Cualquier dia')}</option>
                         {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
-                          <option key={d} value={d}>Dia {d}</option>
+                          <option key={d} value={d}>{t('assembly_day', 'Dia')} {d}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className="label">Hora preferida</label>
+                      <label className="label">{t('assembly_preferred_hour', 'Hora preferida')}</label>
                       <select className="input" value={freqConfig.preferred_hour} onChange={e => setFreqConfig({ ...freqConfig, preferred_hour: parseInt(e.target.value) })}>
                         {Array.from({ length: 24 }, (_, i) => i).map(h => (
                           <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
@@ -3079,26 +3070,26 @@ export default function Assembly() {
                       </select>
                     </div>
                     <div>
-                      <label className="label">Notificar con anticipacion</label>
+                      <label className="label">{t('assembly_notify_before', 'Notificar con anticipacion')}</label>
                       <select className="input" value={freqConfig.notification_days_before} onChange={e => setFreqConfig({ ...freqConfig, notification_days_before: parseInt(e.target.value) })}>
-                        <option value={1}>1 dia antes</option>
-                        <option value={3}>3 dias antes</option>
-                        <option value={7}>7 dias antes</option>
-                        <option value={14}>14 dias antes</option>
-                        <option value={30}>30 dias antes</option>
+                        <option value={1}>1 {t('assembly_day_before', 'dia antes')}</option>
+                        <option value={3}>3 {t('assembly_days_before', 'dias antes')}</option>
+                        <option value={7}>7 {t('assembly_days_before', 'dias antes')}</option>
+                        <option value={14}>14 {t('assembly_days_before', 'dias antes')}</option>
+                        <option value={30}>30 {t('assembly_days_before', 'dias antes')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="label">Registrar asistencia (horas antes)</label>
+                      <label className="label">{t('assembly_register_attendance_hours', 'Registrar asistencia (horas antes)')}</label>
                       <select className="input" value={freqConfig.attendance_window_hours || 1} onChange={e => setFreqConfig({ ...freqConfig, attendance_window_hours: parseInt(e.target.value) })}>
-                        <option value={1}>1 hora antes</option>
-                        <option value={2}>2 horas antes</option>
-                        <option value={3}>3 horas antes</option>
-                        <option value={6}>6 horas antes</option>
-                        <option value={12}>12 horas antes</option>
-                        <option value={24}>24 horas antes (todo el dia)</option>
+                        <option value={1}>1 {t('assembly_hour_before', 'hora antes')}</option>
+                        <option value={2}>2 {t('assembly_hours_before', 'horas antes')}</option>
+                        <option value={3}>3 {t('assembly_hours_before', 'horas antes')}</option>
+                        <option value={6}>6 {t('assembly_hours_before', 'horas antes')}</option>
+                        <option value={12}>12 {t('assembly_hours_before', 'horas antes')}</option>
+                        <option value={24}>24 {t('assembly_hours_before_full_day', 'horas antes (todo el dia)')}</option>
                       </select>
-                      <p className="text-xs text-gray-400 mt-1">Desde cuando se puede empezar a registrar asistencia antes de la hora programada.</p>
+                      <p className="text-xs text-gray-400 mt-1">{t('assembly_attendance_window_desc', 'Desde cuando se puede empezar a registrar asistencia antes de la hora programada.')}</p>
                     </div>
                   </>
                 )}
@@ -3112,34 +3103,34 @@ export default function Assembly() {
             )}
           </div>
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p><strong>Reglas de convocatoria:</strong></p>
+            <p><strong>{t('assembly_convocation_rules', 'Reglas de convocatoria:')}</strong></p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
-              <li>Al cerrar una asamblea ordinaria, se agenda la siguiente automaticamente</li>
-              <li>Si se modifica la fecha de una asamblea ordinaria, sigue siendo ordinaria</li>
-              <li>Si se crea una asamblea nueva ademas de la ordinaria, esa es extraordinaria</li>
-              <li>Los miembros reciben notificacion con la anticipacion configurada</li>
-              <li>Las asambleas extraordinarias no se auto-convocan</li>
+              <li>{t('assembly_convocation_rule1', 'Al cerrar una asamblea ordinaria, se agenda la siguiente automaticamente')}</li>
+              <li>{t('assembly_convocation_rule2', 'Si se modifica la fecha de una asamblea ordinaria, sigue siendo ordinaria')}</li>
+              <li>{t('assembly_convocation_rule3', 'Si se crea una asamblea nueva ademas de la ordinaria, esa es extraordinaria')}</li>
+              <li>{t('assembly_convocation_rule4', 'Los miembros reciben notificacion con la anticipacion configurada')}</li>
+              <li>{t('assembly_convocation_rule5', 'Las asambleas extraordinarias no se auto-convocan')}</li>
             </ul>
           </div>
 
           {/* ===== Configuracion de aprobaciones ===== */}
-          <h3 className="font-semibold flex items-center gap-2 mt-6"><Shield size={18} />Configuracion de Aprobaciones</h3>
+          <h3 className="font-semibold flex items-center gap-2 mt-6"><Shield size={18} />{t('assembly_approval_config_title', 'Configuracion de Aprobaciones')}</h3>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Como funciona la configuracion de aprobaciones</strong></p>
-            <p>Aqui se define <b>quien aprueba</b> cada tipo de decision de la comunidad. Cada tipo de propuesta puede tener un metodo de aprobacion diferente. Por ejemplo, puedes configurar que aprobar productos lo decida la Junta Directiva rapidamente, pero eliminar productos requiera votacion de toda la Asamblea con 2/3 de mayoria.</p>
-            <p><strong>Metodos de aprobacion disponibles:</strong></p>
+            <p><strong>{t('assembly_approval_config_how', 'Como funciona la configuracion de aprobaciones')}</strong></p>
+            <p>{t('assembly_approval_config_desc', 'Aqui se define')} <b>{t('assembly_who_approves', 'quien aprueba')}</b> {t('assembly_approval_config_desc2', 'cada tipo de decision de la comunidad. Cada tipo de propuesta puede tener un metodo de aprobacion diferente. Por ejemplo, puedes configurar que aprobar productos lo decida la Junta Directiva rapidamente, pero eliminar productos requiera votacion de toda la Asamblea con 2/3 de mayoria.')}</p>
+            <p><strong>{t('assembly_approval_methods_title', 'Metodos de aprobacion disponibles:')}</strong></p>
             <ul className="list-disc list-inside space-y-1">
-              <li><b>Asamblea (votacion)</b>: Todos los miembros con derecho a voto votan a favor o en contra. Se aprueba si el porcentaje de votos a favor supera el umbral. Ej: 50% = mayoria simple, 66.67% = 2/3, 75% = 3/4, 100% = unanimidad.</li>
-              <li><b>Junta Directiva</b>: Solo los miembros de la junta directiva del nodo votan. Mas rapido que la Asamblea completa. Ideal para decisiones administrativas del dia a dia.</li>
-              <li><b>Comision/Departamento</b>: Una comision o departamento especifico decide. Selecciona cual comision. Las comisiones se crean en la seccion de Departamentos. Ideal para decisiones tecnicas que requieren conocimiento especializado.</li>
-              <li><b>Persona especifica</b>: Una sola persona autorizada aprueba. Util para decisiones rutinarias que no requieren debate. Selecciona quien es la persona autorizada.</li>
-              <li><b>Cualquiera de los autorizados</b>: Varias personas estan autorizadas pero CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todos. Diferente de multi-firma donde todos deben firmar.</li>
-              <li><b>Organizacion</b>: Delega la aprobacion a una organizacion (cooperativa, comite, etc). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.</li>
-              <li><b>Multi-firma</b>: Varias personas u organizaciones especificas deben firmar TODAS. Se aprueba solo cuando se alcanza el numero de firmas requerido. Selecciona exactamente QUIENES pueden firmar (personas y/o organizaciones).</li>
+              <li><b>{t('assembly_method_assembly', 'Asamblea (votacion)')}</b>: {t('assembly_method_assembly_desc', 'Todos los miembros con derecho a voto votan a favor o en contra. Se aprueba si el porcentaje de votos a favor supera el umbral. Ej: 50% = mayoria simple, 66.67% = 2/3, 75% = 3/4, 100% = unanimidad.')}</li>
+              <li><b>{t('assembly_method_board', 'Junta Directiva')}</b>: {t('assembly_method_board_desc', 'Solo los miembros de la junta directiva del nodo votan. Mas rapido que la Asamblea completa. Ideal para decisiones administrativas del dia a dia.')}</li>
+              <li><b>{t('assembly_method_council', 'Comision/Departamento')}</b>: {t('assembly_method_council_desc', 'Una comision o departamento especifico decide. Selecciona cual comision. Las comisiones se crean en la seccion de Departamentos. Ideal para decisiones tecnicas que requieren conocimiento especializado.')}</li>
+              <li><b>{t('assembly_method_person', 'Persona especifica')}</b>: {t('assembly_method_person_desc', 'Una sola persona autorizada aprueba. Util para decisiones rutinarias que no requieren debate. Selecciona quien es la persona autorizada.')}</li>
+              <li><b>{t('assembly_method_authorized_any', 'Cualquiera de los autorizados')}</b>: {t('assembly_method_authorized_any_desc', 'Varias personas estan autorizadas pero CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todos. Diferente de multi-firma donde todos deben firmar.')}</li>
+              <li><b>{t('assembly_method_organization', 'Organizacion')}</b>: {t('assembly_method_organization_desc', 'Delega la aprobacion a una organizacion (cooperativa, comite, etc). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.')}</li>
+              <li><b>{t('assembly_method_multisig', 'Multi-firma')}</b>: {t('assembly_method_multisig_desc', 'Varias personas u organizaciones especificas deben firmar TODAS. Se aprueba solo cuando se alcanza el numero de firmas requerido. Selecciona exactamente QUIENES pueden firmar (personas y/o organizaciones).')}</li>
             </ul>
-            <p>El <b>quorum</b> es el numero minimo de miembros que deben votar para que la decision sea valida. Si es 0, no hay minimo.</p>
-            <p><strong>Consejo sobre que metodo usar:</strong> Para cosas rutinarias (aprobar/desaprobar productos) usa Junta Directiva o Persona especifica. Para cosas graves (eliminar productos, expulsar miembros, cambiar impuestos) usa Asamblea con umbral alto (66.67% o mas).</p>
+            <p>{t('assembly_quorum_desc', 'El')} <b>{t('assembly_quorum', 'quorum')}</b> {t('assembly_quorum_desc2', 'es el numero minimo de miembros que deben votar para que la decision sea valida. Si es 0, no hay minimo.')}</p>
+            <p><strong>{t('assembly_method_advice_title', 'Consejo sobre que metodo usar:')}</strong> {t('assembly_method_advice_desc', 'Para cosas rutinarias (aprobar/desaprobar productos) usa Junta Directiva o Persona especifica. Para cosas graves (eliminar productos, expulsar miembros, cambiar impuestos) usa Asamblea con umbral alto (66.67% o mas).')}</p>
           </div>
 
           {assemblyConfigs.length === 0 ? (
@@ -3150,13 +3141,13 @@ export default function Assembly() {
             <div className="space-y-2">
               {assemblyConfigs.map((cfg: any) => {
                 const methodLabels: Record<string, string> = {
-                  assembly: 'Asamblea',
-                  board: 'Junta Directiva',
-                  council: 'Comision/Departamento',
-                  multisig: 'Multi-firma (todas)',
-                  person: 'Persona especifica',
-                  authorized_any: 'Cualquiera autorizado',
-                  organization: 'Organizacion',
+                  assembly: t('assembly_method_assembly_short', 'Asamblea'),
+                  board: t('assembly_method_board', 'Junta Directiva'),
+                  council: t('assembly_method_council', 'Comision/Departamento'),
+                  multisig: t('assembly_method_multisig_all', 'Multi-firma (todas)'),
+                  person: t('assembly_method_person', 'Persona especifica'),
+                  authorized_any: t('assembly_method_authorized_any_short', 'Cualquiera autorizado'),
+                  organization: t('assembly_method_organization', 'Organizacion'),
                 }
                 const methodLabel = methodLabels[cfg.approval_method] || cfg.approval_method
                 return (
@@ -3170,23 +3161,23 @@ export default function Assembly() {
                       {cfg.description && <p className="text-xs text-gray-500 mt-1">{cfg.description}</p>}
                       <div className="flex gap-4 mt-2 text-xs text-gray-600 flex-wrap">
                         {(cfg.approval_method === 'assembly' || cfg.approval_method === 'board' || cfg.approval_method === 'organization') && (
-                          <span>Porcentaje: <b>{cfg.required_percentage}%</b></span>
+                          <span>{t('assembly_percentage', 'Porcentaje:')} <b>{cfg.required_percentage}%</b></span>
                         )}
                         {(cfg.approval_method === 'assembly' || cfg.approval_method === 'board' || cfg.approval_method === 'organization') && (
-                          <span>Quorum: <b>{cfg.required_quorum}</b></span>
+                          <span>{t('assembly_quorum_label', 'Quorum:')} <b>{cfg.required_quorum}</b></span>
                         )}
-                        {cfg.approval_method === 'multisig' && <span>Firmas requeridas: <b>{cfg.required_signatures}</b></span>}
+                        {cfg.approval_method === 'multisig' && <span>{t('assembly_required_signatures', 'Firmas requeridas:')} <b>{cfg.required_signatures}</b></span>}
                         {cfg.approval_method === 'council' && cfg.council_name && (
-                          <span>Comision: <b>{cfg.council_name}</b></span>
+                          <span>{t('assembly_council_label', 'Comision:')} <b>{cfg.council_name}</b></span>
                         )}
                         {cfg.approval_method === 'person' && cfg.authorized_person_name && (
-                          <span>Persona: <b>{cfg.authorized_person_name}</b></span>
+                          <span>{t('assembly_person_label', 'Persona:')} <b>{cfg.authorized_person_name}</b></span>
                         )}
                         {cfg.approval_method === 'organization' && cfg.organization_name && (
-                          <span>Organizacion: <b>{cfg.organization_name}</b></span>
+                          <span>{t('assembly_org_label', 'Organizacion:')} <b>{cfg.organization_name}</b></span>
                         )}
                         {cfg.approval_method === 'multisig' && cfg.signers && cfg.signers.length > 0 && (
-                          <span>Autorizados: <b>{cfg.signers.map((s: any) => s.user_name || s.org_name).join(', ')}</b></span>
+                          <span>{t('assembly_authorized_label', 'Autorizados:')} <b>{cfg.signers.map((s: any) => s.user_name || s.org_name).join(', ')}</b></span>
                         )}
                       </div>
                     </div>
@@ -3194,7 +3185,7 @@ export default function Assembly() {
                       onClick={() => setEditingConfig(editingConfig?.id === cfg.id ? null : { ...cfg, signers: cfg.signers || [] })}
                       className="text-blue-500 hover:bg-blue-50 p-2 rounded text-sm"
                     >
-                      Editar
+                      {t('common:edit')}
                     </button>
                   </div>
                   {editingConfig?.id === cfg.id && (
@@ -3202,8 +3193,8 @@ export default function Assembly() {
                       {/* Metodo de aprobacion con ayuda */}
                       <div>
                         <label className="label flex items-center gap-1">
-                          Metodo de aprobacion
-                          <span className="text-blue-500 cursor-help" title="Define quien toma la decision para este tipo de propuesta. Cada metodo tiene diferentes caracteristicas de velocidad y seguridad.">
+                          {t('assembly_approval_method', 'Metodo de aprobacion')}
+                          <span className="text-blue-500 cursor-help" title={t('assembly_approval_method_help', 'Define quien toma la decision para este tipo de propuesta. Cada metodo tiene diferentes caracteristicas de velocidad y seguridad.')}>
                             <HelpCircle size={14} />
                           </span>
                         </label>
@@ -3212,22 +3203,22 @@ export default function Assembly() {
                           value={editingConfig.approval_method}
                           onChange={(e) => setEditingConfig({ ...editingConfig, approval_method: e.target.value })}
                         >
-                          <option value="assembly">Asamblea (votacion de todos)</option>
-                          <option value="board">Junta Directiva (mas rapido)</option>
-                          <option value="council">Comision/Departamento (especializado)</option>
-                          <option value="person">Persona especifica (mas rapido)</option>
-                          <option value="authorized_any">Cualquiera de los autorizados (rapido)</option>
-                          <option value="organization">Organizacion (delegado)</option>
-                          <option value="multisig">Multi-firma (todas deben firmar)</option>
+                          <option value="assembly">{t('assembly_opt_assembly', 'Asamblea (votacion de todos)')}</option>
+                          <option value="board">{t('assembly_opt_board', 'Junta Directiva (mas rapido)')}</option>
+                          <option value="council">{t('assembly_opt_council', 'Comision/Departamento (especializado)')}</option>
+                          <option value="person">{t('assembly_opt_person', 'Persona especifica (mas rapido)')}</option>
+                          <option value="authorized_any">{t('assembly_opt_authorized_any', 'Cualquiera de los autorizados (rapido)')}</option>
+                          <option value="organization">{t('assembly_opt_organization', 'Organizacion (delegado)')}</option>
+                          <option value="multisig">{t('assembly_opt_multisig', 'Multi-firma (todas deben firmar)')}</option>
                         </select>
                         <div className="text-xs text-gray-500 mt-1 bg-blue-50 p-2 rounded">
-                          {editingConfig.approval_method === 'assembly' && 'Asamblea: Todos los miembros con derecho a voto votan. Es el metodo mas democratico pero el mas lento. Ideal para decisiones graves como cambiar impuestos o expulsar miembros.'}
-                          {editingConfig.approval_method === 'board' && 'Junta Directiva: Solo los miembros de la junta directiva votan. Mas rapido que la asamblea. Ideal para decisiones administrativas del dia a dia como aprobar productos.'}
-                          {editingConfig.approval_method === 'council' && 'Comision/Departamento: Una comision o departamento especifico decide. Ideal para decisiones tecnicas que requieren conocimiento especializado. Selecciona cual comision abajo.'}
-                          {editingConfig.approval_method === 'person' && 'Persona especifica: Una sola persona autorizada aprueba. Es el metodo mas rapido. Ideal para decisiones rutinarias. Selecciona quien es la persona abajo.'}
-                          {editingConfig.approval_method === 'authorized_any' && 'Cualquiera de los autorizados: Varias personas estan autorizadas pero CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todos. Ideal cuando quieres delegar a varias personas pero basta con que una actue.'}
-                          {editingConfig.approval_method === 'organization' && 'Organizacion: Delega la aprobacion a una organizacion (cooperativa, comite). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.'}
-                          {editingConfig.approval_method === 'multisig' && 'Multi-firma: Varias personas u organizaciones especificas deben firmar TODAS. Se aprueba solo cuando se alcanza el numero de firmas requerido. Diferente de "cualquiera autorizado" porque aqui TODOS deben firmar.'}
+                          {editingConfig.approval_method === 'assembly' && t('assembly_help_assembly', 'Asamblea: Todos los miembros con derecho a voto votan. Es el metodo mas democratico pero el mas lento. Ideal para decisiones graves como cambiar impuestos o expulsar miembros.')}
+                          {editingConfig.approval_method === 'board' && t('assembly_help_board', 'Junta Directiva: Solo los miembros de la junta directiva votan. Mas rapido que la asamblea. Ideal para decisiones administrativas del dia a dia como aprobar productos.')}
+                          {editingConfig.approval_method === 'council' && t('assembly_help_council', 'Comision/Departamento: Una comision o departamento especifico decide. Ideal para decisiones tecnicas que requieren conocimiento especializado. Selecciona cual comision abajo.')}
+                          {editingConfig.approval_method === 'person' && t('assembly_help_person', 'Persona especifica: Una sola persona autorizada aprueba. Es el metodo mas rapido. Ideal para decisiones rutinarias. Selecciona quien es la persona abajo.')}
+                          {editingConfig.approval_method === 'authorized_any' && t('assembly_help_authorized_any', 'Cualquiera de los autorizados: Varias personas estan autorizadas pero CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todos. Ideal cuando quieres delegar a varias personas pero basta con que una actue.')}
+                          {editingConfig.approval_method === 'organization' && t('assembly_help_organization', 'Organizacion: Delega la aprobacion a una organizacion (cooperativa, comite). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.')}
+                          {editingConfig.approval_method === 'multisig' && t('assembly_help_multisig', 'Multi-firma: Varias personas u organizaciones especificas deben firmar TODAS. Se aprueba solo cuando se alcanza el numero de firmas requerido. Diferente de "cualquiera autorizado" porque aqui TODOS deben firmar.')}
                         </div>
                       </div>
 
@@ -3236,8 +3227,8 @@ export default function Assembly() {
                         <>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Porcentaje requerido (%)
-                              <span className="text-blue-500 cursor-help" title="Porcentaje de votos a favor necesarios para aprobar. 50% = mayoria simple (mas de la mitad). 66.67% = dos tercios. 75% = tres cuartos. 100% = unanimidad (todos deben estar de acuerdo).">
+                              {t('assembly_required_percentage', 'Porcentaje requerido (%)')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_percentage_help', 'Porcentaje de votos a favor necesarios para aprobar. 50% = mayoria simple (mas de la mitad). 66.67% = dos tercios. 75% = tres cuartos. 100% = unanimidad (todos deben estar de acuerdo).')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3248,12 +3239,12 @@ export default function Assembly() {
                               value={editingConfig.required_percentage}
                               onChange={(e) => setEditingConfig({ ...editingConfig, required_percentage: parseFloat(e.target.value) || 0 })}
                             />
-                            <p className="text-xs text-gray-400 mt-1">50 = mayoria simple. 66.67 = 2/3. 75 = 3/4. 100 = unanimidad.</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('assembly_percentage_hint', '50 = mayoria simple. 66.67 = 2/3. 75 = 3/4. 100 = unanimidad.')}</p>
                           </div>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Quorum minimo (numero de votantes)
-                              <span className="text-blue-500 cursor-help" title="Numero minimo de miembros que deben votar para que la decision sea valida. Si ponen 0, no hay minimo y basta con que vote una sola persona. Si ponen 10, al menos 10 miembros deben votar.">
+                              {t('assembly_min_quorum_voters', 'Quorum minimo (numero de votantes)')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_quorum_voters_help', 'Numero minimo de miembros que deben votar para que la decision sea valida. Si ponen 0, no hay minimo y basta con que vote una sola persona. Si ponen 10, al menos 10 miembros deben votar.')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3263,7 +3254,7 @@ export default function Assembly() {
                               value={editingConfig.required_quorum}
                               onChange={(e) => setEditingConfig({ ...editingConfig, required_quorum: parseInt(e.target.value) || 0 })}
                             />
-                            <p className="text-xs text-gray-400 mt-1">Minimo de miembros que deben votar. 0 = sin minimo.</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('assembly_quorum_voters_hint', 'Minimo de miembros que deben votar. 0 = sin minimo.')}</p>
                           </div>
                         </>
                       )}
@@ -3273,8 +3264,8 @@ export default function Assembly() {
                         <>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Porcentaje requerido (%)
-                              <span className="text-blue-500 cursor-help" title="Porcentaje de votos a favor de la junta directiva necesarios para aprobar. 50% = mayoria simple de la junta.">
+                              {t('assembly_required_percentage', 'Porcentaje requerido (%)')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_board_percentage_help', 'Porcentaje de votos a favor de la junta directiva necesarios para aprobar. 50% = mayoria simple de la junta.')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3285,10 +3276,10 @@ export default function Assembly() {
                               value={editingConfig.required_percentage}
                               onChange={(e) => setEditingConfig({ ...editingConfig, required_percentage: parseFloat(e.target.value) || 0 })}
                             />
-                            <p className="text-xs text-gray-400 mt-1">50 = mayoria simple de la junta. 66.67 = 2/3 de la junta.</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('assembly_board_percentage_hint', '50 = mayoria simple de la junta. 66.67 = 2/3 de la junta.')}</p>
                           </div>
                           <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
-                            La junta directiva se configura en la seccion "Junta Directiva" de esta pagina. Los miembros activos de la junta podran votar.
+                            {t('assembly_board_config_note', 'La junta directiva se configura en la seccion "Junta Directiva" de esta pagina. Los miembros activos de la junta podran votar.')}
                           </div>
                         </>
                       )}
@@ -3297,8 +3288,8 @@ export default function Assembly() {
                       {editingConfig.approval_method === 'council' && (
                         <div>
                           <label className="label flex items-center gap-1">
-                            Comision/Departamento que decide
-                            <span className="text-blue-500 cursor-help" title="Selecciona cual comision o departamento sera responsable de aprobar este tipo de propuesta. Las comisiones se crean en la seccion de Departamentos. Solo los miembros de la comision podran votar.">
+                            {t('assembly_council_that_decides', 'Comision/Departamento que decide')}
+                            <span className="text-blue-500 cursor-help" title={t('assembly_council_help', 'Selecciona cual comision o departamento sera responsable de aprobar este tipo de propuesta. Las comisiones se crean en la seccion de Departamentos. Solo los miembros de la comision podran votar.')}>
                               <HelpCircle size={14} />
                             </span>
                           </label>
@@ -3307,16 +3298,16 @@ export default function Assembly() {
                             value={editingConfig.council_id || ''}
                             onChange={(e) => setEditingConfig({ ...editingConfig, council_id: e.target.value })}
                           >
-                            <option value="">Seleccionar comision...</option>
+                            <option value="">{t('assembly_select_council', 'Seleccionar comision...')}</option>
                             {departments.map((d: any) => (
                               <option key={d.id} value={d.id}>{d.name}</option>
                             ))}
                           </select>
                           {departments.length === 0 && (
-                            <p className="text-xs text-amber-600 mt-1">No hay comisiones/departamentos creados. Crea uno en la seccion de Departamentos primero.</p>
+                            <p className="text-xs text-amber-600 mt-1">{t('assembly_no_councils', 'No hay comisiones/departamentos creados. Crea uno en la seccion de Departamentos primero.')}</p>
                           )}
                           <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded mt-2">
-                            Una comision es un grupo de personas con conocimiento especializado en un area. Por ejemplo, una "Comision de Economia" podria aprobar cambios de precios, o una "Comision de Admisiones" podria aprobar nuevos miembros.
+                            {t('assembly_council_desc', 'Una comision es un grupo de personas con conocimiento especializado en un area. Por ejemplo, una "Comision de Economia" podria aprobar cambios de precios, o una "Comision de Admisiones" podria aprobar nuevos miembros.')}
                           </div>
                         </div>
                       )}
@@ -3325,8 +3316,8 @@ export default function Assembly() {
                       {editingConfig.approval_method === 'person' && (
                         <div>
                           <label className="label flex items-center gap-1">
-                            Persona autorizada
-                            <span className="text-blue-500 cursor-help" title="Selecciona la persona que tendra autoridad para aprobar o rechazar este tipo de propuesta por si sola, sin necesidad de votacion.">
+                            {t('assembly_authorized_person', 'Persona autorizada')}
+                            <span className="text-blue-500 cursor-help" title={t('assembly_authorized_person_help', 'Selecciona la persona que tendra autoridad para aprobar o rechazar este tipo de propuesta por si sola, sin necesidad de votacion.')}>
                               <HelpCircle size={14} />
                             </span>
                           </label>
@@ -3335,13 +3326,13 @@ export default function Assembly() {
                             value={editingConfig.authorized_person_id || ''}
                             onChange={(e) => setEditingConfig({ ...editingConfig, authorized_person_id: e.target.value })}
                           >
-                            <option value="">Seleccionar persona...</option>
+                            <option value="">{t('assembly_select_person', 'Seleccionar persona...')}</option>
                             {userList.map((u: any) => (
                               <option key={u.id} value={u.id}>{u.display_name || u.username}</option>
                             ))}
                           </select>
                           <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded mt-2">
-                            Esta persona podra aprobar o rechazar propuestas de este tipo por si sola. Es el metodo mas rapido pero concentra poder en una sola persona. Usalo solo para decisiones rutinarias de baja riesgo.
+                            {t('assembly_person_method_desc', 'Esta persona podra aprobar o rechazar propuestas de este tipo por si sola. Es el metodo mas rapido pero concentra poder en una sola persona. Usalo solo para decisiones rutinarias de baja riesgo.')}
                           </div>
                         </div>
                       )}
@@ -3351,8 +3342,8 @@ export default function Assembly() {
                         <>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Organizacion que decide
-                              <span className="text-blue-500 cursor-help" title="Selecciona la organizacion a la que se delegara la aprobacion. La organizacion tendra sus propios ajustes para decidir internamente quien firma por ella.">
+                              {t('assembly_org_that_decides', 'Organizacion que decide')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_org_help', 'Selecciona la organizacion a la que se delegara la aprobacion. La organizacion tendra sus propios ajustes para decidir internamente quien firma por ella.')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3361,19 +3352,19 @@ export default function Assembly() {
                               value={editingConfig.organization_id || ''}
                               onChange={(e) => setEditingConfig({ ...editingConfig, organization_id: e.target.value })}
                             >
-                              <option value="">Seleccionar organizacion...</option>
+                              <option value="">{t('assembly_select_org', 'Seleccionar organizacion...')}</option>
                               {orgList.map((o: any) => (
                                 <option key={o.id} value={o.id}>{o.name}</option>
                               ))}
                             </select>
                             {orgList.length === 0 && (
-                              <p className="text-xs text-amber-600 mt-1">No hay organizaciones creadas.</p>
+                              <p className="text-xs text-amber-600 mt-1">{t('assembly_no_orgs_created', 'No hay organizaciones creadas.')}</p>
                             )}
                           </div>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Porcentaje requerido dentro de la organizacion (%)
-                              <span className="text-blue-500 cursor-help" title="Porcentaje de votos a favor dentro de la organizacion para que la aprobacion sea valida.">
+                              {t('assembly_org_percentage', 'Porcentaje requerido dentro de la organizacion (%)')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_org_percentage_help', 'Porcentaje de votos a favor dentro de la organizacion para que la aprobacion sea valida.')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3384,10 +3375,10 @@ export default function Assembly() {
                               value={editingConfig.required_percentage}
                               onChange={(e) => setEditingConfig({ ...editingConfig, required_percentage: parseFloat(e.target.value) || 0 })}
                             />
-                            <p className="text-xs text-gray-400 mt-1">50 = mayoria simple de la organizacion.</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('assembly_org_percentage_hint', '50 = mayoria simple de la organizacion.')}</p>
                           </div>
                           <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
-                            La organizacion tendra sus propios ajustes internos para decidir quien puede firmar por ella. Esto se configura dentro de la organizacion.
+                            {t('assembly_org_internal_note', 'La organizacion tendra sus propios ajustes internos para decidir quien puede firmar por ella. Esto se configura dentro de la organizacion.')}
                           </div>
                         </>
                       )}
@@ -3397,8 +3388,8 @@ export default function Assembly() {
                         <>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Firmas requeridas
-                              <span className="text-blue-500 cursor-help" title="Numero de firmas necesarias para aprobar. Si pones 3, se necesitan 3 firmas de las personas/organizaciones autorizadas abajo. No puede ser mayor que el numero de autorizados.">
+                              {t('assembly_required_signatures_label', 'Firmas requeridas')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_signatures_help', 'Numero de firmas necesarias para aprobar. Si pones 3, se necesitan 3 firmas de las personas/organizaciones autorizadas abajo. No puede ser mayor que el numero de autorizados.')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3408,12 +3399,12 @@ export default function Assembly() {
                               value={editingConfig.required_signatures}
                               onChange={(e) => setEditingConfig({ ...editingConfig, required_signatures: parseInt(e.target.value) || 1 })}
                             />
-                            <p className="text-xs text-gray-400 mt-1">Cuantas firmas se necesitan de las personas/organizaciones autorizadas. Todas deben firmar.</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('assembly_signatures_hint', 'Cuantas firmas se necesitan de las personas/organizaciones autorizadas. Todas deben firmar.')}</p>
                           </div>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Personas/Organizaciones autorizadas para firmar
-                              <span className="text-blue-500 cursor-help" title="Lista de personas y/o organizaciones que tienen autoridad para firmar. Solo las personas/organizaciones de esta lista pueden firmar. Agrega o quita con los botones.">
+                              {t('assembly_authorized_signers', 'Personas/Organizaciones autorizadas para firmar')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_signers_help', 'Lista de personas y/o organizaciones que tienen autoridad para firmar. Solo las personas/organizaciones de esta lista pueden firmar. Agrega o quita con los botones.')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3424,9 +3415,9 @@ export default function Assembly() {
                                   <div key={s.id || i} className="flex items-center justify-between bg-gray-50 rounded p-2 text-sm">
                                     <div className="flex items-center gap-2">
                                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                                        {s.signer_type === 'organization' ? 'Organizacion' : 'Persona'}
+                                        {s.signer_type === 'organization' ? t('assembly_org_short', 'Organizacion') : t('assembly_person_short', 'Persona')}
                                       </span>
-                                      <span>{s.user_name || s.org_name || 'Desconocido'}</span>
+                                      <span>{s.user_name || s.org_name || t('assembly_unknown', 'Desconocido')}</span>
                                     </div>
                                     <button
                                       onClick={() => setEditingConfig({
@@ -3448,15 +3439,15 @@ export default function Assembly() {
                                 value={newSignerType}
                                 onChange={(e) => { setNewSignerType(e.target.value as 'person' | 'organization'); setNewSignerId('') }}
                               >
-                                <option value="person">Persona</option>
-                                <option value="organization">Organizacion</option>
+                                <option value="person">{t('assembly_person_short', 'Persona')}</option>
+                                <option value="organization">{t('assembly_org_short', 'Organizacion')}</option>
                               </select>
                               <select
                                 className="input flex-1"
                                 value={newSignerId}
                                 onChange={(e) => setNewSignerId(e.target.value)}
                               >
-                                <option value="">Seleccionar...</option>
+                                <option value="">{t('assembly_select', 'Seleccionar...')}</option>
                                 {newSignerType === 'person'
                                   ? userList.map((u: any) => (
                                       <option key={u.id} value={u.id}>{u.display_name || u.username}</option>
@@ -3486,11 +3477,11 @@ export default function Assembly() {
                                 }}
                                 className="btn-secondary text-sm flex-shrink-0"
                               >
-                                <Plus size={14} /> Agregar
+                                <Plus size={14} /> {t('assembly_add', 'Agregar')}
                               </button>
                             </div>
                             {(!editingConfig.signers || editingConfig.signers.length === 0) && (
-                              <p className="text-xs text-amber-600 mt-1">No has agregado ningun firmante autorizado. Agrega al menos uno.</p>
+                              <p className="text-xs text-amber-600 mt-1">{t('assembly_no_signers', 'No has agregado ningun firmante autorizado. Agrega al menos uno.')}</p>
                             )}
                           </div>
                         </>
@@ -3500,12 +3491,12 @@ export default function Assembly() {
                       {editingConfig.approval_method === 'authorized_any' && (
                         <>
                           <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
-                            Cualquiera de las personas autorizadas abajo puede aprobar este cambio por si sola. No necesitan firmar todos, basta con que una persona autorizada actue.
+                            {t('assembly_authorized_any_desc', 'Cualquiera de las personas autorizadas abajo puede aprobar este cambio por si sola. No necesitan firmar todos, basta con que una persona autorizada actue.')}
                           </div>
                           <div>
                             <label className="label flex items-center gap-1">
-                              Personas autorizadas (cualquiera puede aprobar)
-                              <span className="text-blue-500 cursor-help" title="Lista de personas autorizadas. CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todas. Diferente de multi-firma donde TODAS deben firmar.">
+                              {t('assembly_authorized_persons', 'Personas autorizadas (cualquiera puede aprobar)')}
+                              <span className="text-blue-500 cursor-help" title={t('assembly_authorized_persons_help', 'Lista de personas autorizadas. CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todas. Diferente de multi-firma donde TODAS deben firmar.')}>
                                 <HelpCircle size={14} />
                               </span>
                             </label>
@@ -3516,9 +3507,9 @@ export default function Assembly() {
                                   <div key={s.id || i} className="flex items-center justify-between bg-gray-50 rounded p-2 text-sm">
                                     <div className="flex items-center gap-2">
                                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                                        {s.signer_type === 'organization' ? 'Organizacion' : 'Persona'}
+                                        {s.signer_type === 'organization' ? t('assembly_org_short', 'Organizacion') : t('assembly_person_short', 'Persona')}
                                       </span>
-                                      <span>{s.user_name || s.org_name || 'Desconocido'}</span>
+                                      <span>{s.user_name || s.org_name || t('assembly_unknown', 'Desconocido')}</span>
                                     </div>
                                     <button
                                       onClick={() => setEditingConfig({
@@ -3540,15 +3531,15 @@ export default function Assembly() {
                                 value={newSignerType}
                                 onChange={(e) => { setNewSignerType(e.target.value as 'person' | 'organization'); setNewSignerId('') }}
                               >
-                                <option value="person">Persona</option>
-                                <option value="organization">Organizacion</option>
+                                <option value="person">{t('assembly_person_short', 'Persona')}</option>
+                                <option value="organization">{t('assembly_org_short', 'Organizacion')}</option>
                               </select>
                               <select
                                 className="input flex-1"
                                 value={newSignerId}
                                 onChange={(e) => setNewSignerId(e.target.value)}
                               >
-                                <option value="">Seleccionar...</option>
+                                <option value="">{t('assembly_select', 'Seleccionar...')}</option>
                                 {newSignerType === 'person'
                                   ? userList.map((u: any) => (
                                       <option key={u.id} value={u.id}>{u.display_name || u.username}</option>
@@ -3578,11 +3569,11 @@ export default function Assembly() {
                                 }}
                                 className="btn-secondary text-sm flex-shrink-0"
                               >
-                                <Plus size={14} /> Agregar
+                                <Plus size={14} /> {t('assembly_add', 'Agregar')}
                               </button>
                             </div>
                             {(!editingConfig.signers || editingConfig.signers.length === 0) && (
-                              <p className="text-xs text-amber-600 mt-1">No has agregado ninguna persona autorizada. Agrega al menos una.</p>
+                              <p className="text-xs text-amber-600 mt-1">{t('assembly_no_authorized_persons', 'No has agregado ninguna persona autorizada. Agrega al menos una.')}</p>
                             )}
                           </div>
                         </>
@@ -3591,8 +3582,8 @@ export default function Assembly() {
                       {/* Descripcion */}
                       <div>
                         <label className="label flex items-center gap-1">
-                          Descripcion
-                          <span className="text-blue-500 cursor-help" title="Texto descriptivo que explica que hace este tipo de propuesta. Aparece debajo del titulo para ayudar a entender de que se trata.">
+                          {t('assembly_description_label', 'Descripcion')}
+                          <span className="text-blue-500 cursor-help" title={t('assembly_description_help', 'Texto descriptivo que explica que hace este tipo de propuesta. Aparece debajo del titulo para ayudar a entender de que se trata.')}>
                             <HelpCircle size={14} />
                           </span>
                         </label>
@@ -3648,7 +3639,7 @@ export default function Assembly() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-bold">Abrir votacion</h2>
+              <h2 className="text-lg font-bold">{t('assembly_open_voting', 'Abrir votacion')}</h2>
               <button onClick={() => setVotingModal(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -3657,27 +3648,27 @@ export default function Assembly() {
               <p className="text-sm text-gray-600">{votingModal.title}</p>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Modo de votacion</label>
+                <label className="block text-sm font-medium mb-2">{t('assembly_voting_mode', 'Modo de votacion')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => { setVotingMode('presencial'); setVotingDuration(10) }}
                     className={`px-3 py-2 rounded-lg border-2 text-sm font-medium ${votingMode === 'presencial' ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'}`}
                   >
-                    Presencial
+                    {t('assembly_presential', 'Presencial')}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setVotingMode('remoto'); setVotingDuration(1440) }}
                     className={`px-3 py-2 rounded-lg border-2 text-sm font-medium ${votingMode === 'remoto' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}
                   >
-                    Remoto
+                    {t('assembly_remote', 'Remoto')}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Duracion del voto</label>
+                <label className="block text-sm font-medium mb-1">{t('assembly_voting_duration', 'Duracion del voto')}</label>
                 <select
                   value={votingDuration}
                   onChange={e => setVotingDuration(parseInt(e.target.value))}
@@ -3685,25 +3676,25 @@ export default function Assembly() {
                 >
                   {votingMode === 'presencial' ? (
                     <>
-                      <option value={5}>5 minutos</option>
-                      <option value={10}>10 minutos</option>
-                      <option value={15}>15 minutos</option>
-                      <option value={30}>30 minutos (discusion extendida)</option>
+                      <option value={5}>5 {t('assembly_minutes', 'minutos')}</option>
+                      <option value={10}>10 {t('assembly_minutes', 'minutos')}</option>
+                      <option value={15}>15 {t('assembly_minutes', 'minutos')}</option>
+                      <option value={30}>30 {t('assembly_minutes_extended', 'minutos (discusion extendida)')}</option>
                     </>
                   ) : (
                     <>
-                      <option value={60}>1 hora</option>
-                      <option value={360}>6 horas</option>
-                      <option value={1440}>24 horas</option>
-                      <option value={4320}>3 dias</option>
-                      <option value={10080}>7 dias (consulta prolongada)</option>
+                      <option value={60}>1 {t('assembly_hour', 'hora')}</option>
+                      <option value={360}>6 {t('assembly_hours', 'horas')}</option>
+                      <option value={1440}>24 {t('assembly_hours', 'horas')}</option>
+                      <option value={4320}>3 {t('assembly_days', 'dias')}</option>
+                      <option value={10080}>7 {t('assembly_days_prolonged', 'dias (consulta prolongada)')}</option>
                     </>
                   )}
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
                   {votingMode === 'presencial'
-                    ? 'Votacion durante la asamblea presencial. Cuando se venza el tiempo, se cuentan los votos.'
-                    : 'Votacion remota: los miembros pueden votar desde cualquier lugar. Cuando se venza el tiempo, la propuesta se rechaza si no hay quorum.'}
+                    ? t('assembly_presential_voting_desc', 'Votacion durante la asamblea presencial. Cuando se venza el tiempo, se cuentan los votos.')
+                    : t('assembly_remote_voting_desc', 'Votacion remota: los miembros pueden votar desde cualquier lugar. Cuando se venza el tiempo, la propuesta se rechaza si no hay quorum.')}
                 </p>
               </div>
 
@@ -3715,7 +3706,7 @@ export default function Assembly() {
                   onClick={() => openVoting(votingModal.id)}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 >
-                  Abrir votacion
+                  {t('assembly_open_voting_btn', 'Abrir votacion')}
                 </button>
               </div>
             </div>
@@ -3728,7 +3719,7 @@ export default function Assembly() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowProposalDetail(null)}>
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg">Detalles de la propuesta</h3>
+              <h3 className="font-semibold text-lg">{t('assembly_proposal_details', 'Detalles de la propuesta')}</h3>
               <button onClick={() => setShowProposalDetail(null)} className="text-gray-500 hover:text-gray-700">
                 <X size={20} />
               </button>
@@ -3736,38 +3727,38 @@ export default function Assembly() {
 
             <div className="space-y-3 text-sm">
               <div>
-                <span className="text-gray-500">Tipo:</span>{' '}
+                <span className="text-gray-500">{t('assembly_type_label', 'Tipo:')}:</span>{' '}
                 <span className="font-medium">{String(t(PROPOSAL_LABEL_KEYS[showProposalDetail.proposal_type as ProposalType] || '', showProposalDetail.proposal_type))}</span>
               </div>
 
               <div>
-                <span className="text-gray-500">Estado:</span>{' '}
-                <span className="font-medium">{showProposalDetail.status === 'expired' ? 'vencida' : showProposalDetail.status === 'pending' ? 'en votacion' : showProposalDetail.status === 'approved' ? 'aprobada' : showProposalDetail.status === 'executed' ? 'ejecutada' : showProposalDetail.status === 'rejected' ? 'rechazada' : showProposalDetail.status === 'proposed' ? 'pendiente de revision' : showProposalDetail.status}</span>
+                <span className="text-gray-500">{t('assembly_status_label', 'Estado:')}:</span>{' '}
+                <span className="font-medium">{showProposalDetail.status === 'expired' ? t('assembly_status_expired', 'vencida') : showProposalDetail.status === 'pending' ? t('assembly_status_voting', 'en votacion') : showProposalDetail.status === 'approved' ? t('assembly_status_approved', 'aprobada') : showProposalDetail.status === 'executed' ? t('assembly_status_executed', 'ejecutada') : showProposalDetail.status === 'rejected' ? t('assembly_status_rejected', 'rechazada') : showProposalDetail.status === 'proposed' ? t('assembly_status_proposed', 'pendiente de revision') : showProposalDetail.status}</span>
               </div>
 
               {showProposalDetail.created_at && (
                 <div>
-                  <span className="text-gray-500">Fecha de creacion:</span>{' '}
+                  <span className="text-gray-500">{t('assembly_creation_date', 'Fecha de creacion:')}:</span>{' '}
                   <span className="font-medium">{fmtDateTime(showProposalDetail.created_at)}</span>
                 </div>
               )}
 
               {showProposalDetail.title && (
                 <div>
-                  <span className="text-gray-500">Titulo:</span>{' '}
+                  <span className="text-gray-500">{t('assembly_title_label', 'Titulo:')}:</span>{' '}
                   <span className="font-medium">{showProposalDetail.title}</span>
                 </div>
               )}
 
               <div>
-                <span className="text-gray-500 block mb-1">Descripcion:</span>
+                <span className="text-gray-500 block mb-1">{t('assembly_description_label', 'Descripcion:')}:</span>
                 <p className="text-gray-700 whitespace-pre-wrap">{showProposalDetail.description}</p>
               </div>
 
               {/* Parametros de la propuesta */}
               {showProposalDetail.parameters && Object.keys(showProposalDetail.parameters).length > 0 && (
                 <div>
-                  <span className="text-gray-500 block mb-1">Parametros:</span>
+                  <span className="text-gray-500 block mb-1">{t('assembly_parameters', 'Parametros:')}:</span>
                   <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                     {Object.entries(showProposalDetail.parameters).map(([key, value]: [string, any]) => (
                       <div key={key} className="flex justify-between text-xs">
@@ -3782,7 +3773,7 @@ export default function Assembly() {
               {/* Respuestas del formulario de admision */}
               {showProposalDetail.form_responses && (
                 <div>
-                  <span className="text-gray-500 block mb-1">Respuestas del formulario:</span>
+                  <span className="text-gray-500 block mb-1">{t('assembly_form_responses', 'Respuestas del formulario:')}:</span>
                   <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                     {typeof showProposalDetail.form_responses === 'string' ? (
                       <p className="text-gray-700 whitespace-pre-wrap">{showProposalDetail.form_responses}</p>
@@ -3794,7 +3785,7 @@ export default function Assembly() {
                         </div>
                       ))
                     ) : (
-                      <p className="text-gray-400 italic text-xs">Sin respuestas</p>
+                      <p className="text-gray-400 italic text-xs">{t('assembly_no_responses', 'Sin respuestas')}</p>
                     )}
                   </div>
                 </div>
@@ -3803,7 +3794,7 @@ export default function Assembly() {
               {/* Metadata adicional */}
               {showProposalDetail.metadata && (
                 <div>
-                  <span className="text-gray-500 block mb-1">Metadata:</span>
+                  <span className="text-gray-500 block mb-1">{t('assembly_metadata', 'Metadata:')}:</span>
                   <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                     {typeof showProposalDetail.metadata === 'string' ? (
                       <p className="text-gray-700 whitespace-pre-wrap">{showProposalDetail.metadata}</p>
@@ -3815,7 +3806,7 @@ export default function Assembly() {
                         </div>
                       ))
                     ) : (
-                      <p className="text-gray-400 italic text-xs">Sin metadata</p>
+                      <p className="text-gray-400 italic text-xs">{t('assembly_no_metadata', 'Sin metadata')}</p>
                     )}
                   </div>
                 </div>
@@ -3824,11 +3815,11 @@ export default function Assembly() {
               {/* Votos (si aplica) */}
               {(showProposalDetail.votes_for != null || showProposalDetail.votes_against != null || showProposalDetail.votes_abstain != null) && (
                 <div>
-                  <span className="text-gray-500 block mb-1">Votos:</span>
+                  <span className="text-gray-500 block mb-1">{t('assembly_votes', 'Votos:')}:</span>
                   <div className="flex gap-4 text-sm">
-                    <span className="text-green-600 font-medium">A favor: {showProposalDetail.votes_for || 0}</span>
-                    <span className="text-red-600 font-medium">En contra: {showProposalDetail.votes_against || 0}</span>
-                    <span className="text-gray-500 font-medium">Abstencion: {showProposalDetail.votes_abstain || 0}</span>
+                    <span className="text-green-600 font-medium">{t('assembly_in_favor', 'A favor:')} {showProposalDetail.votes_for || 0}</span>
+                    <span className="text-red-600 font-medium">{t('assembly_against', 'En contra:')} {showProposalDetail.votes_against || 0}</span>
+                    <span className="text-gray-500 font-medium">{t('assembly_abstention', 'Abstencion:')} {showProposalDetail.votes_abstain || 0}</span>
                   </div>
                 </div>
               )}
@@ -3867,13 +3858,13 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
   const [allowReschedule, setAllowReschedule] = useState(config.allow_reschedule)
 
   const sessionTypeLabel: Record<string, string> = {
-    ordinaria: 'Asamblea Ordinaria',
-    extraordinaria: 'Asamblea Extraordinaria',
-    urgente: 'Asamblea Urgente',
+    ordinaria: t('assembly_ordinary', 'Asamblea Ordinaria'),
+    extraordinaria: t('assembly_extraordinary', 'Asamblea Extraordinaria'),
+    urgente: t('assembly_urgent', 'Asamblea Urgente'),
   }
 
   const isBoard = config.meeting_type === 'board'
-  const prefix = isBoard ? 'Junta ' : 'Asamblea '
+  const prefix = isBoard ? t('assembly_board_prefix', 'Junta ') : t('assembly_assembly_prefix', 'Asamblea ')
   const label = (sessionTypeLabel[config.session_type] || config.session_type).replace('Asamblea ', prefix)
 
   return (
@@ -3881,12 +3872,12 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
       <div className="flex items-center justify-between">
         <div>
           <b className="text-sm">{label}</b>
-          {isBoard && <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Junta Directiva</span>}
+          {isBoard && <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{t('assembly_board_directive', 'Junta Directiva')}</span>}
           <div className="flex gap-4 mt-1 text-xs text-gray-600">
-            <span>1er llamado: <b>{config.quorum_first_call}%</b></span>
-            <span>2do llamado: <b>{config.quorum_second_call}%</b></span>
-            <span>Gracia: <b>{config.grace_period_hours}h</b></span>
-            <span>Max. reprogramaciones: <b>{config.max_recall_count}</b></span>
+            <span>{t('assembly_first_call', '1er llamado:')} <b>{config.quorum_first_call}%</b></span>
+            <span>{t('assembly_second_call_label', '2do llamado:')} <b>{config.quorum_second_call}%</b></span>
+            <span>{t('assembly_grace', 'Gracia:')} <b>{config.grace_period_hours}h</b></span>
+            <span>{t('assembly_max_reschedules', 'Max. reprogramaciones:')} <b>{config.max_recall_count}</b></span>
           </div>
         </div>
         <button onClick={() => setEditing(!editing)} className="text-blue-500 hover:bg-blue-50 p-2 rounded text-sm">
@@ -3897,31 +3888,31 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
         <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Quorum 1er llamado (%)</label>
+              <label className="label">{t('assembly_quorum_first_call_pct', 'Quorum 1er llamado (%)')}</label>
               <input type="number" step="0.01" min="0" max="100" className="input" value={firstCall} onChange={e => setFirstCall(parseFloat(e.target.value))} />
-              <p className="text-xs text-gray-400">Porcentaje para la fecha original</p>
+              <p className="text-xs text-gray-400">{t('assembly_quorum_first_call_hint', 'Porcentaje para la fecha original')}</p>
             </div>
             <div>
-              <label className="label">Quorum 2do llamado (%)</label>
+              <label className="label">{t('assembly_quorum_second_call_pct', 'Quorum 2do llamado (%)')}</label>
               <input type="number" step="0.01" min="0" max="100" className="input" value={secondCall} onChange={e => setSecondCall(parseFloat(e.target.value))} />
-              <p className="text-xs text-gray-400">Porcentaje reducido si se reprograma</p>
+              <p className="text-xs text-gray-400">{t('assembly_quorum_second_call_hint', 'Porcentaje reducido si se reprograma')}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Periodo de gracia (horas)</label>
+              <label className="label">{t('assembly_grace_period_hours', 'Periodo de gracia (horas)')}</label>
               <input type="number" min="0" max="24" className="input" value={graceHours} onChange={e => setGraceHours(parseInt(e.target.value))} />
-              <p className="text-xs text-gray-400">Horas que se espera antes de cancelar</p>
+              <p className="text-xs text-gray-400">{t('assembly_grace_hint', 'Horas que se espera antes de cancelar')}</p>
             </div>
             <div>
-              <label className="label">Max. reprogramaciones</label>
+              <label className="label">{t('assembly_max_reschedules_label', 'Max. reprogramaciones')}</label>
               <input type="number" min="0" max="5" className="input" value={maxRecall} onChange={e => setMaxRecall(parseInt(e.target.value))} />
-              <p className="text-xs text-gray-400">Cuantas veces se puede reprogramar</p>
+              <p className="text-xs text-gray-400">{t('assembly_max_reschedules_hint', 'Cuantas veces se puede reprogramar')}</p>
             </div>
           </div>
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={allowReschedule} onChange={e => setAllowReschedule(e.target.checked)} className="accent-trueque-600" />
-            <span className="text-sm">Permitir reprogramar si no hay quorum</span>
+            <span className="text-sm">{t('assembly_allow_reschedule', 'Permitir reprogramar si no hay quorum')}</span>
           </label>
           <button
             onClick={() => {
