@@ -82,35 +82,35 @@ interface ColorPreset {
 
 const COLOR_PRESETS: ColorPreset[] = [
   {
-    name: 'Verde Comunitario',
+    name: 'Community Green',
     primary_color: '#162e16', secondary_color: '#c2410c',
     text_color: '#1a1a1a', button_hover_color: '#15803d',
     module_bg_color: '#ffffff', page_bg_color: '#f8faf5',
     footer_bg_color: '#112211', link_color: '#15803d', link_visited_color: '#6b21a8',
   },
   {
-    name: 'Tierra Barlovento',
+    name: 'Barlovento Earth',
     primary_color: '#7c2d12', secondary_color: '#15803d',
     text_color: '#1a1a1a', button_hover_color: '#92400e',
     module_bg_color: '#fefce8', page_bg_color: '#fef9c3',
     footer_bg_color: '#451a03', link_color: '#92400e', link_visited_color: '#6b21a8',
   },
   {
-    name: 'Caribe Azul',
+    name: 'Caribbean Blue',
     primary_color: '#0c4a6e', secondary_color: '#c2410c',
     text_color: '#1a1a1a', button_hover_color: '#0284c7',
     module_bg_color: '#ffffff', page_bg_color: '#f0f9ff',
     footer_bg_color: '#082f49', link_color: '#0284c7', link_visited_color: '#6b21a8',
   },
   {
-    name: 'Sol Andino',
+    name: 'Andean Sun',
     primary_color: '#92400e', secondary_color: '#166534',
     text_color: '#1a1a1a', button_hover_color: '#b45309',
     module_bg_color: '#fffbeb', page_bg_color: '#fef3c7',
     footer_bg_color: '#451a03', link_color: '#b45309', link_visited_color: '#6b21a8',
   },
   {
-    name: 'Bosque Húmedo',
+    name: 'Rainforest',
     primary_color: '#14532d', secondary_color: '#a16207',
     text_color: '#1a1a1a', button_hover_color: '#166534',
     module_bg_color: '#f0fdf4', page_bg_color: '#ecfdf5',
@@ -255,7 +255,7 @@ export function ThemeCustomizer({
       const data = await res.json()
       setDraft({ ...draft, logo_url: data.url })
     } catch {
-      alert('No se pudo subir el logo')
+      alert('Could not upload logo')
     }
   }
 
@@ -344,7 +344,7 @@ export function ThemeCustomizer({
       await onSave(draft, draftPages)
       onClose()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al guardar')
+      alert(err instanceof Error ? err.message : 'Error saving')
     }
     setSaving(false)
   }
@@ -408,19 +408,19 @@ export function ThemeCustomizer({
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-amber-400" />
           <div>
-            <h3 className="font-extrabold text-sm">Personalizador del Tema</h3>
-            <p className="text-[10px] text-emerald-200">Arrastra para mover · Ves cambios en vivo</p>
+            <h3 className="font-extrabold text-sm">Theme Customizer</h3>
+            <p className="text-[10px] text-emerald-200">Drag to move · See live changes</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setMinimized(!minimized)}
             className="p-1 text-gray-300 hover:text-white rounded-lg transition"
-            title={minimized ? 'Expandir' : 'Minimizar'}
+            title={minimized ? 'Expand' : 'Minimize'}
           >
             {minimized ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
           </button>
-          <button onClick={onClose} className="p-1 text-gray-300 hover:text-white rounded-lg transition" title="Cerrar">
+          <button onClick={onClose} className="p-1 text-gray-300 hover:text-white rounded-lg transition" title="Close">
             <X size={20} />
           </button>
         </div>
@@ -429,12 +429,12 @@ export function ThemeCustomizer({
       {/* Minimized view - just show expand hint */}
       {minimized && (
         <div className="p-3 bg-emerald-50 text-center">
-          <p className="text-xs text-emerald-700 font-medium">Panel minimizado</p>
+          <p className="text-xs text-emerald-700 font-medium">Panel minimized</p>
           <button
             onClick={() => setMinimized(false)}
             className="mt-1 text-[10px] text-emerald-600 hover:text-emerald-800 font-bold underline"
           >
-            Expandir para editar
+            Expand to edit
           </button>
         </div>
       )}
@@ -445,10 +445,10 @@ export function ThemeCustomizer({
       {/* Tabs */}
       <div className="flex border-b border-gray-200 bg-gray-50">
         {[
-          { id: 'cabecera', label: 'Cabecera', icon: Layout },
-          { id: 'menu', label: 'Menú', icon: MenuIcon },
-          { id: 'colores', label: 'Colores', icon: Palette },
-          { id: 'footer', label: 'Pie', icon: ImageIcon },
+          { id: 'cabecera', label: 'Header', icon: Layout },
+          { id: 'menu', label: 'Menu', icon: MenuIcon },
+          { id: 'colores', label: 'Colors', icon: Palette },
+          { id: 'footer', label: 'Footer', icon: ImageIcon },
         ].map((tab) => {
           const Icon = tab.icon
           return (
@@ -475,8 +475,8 @@ export function ThemeCustomizer({
         {activeTab === 'cabecera' && (
           <div className="space-y-4">
             <div>
-              <label className="label text-xs font-bold">Logo del nodo</label>
-              <p className="text-[10px] text-gray-400 mb-2">El mismo logo aparece en cabecera y pie de página.</p>
+              <label className="label text-xs font-bold">Node logo</label>
+              <p className="text-[10px] text-gray-400 mb-2">The same logo appears in header and footer.</p>
               <div className="flex items-center gap-3">
                 {draft.logo_url && (
                   <img src={draft.logo_url} alt="logo" className="w-14 h-14 rounded-lg object-cover border border-gray-200" />
@@ -484,13 +484,13 @@ export function ThemeCustomizer({
                 <div className="flex-1 space-y-2">
                   <input
                     className="input text-xs"
-                    placeholder="URL del logo..."
+                    placeholder="Logo URL..."
                     value={draft.logo_url}
                     onChange={(e) => setDraft({ ...draft, logo_url: e.target.value })}
                   />
                   <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold hover:bg-emerald-200 transition cursor-pointer border border-emerald-300">
                     <Upload size={14} />
-                    Subir desde PC
+                    Upload from PC
                     <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
                       const f = e.target.files?.[0]
                       if (f) handleLogoUpload(f)
@@ -501,16 +501,16 @@ export function ThemeCustomizer({
             </div>
 
             <div>
-              <label className="label text-xs font-bold">Título del nodo</label>
+              <label className="label text-xs font-bold">Node title</label>
               <input className="input text-xs" value={draft.site_title} onChange={(e) => setDraft({ ...draft, site_title: e.target.value })} />
             </div>
             <div>
-              <label className="label text-xs font-bold">Subtítulo</label>
+              <label className="label text-xs font-bold">Subtitle</label>
               <input className="input text-xs" value={draft.site_subtitle} onChange={(e) => setDraft({ ...draft, site_subtitle: e.target.value })} />
             </div>
 
             <div>
-              <label className="label text-xs font-bold">Tipo de cabecera (vista previa en vivo)</label>
+              <label className="label text-xs font-bold">Header type (live preview)</label>
               <div className="space-y-2">
                 {HEADER_STYLES.map((style) => (
                   <button
@@ -538,11 +538,11 @@ export function ThemeCustomizer({
 
             {/* Per-header settings */}
             <div className="space-y-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
-              <p className="text-xs font-bold text-gray-700">Ajustes de la cabecera</p>
+              <p className="text-xs font-bold text-gray-700">Header settings</p>
 
               {/* Sticky toggle — for all headers */}
               <label className="flex items-center justify-between gap-2 cursor-pointer">
-                <span className="text-[11px] font-semibold text-gray-600">Menú fijo (anclado arriba al hacer scroll)</span>
+                <span className="text-[11px] font-semibold text-gray-600">Sticky menu (pinned to top on scroll)</span>
                 <button
                   onClick={() => setDraft({ ...draft, header_sticky: !draft.header_sticky })}
                   className={`relative w-10 h-5 rounded-full transition ${draft.header_sticky ? 'bg-emerald-600' : 'bg-gray-300'}`}
@@ -554,7 +554,7 @@ export function ThemeCustomizer({
               {/* Colors override for this header */}
               <div className="space-y-2 pt-2 border-t border-gray-200">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold text-gray-600">Colores de la cabecera</p>
+                  <p className="text-[11px] font-bold text-gray-600">Header colors</p>
                   <button
                     onClick={() => setDraft({
                       ...draft,
@@ -565,10 +565,10 @@ export function ThemeCustomizer({
                     })}
                     className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold"
                   >
-                    Usar tema
+                    Use theme
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-400">Deja vacío para usar los colores de la paleta general.</p>
+                <p className="text-[10px] text-gray-400">Leave empty to use the general palette colors.</p>
 
                 {/* Color picker helper component */}
                 {(() => {
@@ -599,7 +599,7 @@ export function ThemeCustomizer({
                             placeholder={resolvedColor}
                           />
                           {!value && (
-                            <span className="text-[9px] text-gray-400 font-bold whitespace-nowrap">tema</span>
+                            <span className="text-[9px] text-gray-400 font-bold whitespace-nowrap">theme</span>
                           )}
                         </div>
                       </div>
@@ -607,21 +607,21 @@ export function ThemeCustomizer({
                   )
                   return (
                     <>
-                      <ColorRow label="Color de fondo" value={draft.header_bg_color} onChange={(v) => setDraft({ ...draft, header_bg_color: v })} resolvedColor={resolvedBg} />
-                      <ColorRow label="Color de texto" value={draft.header_text_color} onChange={(v) => setDraft({ ...draft, header_text_color: v })} resolvedColor={resolvedText} />
-                      <ColorRow label="Color texto activo" value={draft.header_active_color} onChange={(v) => setDraft({ ...draft, header_active_color: v })} resolvedColor={resolvedActive} />
-                      <ColorRow label="Color fondo botón activo" value={draft.header_active_bg_color} onChange={(v) => setDraft({ ...draft, header_active_bg_color: v })} resolvedColor={resolvedActiveBg} />
-                      <ColorRow label="Color hover (pasar mouse)" value={draft.header_hover_color} onChange={(v) => setDraft({ ...draft, header_hover_color: v })} resolvedColor={resolvedHover} />
+                      <ColorRow label="Background color" value={draft.header_bg_color} onChange={(v) => setDraft({ ...draft, header_bg_color: v })} resolvedColor={resolvedBg} />
+                      <ColorRow label="Text color" value={draft.header_text_color} onChange={(v) => setDraft({ ...draft, header_text_color: v })} resolvedColor={resolvedText} />
+                      <ColorRow label="Active text color" value={draft.header_active_color} onChange={(v) => setDraft({ ...draft, header_active_color: v })} resolvedColor={resolvedActive} />
+                      <ColorRow label="Active button background" value={draft.header_active_bg_color} onChange={(v) => setDraft({ ...draft, header_active_bg_color: v })} resolvedColor={resolvedActiveBg} />
+                      <ColorRow label="Hover color (mouse over)" value={draft.header_hover_color} onChange={(v) => setDraft({ ...draft, header_hover_color: v })} resolvedColor={resolvedHover} />
 
                       {/* Dual-row colors for editorial_latam */}
                       {draft.header_style === 'editorial_latam' && (
                         <div className="pt-2 mt-2 border-t border-gray-200 space-y-2">
-                          <p className="text-[10px] font-bold text-gray-600">Fila superior (marca)</p>
-                          <ColorRow label="Fondo fila superior" value={draft.header_top_bg_color} onChange={(v) => setDraft({ ...draft, header_top_bg_color: v })} resolvedColor={draft.header_top_bg_color || '#ffffff'} />
-                          <ColorRow label="Texto fila superior" value={draft.header_top_text_color} onChange={(v) => setDraft({ ...draft, header_top_text_color: v })} resolvedColor={draft.header_top_text_color || draft.text_color} />
-                          <p className="text-[10px] font-bold text-gray-600 pt-1">Fila inferior (menú)</p>
-                          <ColorRow label="Fondo fila inferior" value={draft.header_bottom_bg_color} onChange={(v) => setDraft({ ...draft, header_bottom_bg_color: v })} resolvedColor={draft.header_bottom_bg_color || '#1f301d'} />
-                          <ColorRow label="Texto fila inferior" value={draft.header_bottom_text_color} onChange={(v) => setDraft({ ...draft, header_bottom_text_color: v })} resolvedColor={draft.header_bottom_text_color || '#ffffff'} />
+                          <p className="text-[10px] font-bold text-gray-600">Top row (brand)</p>
+                          <ColorRow label="Top row background" value={draft.header_top_bg_color} onChange={(v) => setDraft({ ...draft, header_top_bg_color: v })} resolvedColor={draft.header_top_bg_color || '#ffffff'} />
+                          <ColorRow label="Top row text" value={draft.header_top_text_color} onChange={(v) => setDraft({ ...draft, header_top_text_color: v })} resolvedColor={draft.header_top_text_color || draft.text_color} />
+                          <p className="text-[10px] font-bold text-gray-600 pt-1">Bottom row (menu)</p>
+                          <ColorRow label="Bottom row background" value={draft.header_bottom_bg_color} onChange={(v) => setDraft({ ...draft, header_bottom_bg_color: v })} resolvedColor={draft.header_bottom_bg_color || '#1f301d'} />
+                          <ColorRow label="Bottom row text" value={draft.header_bottom_text_color} onChange={(v) => setDraft({ ...draft, header_bottom_text_color: v })} resolvedColor={draft.header_bottom_text_color || '#ffffff'} />
                         </div>
                       )}
                     </>
@@ -632,7 +632,7 @@ export function ThemeCustomizer({
               {/* Banner image (for banner style) */}
               {draft.header_style === 'banner' && (
                 <div className="space-y-3 pt-2 border-t border-gray-200">
-                  <p className="text-[11px] font-bold text-gray-600">Imagen del banner</p>
+                  <p className="text-[11px] font-bold text-gray-600">Banner image</p>
                   <div className="flex items-center gap-2">
                     {draft.header_banner_image && (
                       <img src={draft.header_banner_image} alt="banner" className="w-16 h-10 rounded object-cover border border-gray-200" />
@@ -642,12 +642,12 @@ export function ThemeCustomizer({
                         type="text"
                         value={draft.header_banner_image}
                         onChange={(e) => setDraft({ ...draft, header_banner_image: e.target.value })}
-                        placeholder="URL de la imagen..."
+                        placeholder="Image URL..."
                         className="input text-[11px]"
                       />
                       <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer border border-emerald-300">
                         <Upload size={14} />
-                        Subir imagen
+                        Upload image
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                           const f = e.target.files?.[0]
                           if (f) handleLogoUpload(f).then((url: string) => setDraft({ ...draft, header_banner_image: url }))
@@ -655,12 +655,12 @@ export function ThemeCustomizer({
                       </label>
                     </div>
                   </div>
-                  <p className="text-[10px] text-gray-400">Deja vacío para usar imagen por defecto</p>
+                  <p className="text-[10px] text-gray-400">Leave empty to use default image</p>
 
                   {/* Carousel: multiple images */}
                   <div className="pt-2 border-t border-gray-100 space-y-2">
-                    <p className="text-[11px] font-bold text-gray-600">Carrusel (múltiples imágenes)</p>
-                    <p className="text-[10px] text-gray-400">Pega varias URLs separadas por comas para un carrusel automático.</p>
+                    <p className="text-[11px] font-bold text-gray-600">Carousel (multiple images)</p>
+                    <p className="text-[10px] text-gray-400">Paste several URLs separated by commas for an automatic carousel.</p>
                     <textarea
                       value={draft.header_banner_images}
                       onChange={(e) => setDraft({ ...draft, header_banner_images: e.target.value })}
@@ -693,7 +693,7 @@ export function ThemeCustomizer({
                     {/* Add image by upload to carousel */}
                     <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer border border-emerald-300">
                       <Upload size={14} />
-                      Subir imagen al carrusel
+                      Upload image to carousel
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                         const f = e.target.files?.[0]
                         if (f) handleLogoUpload(f).then((url: string) => {
@@ -706,7 +706,7 @@ export function ThemeCustomizer({
 
                   {/* Carousel duration */}
                   <div>
-                    <label className="label text-[11px] font-bold">Duración por imagen: {draft.header_banner_duration}s</label>
+                    <label className="label text-[11px] font-bold">Duration per image: {draft.header_banner_duration}s</label>
                     <input
                       type="range"
                       min="2"
@@ -720,7 +720,7 @@ export function ThemeCustomizer({
 
                   {/* Transition type */}
                   <div>
-                    <label className="label text-[11px] font-bold">Tipo de transición</label>
+                    <label className="label text-[11px] font-bold">Transition type</label>
                     <div className="flex gap-1.5">
                       {['fade', 'slide', 'zoom'].map((t) => (
                         <button
@@ -732,7 +732,7 @@ export function ThemeCustomizer({
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
-                          {t === 'fade' ? 'Desvanecer' : t === 'slide' ? 'Deslizar' : 'Zoom'}
+                          {t === 'fade' ? 'Fade' : t === 'slide' ? 'Slide' : 'Zoom'}
                         </button>
                       ))}
                     </div>
@@ -743,7 +743,7 @@ export function ThemeCustomizer({
               {/* Banner height (for banner style) */}
               {draft.header_style === 'banner' && (
                 <div>
-                  <label className="label text-[11px] font-bold">Altura del banner: {draft.header_banner_height}px</label>
+                  <label className="label text-[11px] font-bold">Banner height: {draft.header_banner_height}px</label>
                   <input
                     type="range"
                     min="80"
@@ -759,10 +759,10 @@ export function ThemeCustomizer({
               {/* Transparency settings (for hero_overlay style) */}
               {draft.header_style === 'hero_overlay' && (
                 <div className="space-y-3 pt-2 border-t border-gray-200">
-                  <p className="text-[11px] font-bold text-gray-600">Transparencia y distorsión</p>
+                  <p className="text-[11px] font-bold text-gray-600">Transparency and blur</p>
 
                   <div>
-                    <label className="label text-[11px] font-bold">Nivel de transparencia: {draft.header_transparency}%</label>
+                    <label className="label text-[11px] font-bold">Transparency level: {draft.header_transparency}%</label>
                     <input
                       type="range"
                       min="0"
@@ -772,7 +772,7 @@ export function ThemeCustomizer({
                       onChange={(e) => setDraft({ ...draft, header_transparency: parseInt(e.target.value) })}
                       className="w-full accent-emerald-600"
                     />
-                    <p className="text-[10px] text-gray-400 mt-0.5">0% = solido, 80% = muy transparente</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">0% = solid, 80% = very transparent</p>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -783,13 +783,13 @@ export function ThemeCustomizer({
                       className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
                     />
                     <div className="flex-1">
-                      <p className="text-[10px] font-bold text-gray-700">Color de la transparencia</p>
-                      <p className="text-[10px] text-gray-400">Negro = oscuro, azul = vidrio, etc.</p>
+                      <p className="text-[10px] font-bold text-gray-700">Transparency color</p>
+                      <p className="text-[10px] text-gray-400">Black = dark, blue = glass, etc.</p>
                     </div>
                   </div>
 
                   <div>
-                    <label className="label text-[11px] font-bold">Distorsión (blur): {draft.header_blur}px</label>
+                    <label className="label text-[11px] font-bold">Blur: {draft.header_blur}px</label>
                     <input
                       type="range"
                       min="0"
@@ -799,7 +799,7 @@ export function ThemeCustomizer({
                       onChange={(e) => setDraft({ ...draft, header_blur: parseInt(e.target.value) })}
                       className="w-full accent-emerald-600"
                     />
-                    <p className="text-[10px] text-gray-400 mt-0.5">0 = sin distorsión, 20 = muy borroso</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">0 = no blur, 20 = very blurry</p>
                   </div>
                 </div>
               )}
@@ -813,7 +813,7 @@ export function ThemeCustomizer({
             {/* Selector de idioma para editar titulos de menu */}
             {tcLanguages.length > 1 && (
               <div className="flex items-center gap-1 p-2 bg-emerald-50 rounded-lg">
-                <span className="text-xs text-gray-500 mr-1">Idioma del menú:</span>
+                <span className="text-xs text-gray-500 mr-1">Menu language:</span>
                 {tcLanguages.map((l) => (
                   <button
                     key={l.code}
@@ -828,7 +828,7 @@ export function ThemeCustomizer({
                   </button>
                 ))}
                 <span className="text-[10px] text-gray-400 ml-2">
-                  (Los títulos se guardan en el idioma seleccionado al guardar)
+                  (Titles are saved in the selected language on save)
                 </span>
               </div>
             )}
@@ -840,7 +840,7 @@ export function ThemeCustomizer({
                   menuMode === 'plano' ? 'bg-white text-emerald-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Menú Plano
+                Flat Menu
               </button>
               <button
                 onClick={() => setMenuMode('jerarquico')}
@@ -848,14 +848,14 @@ export function ThemeCustomizer({
                   menuMode === 'jerarquico' ? 'bg-white text-emerald-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Menú con Submenús
+                Menu with Submenus
               </button>
             </div>
 
             {menuMode === 'plano' ? (
               <>
                 <p className="text-[11px] text-gray-500 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
-                  Reorganiza las páginas del menú en una lista plana. Los cambios se ven en vivo en la cabecera.
+                  Reorder menu pages in a flat list. Changes are visible live in the header.
                 </p>
                 {draftPages.map((page, idx) => (
                   <div
@@ -881,7 +881,7 @@ export function ThemeCustomizer({
                       className={`p-1.5 rounded-lg transition ${
                         page.show_in_menu ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400 hover:bg-gray-100'
                       }`}
-                      title={page.show_in_menu ? 'Ocultar del menú' : 'Mostrar en menú'}
+                      title={page.show_in_menu ? 'Hide from menu' : 'Show in menu'}
                     >
                       {page.show_in_menu ? <Eye size={15} /> : <EyeOff size={15} />}
                     </button>
@@ -891,7 +891,7 @@ export function ThemeCustomizer({
             ) : (
               <>
                 <p className="text-[11px] text-gray-500 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
-                  Arrastra páginas dentro de otras para crear submenús. Las páginas de nivel superior aparecen en la cabecera; las hijas se despliegan al pasar el mouse. Ideal para el estilo <b>Mega Menú</b>.
+                  Drag pages into others to create submenus. Top-level pages appear in the header; children expand on hover. Ideal for the <b>Mega Menu</b> style.
                 </p>
 
                 {/* Top-level pages with their children */}
@@ -911,7 +911,7 @@ export function ThemeCustomizer({
                         </div>
                         <div className="flex-1">
                           <p className="text-xs font-bold text-emerald-900">{parent.title}</p>
-                          <p className="text-[10px] text-emerald-600">/p/{parent.slug} · Menú principal</p>
+                          <p className="text-[10px] text-emerald-600">/p/{parent.slug} · Main menu</p>
                         </div>
                         <button
                           onClick={() => {
@@ -945,9 +945,9 @@ export function ThemeCustomizer({
                               <button
                                 onClick={() => makeTopLevel(child.slug)}
                                 className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold px-2 py-1 rounded hover:bg-emerald-50"
-                                title="Sacar del submenú"
+                                title="Remove from submenu"
                               >
-                                ↑ Subir
+                                ↑ Move up
                               </button>
                             </div>
                           ))}
@@ -961,7 +961,7 @@ export function ThemeCustomizer({
                           className="input text-[11px] py-1"
                           defaultValue=""
                         >
-                          <option value="">+ Añadir página como submenú...</option>
+                          <option value="">+ Add page as submenu...</option>
                           {draftPages
                             .filter((p) => !p.parent_slug && p.slug !== parent.slug && !childrenOf(parent.slug).some(c => c.slug === p.slug))
                             .map((p) => (
@@ -982,11 +982,11 @@ export function ThemeCustomizer({
                   if (orphans.length === 0) return null
                   return (
                     <div className="rounded-xl border border-dashed border-gray-300 p-3">
-                      <p className="text-[10px] text-gray-400 font-bold mb-2">Páginas huérfanas (sin padre válido):</p>
+                      <p className="text-[10px] text-gray-400 font-bold mb-2">Orphaned pages (no valid parent):</p>
                       {orphans.map((p) => (
                         <div key={p.slug} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
                           <span className="text-xs text-gray-600 flex-1">{p.title}</span>
-                          <button onClick={() => makeTopLevel(p.slug)} className="text-[10px] text-emerald-600 font-bold">↑ Subir a menú principal</button>
+                          <button onClick={() => makeTopLevel(p.slug)} className="text-[10px] text-emerald-600 font-bold">↑ Move to main menu</button>
                         </div>
                       ))}
                     </div>
@@ -1001,16 +1001,16 @@ export function ThemeCustomizer({
         {activeTab === 'colores' && (
           <div className="space-y-4">
             <p className="text-[11px] text-gray-500 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
-              Cada paleta define 8 colores: primario, secundario, texto, hover de botones, fondo de módulos, fondo de página, fondo del pie, y color de enlaces. Los cambios se ven en vivo.
+              Each palette defines 8 colors: primary, secondary, text, button hover, module background, page background, footer background, and link color. Changes are visible live.
             </p>
 
             {/* Color Presets */}
             <div>
-              <label className="label text-xs font-bold">Paletas</label>
+              <label className="label text-xs font-bold">Palettes</label>
               {/* Always show active palette indicator */}
               <div className="mb-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
                 <p className="text-[10px] text-emerald-800 font-bold">
-                  ✓ Activa: {activePreset ? activePreset.name : 'Personalizada (sin guardar)'}
+                  ✓ Active: {activePreset ? activePreset.name : 'Custom (unsaved)'}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -1039,13 +1039,13 @@ export function ThemeCustomizer({
                           <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.text_color }} />
                         </div>
                         <p className="text-[10px] font-bold text-gray-700">{preset.name}</p>
-                        {isActive && <p className="text-[9px] text-emerald-600 font-bold">✓ Activa</p>}
+                        {isActive && <p className="text-[9px] text-emerald-600 font-bold">✓ Active</p>}
                       </button>
                       {isCustom && (
                         <button
                           onClick={() => handleDeletePalette(preset.name)}
                           className="absolute top-1 right-1 text-red-400 hover:text-red-600 transition"
-                          title="Eliminar paleta"
+                          title="Delete palette"
                         >
                           <X size={12} />
                         </button>
@@ -1063,16 +1063,16 @@ export function ThemeCustomizer({
                     className="w-full px-3 py-2 rounded-lg border-2 border-dashed border-emerald-300 text-emerald-700 text-[11px] font-bold hover:bg-emerald-50 transition flex items-center justify-center gap-1.5"
                   >
                     <Save size={14} />
-                    Guardar colores actuales como paleta
+                    Save current colors as palette
                   </button>
                 ) : (
                   <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 space-y-2">
-                    <p className="text-[10px] font-bold text-emerald-800">Nombre de la paleta:</p>
+                    <p className="text-[10px] font-bold text-emerald-800">Palette name:</p>
                     <input
                       type="text"
                       value={newPaletteName}
                       onChange={(e) => setNewPaletteName(e.target.value)}
-                      placeholder="Ej: Mi Paleta Verde"
+                      placeholder="e.g. My Green Palette"
                       className="input text-xs"
                       autoFocus
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSavePalette() }}
@@ -1083,13 +1083,13 @@ export function ThemeCustomizer({
                         disabled={!newPaletteName.trim()}
                         className="btn-primary text-[11px] flex-1 justify-center"
                       >
-                        Guardar
+                        Save
                       </button>
                       <button
                         onClick={() => { setShowSavePalette(false); setNewPaletteName('') }}
                         className="btn-secondary text-[11px] flex-1 justify-center"
                       >
-                        Cancelar
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -1099,17 +1099,17 @@ export function ThemeCustomizer({
 
             {/* Custom Colors - all 8 */}
             <div className="space-y-2.5">
-              <label className="label text-xs font-bold">Colores personalizados</label>
+              <label className="label text-xs font-bold">Custom colors</label>
               {[
-                { key: 'primary_color', label: 'Color primario (cabecera, botones)' },
-                { key: 'secondary_color', label: 'Color secundario (acentos, badges)' },
-                { key: 'button_hover_color', label: 'Hover de botones' },
-                { key: 'text_color', label: 'Color de texto' },
-                { key: 'link_color', label: 'Color de enlaces' },
-                { key: 'link_visited_color', label: 'Color de enlaces visitados' },
-                { key: 'module_bg_color', label: 'Fondo de módulos/tarjetas' },
-                { key: 'page_bg_color', label: 'Fondo de la página' },
-                { key: 'footer_bg_color', label: 'Fondo del pie de página' },
+                { key: 'primary_color', label: 'Primary color (header, buttons)' },
+                { key: 'secondary_color', label: 'Secondary color (accents, badges)' },
+                { key: 'button_hover_color', label: 'Button hover' },
+                { key: 'text_color', label: 'Text color' },
+                { key: 'link_color', label: 'Link color' },
+                { key: 'link_visited_color', label: 'Visited link color' },
+                { key: 'module_bg_color', label: 'Module/card background' },
+                { key: 'page_bg_color', label: 'Page background' },
+                { key: 'footer_bg_color', label: 'Footer background' },
               ].map((c) => (
                 <div key={c.key} className="flex items-center gap-2">
                   <input
@@ -1132,24 +1132,24 @@ export function ThemeCustomizer({
 
             {/* Preview */}
             <div className="p-3 rounded-xl border border-gray-200 space-y-2">
-              <p className="text-[10px] text-gray-400">Vista previa:</p>
+              <p className="text-[10px] text-gray-400">Preview:</p>
               <div className="flex gap-2">
                 <button className="px-3 py-1.5 rounded-lg text-white text-xs font-bold" style={{ backgroundColor: draft.primary_color }}>
-                  Botón primario
+                  Primary button
                 </button>
                 <button className="px-3 py-1.5 rounded-lg text-white text-xs font-bold" style={{ backgroundColor: draft.button_hover_color }}>
                   Hover
                 </button>
               </div>
               <div className="p-2 rounded-lg" style={{ backgroundColor: draft.module_bg_color }}>
-                <p className="text-xs" style={{ color: draft.text_color }}>Texto dentro de un módulo</p>
-                <a className="text-xs underline" style={{ color: draft.link_color }}>Enlace de ejemplo</a>
+                <p className="text-xs" style={{ color: draft.text_color }}>Text inside a module</p>
+                <a className="text-xs underline" style={{ color: draft.link_color }}>Sample link</a>
               </div>
               <div className="p-2 rounded-lg" style={{ backgroundColor: draft.page_bg_color }}>
-                <p className="text-[10px] text-gray-500">Fondo de página</p>
+                <p className="text-[10px] text-gray-500">Page background</p>
               </div>
               <div className="p-2 rounded-lg" style={{ backgroundColor: draft.footer_bg_color }}>
-                <p className="text-[10px] text-white">Fondo del pie de página</p>
+                <p className="text-[10px] text-white">Footer background</p>
               </div>
             </div>
           </div>
@@ -1159,23 +1159,23 @@ export function ThemeCustomizer({
         {activeTab === 'footer' && (
           <div className="space-y-4">
             <p className="text-[11px] text-gray-500 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
-              Edita los textos del pie de página. Los cambios se ven en vivo abajo.
+              Edit the footer texts. Changes are visible live below.
             </p>
 
             {/* Column 1: Brand */}
             <div className="border-t border-gray-200 pt-3">
-              <h4 className="font-bold text-xs text-gray-700 mb-2">Columna 1: Marca</h4>
+              <h4 className="font-bold text-xs text-gray-700 mb-2">Column 1: Brand</h4>
               <div className="space-y-2">
                 <div>
-                  <label className="label text-[10px] font-bold">Título (vacío = sin título, solo logo)</label>
-                  <input className="input text-xs" value={draft.footer_col1_title} onChange={(e) => setDraft({ ...draft, footer_col1_title: e.target.value })} placeholder="(vacío = solo logo)" />
+                  <label className="label text-[10px] font-bold">Title (empty = no title, logo only)</label>
+                  <input className="input text-xs" value={draft.footer_col1_title} onChange={(e) => setDraft({ ...draft, footer_col1_title: e.target.value })} placeholder="(empty = logo only)" />
                 </div>
                 <div>
-                  <label className="label text-[10px] font-bold">Descripción del nodo</label>
+                  <label className="label text-[10px] font-bold">Node description</label>
                   <textarea rows={2} className="input text-xs" value={draft.footer_about} onChange={(e) => setDraft({ ...draft, footer_about: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label text-[10px] font-bold">Slogan (debajo de la descripción)</label>
+                  <label className="label text-[10px] font-bold">Slogan (below description)</label>
                   <input className="input text-xs" value={draft.footer_slogan} onChange={(e) => setDraft({ ...draft, footer_slogan: e.target.value })} />
                 </div>
               </div>
@@ -1183,28 +1183,28 @@ export function ThemeCustomizer({
 
             {/* Column 2: Pages */}
             <div className="border-t border-gray-200 pt-3">
-              <h4 className="font-bold text-xs text-gray-700 mb-2">Columna 2: Páginas</h4>
+              <h4 className="font-bold text-xs text-gray-700 mb-2">Column 2: Pages</h4>
               <div>
-                <label className="label text-[10px] font-bold">Título de la columna</label>
+                <label className="label text-[10px] font-bold">Column title</label>
                 <input className="input text-xs" value={draft.footer_col2_title} onChange={(e) => setDraft({ ...draft, footer_col2_title: e.target.value })} />
               </div>
-              <p className="text-[10px] text-gray-400 mt-1">Las páginas se reorganizan desde la pestaña "Menú".</p>
+              <p className="text-[10px] text-gray-400 mt-1">Pages are reordered from the "Menu" tab.</p>
             </div>
 
             {/* Column 3: Location */}
             <div className="border-t border-gray-200 pt-3">
-              <h4 className="font-bold text-xs text-gray-700 mb-2">Columna 3: Lugar de Encuentro</h4>
+              <h4 className="font-bold text-xs text-gray-700 mb-2">Column 3: Location</h4>
               <div className="space-y-2">
                 <div>
-                  <label className="label text-[10px] font-bold">Título de la columna</label>
+                  <label className="label text-[10px] font-bold">Column title</label>
                   <input className="input text-xs" value={draft.footer_col3_title} onChange={(e) => setDraft({ ...draft, footer_col3_title: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label text-[10px] font-bold">Dirección</label>
+                  <label className="label text-[10px] font-bold">Address</label>
                   <input className="input text-xs" value={draft.contact_address} onChange={(e) => setDraft({ ...draft, contact_address: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label text-[10px] font-bold">Horario</label>
+                  <label className="label text-[10px] font-bold">Schedule</label>
                   <input className="input text-xs" value={draft.footer_schedule} onChange={(e) => setDraft({ ...draft, footer_schedule: e.target.value })} />
                 </div>
               </div>
@@ -1212,14 +1212,14 @@ export function ThemeCustomizer({
 
             {/* Column 4: Social & Admission */}
             <div className="border-t border-gray-200 pt-3">
-              <h4 className="font-bold text-xs text-gray-700 mb-2">Columna 4: Comunidad & Redes</h4>
+              <h4 className="font-bold text-xs text-gray-700 mb-2">Column 4: Community & Social</h4>
               <div className="space-y-2">
                 <div>
-                  <label className="label text-[10px] font-bold">Título de la columna</label>
+                  <label className="label text-[10px] font-bold">Column title</label>
                   <input className="input text-xs" value={draft.footer_col4_title} onChange={(e) => setDraft({ ...draft, footer_col4_title: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label text-[10px] font-bold">Instagram (sin @)</label>
+                  <label className="label text-[10px] font-bold">Instagram (without @)</label>
                   <input className="input text-xs" value={draft.social_instagram} onChange={(e) => setDraft({ ...draft, social_instagram: e.target.value })} />
                 </div>
                 <div>
@@ -1227,7 +1227,7 @@ export function ThemeCustomizer({
                   <input className="input text-xs" value={draft.social_facebook} onChange={(e) => setDraft({ ...draft, social_facebook: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label text-[10px] font-bold">Texto del botón de admisión</label>
+                  <label className="label text-[10px] font-bold">Admission button text</label>
                   <input className="input text-xs" value={draft.footer_admission_text} onChange={(e) => setDraft({ ...draft, footer_admission_text: e.target.value })} />
                 </div>
               </div>
@@ -1243,7 +1243,7 @@ export function ThemeCustomizer({
           className="px-3 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-200 transition flex items-center gap-1.5"
         >
           <RotateCcw size={14} />
-          Descartar
+          Discard
         </button>
         <button
           onClick={handleSave}
@@ -1251,7 +1251,7 @@ export function ThemeCustomizer({
           className="btn-primary text-xs flex items-center gap-1.5 shadow flex-1 justify-center"
         >
           <Save size={14} />
-          {saving ? 'Guardando...' : 'Guardar Todo'}
+          {saving ? 'Saving...' : 'Save All'}
         </button>
       </div>
         </>

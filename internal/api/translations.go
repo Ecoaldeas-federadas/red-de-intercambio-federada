@@ -74,8 +74,15 @@ func (th *TranslationHandler) AutoSeed(ctx context.Context) {
 	rows.Close()
 
 	if len(langs) == 0 {
-		log.Printf("[i18n] AutoSeed: no enabled languages found, skipping")
-		return
+		log.Printf("[i18n] AutoSeed: no enabled languages found in DB, using fallback [es, en]")
+		langs = []string{"es", "en"}
+		// Asegurar que existan en la tabla languages
+		for _, l := range langs {
+			_, _ = th.Pool.Exec(ctx, `INSERT INTO languages (code, name, native_name, enabled, is_default) VALUES ($1, $2, $3, true, $4) ON CONFLICT (code) DO NOTHING`,
+				l, map[string]string{"es": "Spanish", "en": "English"}[l],
+				map[string]string{"es": "Espanol", "en": "English"}[l],
+				l == "es")
+		}
 	}
 
 	namespaces := []string{
@@ -887,6 +894,25 @@ func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request)
 		}
 		for k := range overrides {
 			allKeys[k] = true
+		}
+
+		// Fallback: si no hay JSON ni overrides, intentar leer claves de la BD sin filtro de node_domain
+		if len(allKeys) == 0 {
+			fallbackRows, ferr := th.Pool.Query(r.Context(),
+				`SELECT DISTINCT key, value FROM translations WHERE language = $1 AND namespace = $2`,
+				lang, ns)
+			if ferr == nil {
+				for fallbackRows.Next() {
+					var fk, fv string
+					if err := fallbackRows.Scan(&fk, &fv); err == nil {
+						allKeys[fk] = true
+						if defaults[fk] == "" {
+							defaults[fk] = fv
+						}
+					}
+				}
+				fallbackRows.Close()
+			}
 		}
 
 		var entries []KeyEntry

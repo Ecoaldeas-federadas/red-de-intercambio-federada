@@ -34,7 +34,6 @@ services:
       - ./secrets:/secrets:ro
       - ./config.yaml:/app/config.yaml:ro
       - ./firmware:/app/firmware:ro
-      - ./web/src/locales:/app/web/src/locales:ro
       - firmware_builds:/tmp/firmware-builds
       - uploads:/app/uploads
       - db_backups:/backups
