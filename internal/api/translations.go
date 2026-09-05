@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,11 +30,90 @@ func NewTranslationHandler(pool *pgxpool.Pool, nodeDomain string) *TranslationHa
 	if _, err := os.Stat(localeDir); err != nil {
 		localeDir = "./web/src/locales"
 	}
+	// Log the locale directory for debugging
+	log.Printf("[i18n] LocaleDir set to: %s (exists: %v)", localeDir, dirExists(localeDir))
+	// List available languages
+	if entries, err := os.ReadDir(localeDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				langDir := filepath.Join(localeDir, e.Name())
+				if files, err := os.ReadDir(langDir); err == nil {
+					log.Printf("[i18n] Language dir '%s': %d JSON files", e.Name(), len(files))
+				}
+			}
+		}
+	}
 	return &TranslationHandler{
 		Pool:       pool,
 		NodeDomain: nodeDomain,
 		LocaleDir:  localeDir,
 	}
+}
+
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// AutoSeed carga las claves de los JSON a la BD al arrancar el servidor.
+// No sobrescribe ediciones existentes. Se llama una vez al iniciar.
+func (th *TranslationHandler) AutoSeed(ctx context.Context) {
+	// Obtener idiomas habilitados
+	rows, err := th.Pool.Query(ctx, `SELECT code FROM languages WHERE enabled = true`)
+	if err != nil {
+		log.Printf("[i18n] AutoSeed: error querying languages: %v", err)
+		return
+	}
+	var langs []string
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err == nil {
+			langs = append(langs, code)
+		}
+	}
+	rows.Close()
+
+	if len(langs) == 0 {
+		log.Printf("[i18n] AutoSeed: no enabled languages found, skipping")
+		return
+	}
+
+	namespaces := []string{
+		"common", "dashboard", "transfer", "nfc", "federation", "assembly",
+		"organizations", "products", "settings", "profile", "notifications",
+		"external", "services", "website", "public", "errors", "audit",
+		"satellite", "translations",
+	}
+
+	inserted := 0
+	skipped := 0
+	for _, lang := range langs {
+		for _, ns := range namespaces {
+			defaults := th.loadJSONDefaults(lang, ns)
+			if len(defaults) == 0 {
+				continue
+			}
+			for key, value := range defaults {
+				var exists bool
+				err := th.Pool.QueryRow(ctx,
+					`SELECT EXISTS(SELECT 1 FROM translations WHERE key = $1 AND namespace = $2 AND language = $3 AND node_domain = $4)`,
+					key, ns, lang, th.NodeDomain).Scan(&exists)
+				if err != nil || exists {
+					skipped++
+					continue
+				}
+				_, err = th.Pool.Exec(ctx, `
+					INSERT INTO translations (key, namespace, language, value, node_domain)
+					VALUES ($1, $2, $3, $4, $5)
+					ON CONFLICT (key, namespace, language, node_domain) DO NOTHING`,
+					key, ns, lang, value, th.NodeDomain)
+				if err == nil {
+					inserted++
+				}
+			}
+		}
+	}
+	log.Printf("[i18n] AutoSeed completed: %d inserted, %d skipped (domain=%s)", inserted, skipped, th.NodeDomain)
 }
 
 func (th *TranslationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
@@ -50,6 +130,7 @@ func (th *TranslationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 		r.Get("/api/translations/missing/{lang}", th.getMissingTranslations)
 		r.Get("/api/translations/{lang}/status", th.getTranslationStatus)
 		r.Get("/api/translations/{lang}/all", th.getAllKeys)
+		r.Get("/api/translations/diag", th.diagTranslations)
 
 		// Ver traducciones federadas (cualquier usuario autenticado)
 		r.Get("/api/translations/federated", th.getFederatedTranslations)
@@ -433,11 +514,46 @@ func (th *TranslationHandler) getTranslationStatus(w http.ResponseWriter, r *htt
 		sourceKeys := th.loadJSONDefaults(defaultLang, ns)
 		total := len(sourceKeys)
 
+		// Si no se pueden leer los JSON, usar el conteo de la BD como fallback
+		if total == 0 {
+			var dbCount int
+			_ = th.Pool.QueryRow(r.Context(),
+				`SELECT COUNT(DISTINCT key) FROM translations WHERE namespace = $1 AND language = $2 AND node_domain = $3`,
+				ns, defaultLang, th.NodeDomain).Scan(&dbCount)
+			total = dbCount
+		}
+
 		// Claves ya traducidas en el JSON del idioma objetivo
 		targetKeys := th.loadJSONDefaults(lang, ns)
 
 		// Claves con override en BD
 		dbKeys := th.loadDBOverrideKeys(r, lang, ns)
+
+		// Si el idioma es el mismo que el default, todas las claves de la BD cuentan como traducidas
+		if lang == defaultLang && total > 0 && len(targetKeys) == 0 {
+			// Usar conteo de BD para el idioma default
+			var dbTranslated int
+			_ = th.Pool.QueryRow(r.Context(),
+				`SELECT COUNT(DISTINCT key) FROM translations WHERE namespace = $1 AND language = $2 AND node_domain = $3`,
+				ns, lang, th.NodeDomain).Scan(&dbTranslated)
+			translated := dbTranslated
+			missing := total - translated
+			if missing < 0 {
+				missing = 0
+			}
+			percent := 0
+			if total > 0 {
+				percent = (translated * 100) / total
+			}
+			statuses = append(statuses, NSStatus{
+				Namespace:  ns,
+				Total:      total,
+				Translated: translated,
+				Missing:    missing,
+				Percent:    percent,
+			})
+			continue
+		}
 
 		// translated = claves del origen que existen en el JSON destino O en BD
 		translated := 0
@@ -447,6 +563,12 @@ func (th *TranslationHandler) getTranslationStatus(w http.ResponseWriter, r *htt
 			} else if dbKeys[k] {
 				translated++
 			}
+		}
+
+		// También contar claves que están en la BD pero no en los JSON
+		if total == 0 && len(dbKeys) > 0 {
+			translated = len(dbKeys)
+			total = len(dbKeys)
 		}
 
 		missing := total - translated
@@ -938,4 +1060,77 @@ func (th *TranslationHandler) seedTranslations(w http.ResponseWriter, r *http.Re
 		"inserted": inserted,
 		"skipped":  skipped,
 	})
+}
+
+// diagTranslations returns diagnostic info about the locale directory and file system.
+// GET /api/translations/diag
+func (th *TranslationHandler) diagTranslations(w http.ResponseWriter, r *http.Request) {
+	info := map[string]interface{}{
+		"locale_dir": th.LocaleDir,
+		"exists":     dirExists(th.LocaleDir),
+	}
+
+	// List language directories
+	langs := map[string]interface{}{}
+	if entries, err := os.ReadDir(th.LocaleDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				langDir := filepath.Join(th.LocaleDir, e.Name())
+				files := []string{}
+				if fileEntries, err := os.ReadDir(langDir); err == nil {
+					for _, f := range fileEntries {
+						if !f.IsDir() && filepath.Ext(f.Name()) == ".json" {
+							files = append(files, f.Name())
+						}
+					}
+				}
+				langs[e.Name()] = files
+			}
+		}
+	}
+	info["languages"] = langs
+
+	// Count keys for es and en
+	namespaces := []string{
+		"common", "dashboard", "transfer", "nfc", "federation", "assembly",
+		"organizations", "products", "settings", "profile", "notifications",
+		"external", "services", "website", "public", "errors", "audit",
+		"satellite", "translations",
+	}
+	keyCounts := map[string]map[string]int{}
+	for _, lang := range []string{"es", "en"} {
+		keyCounts[lang] = map[string]int{}
+		for _, ns := range namespaces {
+			keys := th.loadJSONDefaults(lang, ns)
+			keyCounts[lang][ns] = len(keys)
+		}
+	}
+	info["key_counts"] = keyCounts
+
+	// Check DB languages
+	rows, err := th.Pool.Query(r.Context(), `SELECT code, name, enabled, is_default FROM languages ORDER BY code`)
+	if err == nil {
+		defer rows.Close()
+		dbLangs := []map[string]interface{}{}
+		for rows.Next() {
+			var code, name string
+			var enabled, isDefault bool
+			if err := rows.Scan(&code, &name, &enabled, &isDefault); err == nil {
+				dbLangs = append(dbLangs, map[string]interface{}{
+					"code":       code,
+					"name":       name,
+					"enabled":    enabled,
+					"is_default": isDefault,
+				})
+			}
+		}
+		info["db_languages"] = dbLangs
+	}
+
+	// Check DB translations count
+	var dbCount int
+	_ = th.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM translations`).Scan(&dbCount)
+	info["db_translations_count"] = dbCount
+
+	writeJSON(w, 200, info)
 }

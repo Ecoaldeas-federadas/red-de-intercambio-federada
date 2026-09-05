@@ -326,6 +326,8 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	SetGlobalJWTSecret(ah.JWTSecret)
 	transH := NewTranslationHandler(pool, h.nodeDomain)
 	transH.RegisterRoutes(r, am)
+	// Auto-seed: cargar claves de los JSON a la BD al arrancar
+	go transH.AutoSeed(context.Background())
 
 	// Servir imagenes subidas desde /uploads/
 	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
