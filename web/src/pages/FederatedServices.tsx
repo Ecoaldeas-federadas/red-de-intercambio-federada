@@ -392,7 +392,7 @@ export default function FederatedServices() {
           <div className="space-y-3 text-gray-700">
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_what_is_catalog', 'Que es este catalogo?')}</h4>
-              <p>Es una lista de mas de 20 servicios autohospedados que puedes instalar en el servidor de tu nodo. Cada servicio reemplaza una plataforma comercial (YouTube, WhatsApp, Netflix, etc.) pero sin anuncios, sin vigilancia y sin empresas intermediarias. Los datos se quedan en tu servidor.</p>
+              <p>{t('help_catalog_desc', 'Es una lista de mas de 20 servicios autohospedados que puedes instalar en el servidor de tu nodo. Cada servicio reemplaza una plataforma comercial (YouTube, WhatsApp, Netflix, etc.) pero sin anuncios, sin vigilancia y sin empresas intermediarias. Los datos se quedan en tu servidor.')}</p>
             </div>
 
             <div>
@@ -420,22 +420,22 @@ export default function FederatedServices() {
               <h4 className="font-semibold text-gray-900">{t('help_add_service_q', 'Como agrego un servicio que no esta en el catalogo?')}</h4>
               <p>{t('help_add_service_desc', 'El catalogo esta definido en el codigo del backend (internal/api/services_catalog.go). Para agregar un servicio nuevo:')}</p>
               <ol className="list-decimal list-inside space-y-1 ml-2 mt-1">
-                <li>Abre el archivo <code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>.</li>
-                <li>Agrega una entrada al slice <code className="bg-gray-200 px-1 rounded">catalog</code> con: <code>id</code>, <code>name</code>, <code>category</code>, <code>icon</code>, <code>what_is</code>, <code>replaces</code>, <code>used_for</code>, <code>protocol</code>, <code>docker</code>, <code>min_ram_mb</code>, <code>min_disk_gb</code>, <code>default_port</code> y <code>subdomain</code>.</li>
-                <li>Compila el backend (<code className="bg-gray-200 px-1 rounded">go build ./...</code>).</li>
-                <li>Reinicia el nodo. El servicio nuevo aparece automaticamente en el catalogo.</li>
+                <li>{t('help_add_step1', 'Abre el archivo')} <code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>.</li>
+                <li>{t('help_add_step2', 'Agrega una entrada al slice')} <code className="bg-gray-200 px-1 rounded">catalog</code> {t('help_add_step2_desc', 'con:')} <code>id</code>, <code>name</code>, <code>category</code>, <code>icon</code>, <code>what_is</code>, <code>replaces</code>, <code>used_for</code>, <code>protocol</code>, <code>docker</code>, <code>min_ram_mb</code>, <code>min_disk_gb</code>, <code>default_port</code> {t('help_add_step2_and', 'y')} <code>subdomain</code>.</li>
+                <li>{t('help_add_step3', 'Compila el backend')} (<code className="bg-gray-200 px-1 rounded">go build ./...</code>).</li>
+                <li>{t('help_add_step4', 'Reinicia el nodo. El servicio nuevo aparece automaticamente en el catalogo.')}</li>
               </ol>
-              <p className="mt-1 text-xs text-gray-500">Nota: el instalador con un clic requiere que el servicio tenga una imagen Docker publica. Si el servicio no usa Docker, solo se puede instalar manualmente con "Descargar" y siguiendo las instrucciones.</p>
+              <p className="mt-1 text-xs text-gray-500">{t('help_add_note', 'Nota: el instalador con un clic requiere que el servicio tenga una imagen Docker publica. Si el servicio no usa Docker, solo se puede instalar manualmente con "Descargar" y siguiendo las instrucciones.')}</p>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_permission_q', 'Que permiso necesito?')}</h4>
-              <p>Para instalar, desinstalar, iniciar o detener servicios necesitas el permiso <code className="bg-gray-200 px-1 rounded">config.manage</code>. La Asamblea decide quien tiene este permiso mediante los roles y departamentos del sistema.</p>
+              <p>{t('help_permission_desc', 'Para instalar, desinstalar, iniciar o detener servicios necesitas el permiso')} <code className="bg-gray-200 px-1 rounded">config.manage</code>. {t('help_permission_desc2', 'La Asamblea decide quien tiene este permiso mediante los roles y departamentos del sistema.')}</p>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_federation', 'Federacion entre aldeas')}</h4>
-              <p>Los servicios que soportan ActivityPub (PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm, Funkwhale) pueden federarse con otras aldeas. Esto significa que el contenido publicado en una aldea es visible desde las otras aldeas federadas. Para federar servicios, cada aldea debe instalar el mismo servicio y configurar la federacion entre ellos.</p>
+              <p>{t('help_federation_desc', 'Los servicios que soportan ActivityPub (PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm, Funkwhale) pueden federarse con otras aldeas. Esto significa que el contenido publicado en una aldea es visible desde las otras aldeas federadas. Para federar servicios, cada aldea debe instalar el mismo servicio y configurar la federacion entre ellos.')}</p>
             </div>
 
             <div className="border-t pt-3">
@@ -454,53 +454,53 @@ export default function FederatedServices() {
                 <div className="bg-white p-3 rounded-lg border">
                   <div className="font-medium text-sm">{t('help_mailu_light', 'Mailu (Ligero)')}</div>
                   <ul className="text-xs space-y-1 mt-1 text-gray-600">
-                    <li>1-2 GB RAM</li>
-                    <li>Licencia MIT (sin restricciones)</li>
-                    <li>SMTP + IMAP + webmail</li>
-                    <li>Ideal para hardware limitado</li>
-                    <li>Sin calendario compartido</li>
+                    <li>{t('help_mailu_ram', '1-2 GB RAM')}</li>
+                    <li>{t('help_mailu_license', 'Licencia MIT (sin restricciones)')}</li>
+                    <li>{t('help_mailu_features', 'SMTP + IMAP + webmail')}</li>
+                    <li>{t('help_mailu_ideal', 'Ideal para hardware limitado')}</li>
+                    <li>{t('help_mailu_no_cal', 'Sin calendario compartido')}</li>
                   </ul>
                 </div>
                 <div className="bg-white p-3 rounded-lg border">
                   <div className="font-medium text-sm">{t('help_mailcow_full', 'Mailcow (Completo)')}</div>
                   <ul className="text-xs space-y-1 mt-1 text-gray-600">
-                    <li>3-4 GB RAM</li>
-                    <li>Licencia GPL</li>
-                    <li>SMTP + IMAP + groupware</li>
-                    <li>Calendario + contactos CalDAV/CardDAV</li>
-                    <li>Ideal para servidor dedicado</li>
+                    <li>{t('help_mailcow_ram', '3-4 GB RAM')}</li>
+                    <li>{t('help_mailcow_license', 'Licencia GPL')}</li>
+                    <li>{t('help_mailcow_features', 'SMTP + IMAP + groupware')}</li>
+                    <li>{t('help_mailcow_cal', 'Calendario + contactos CalDAV/CardDAV')}</li>
+                    <li>{t('help_mailcow_ideal', 'Ideal para servidor dedicado')}</li>
                   </ul>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Si tu nodo tiene poca RAM, instala Mailu. Si tienes otro servidor con mas RAM, instala Mailcow alli. Ambos federan con cualquier servidor de correo del mundo.</p>
+              <p className="text-xs text-gray-500 mt-2">{t('help_mail_choice', 'Si tu nodo tiene poca RAM, instala Mailu. Si tienes otro servidor con mas RAM, instala Mailcow alli. Ambos federan con cualquier servidor de correo del mundo.')}</p>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_email_clients', 'Como configurar los clientes de correo')}</h4>
-              <p>Despues de instalar Mailu o Mailcow, los miembros configuran sus clientes de correo asi:</p>
+              <p>{t('help_email_clients_desc', 'Despues de instalar Mailu o Mailcow, los miembros configuran sus clientes de correo asi:')}</p>
               <div className="bg-gray-100 p-3 rounded-lg mt-1 text-xs font-mono">
-                <div>Servidor entrante (IMAP): correo.{nodeDomain}</div>
-                <div>Puerto: 993 (SSL/TLS)</div>
-                <div>Servidor saliente (SMTP): correo.{nodeDomain}</div>
-                <div>Puerto: 587 (STARTTLS)</div>
-                <div>Usuario: miembro@{nodeDomain}</div>
-                <div>Contrasena: la que el admin le asigno</div>
+                <div>{t('help_imap_server', 'Servidor entrante (IMAP):')} correo.{nodeDomain}</div>
+                <div>{t('help_imap_port', 'Puerto:')} 993 (SSL/TLS)</div>
+                <div>{t('help_smtp_server', 'Servidor saliente (SMTP):')} correo.{nodeDomain}</div>
+                <div>{t('help_smtp_port', 'Puerto:')} 587 (STARTTLS)</div>
+                <div>{t('help_email_user', 'Usuario:')} miembro@{nodeDomain}</div>
+                <div>{t('help_email_pass', 'Contrasena: la que el admin le asigno')}</div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Clientes recomendados: Thunderbird (PC), K-9 Mail (Android), Mail (iOS). La mayoria se autoconfiguran via Autoconfig/Autodiscover: solo colocas el correo y la contrasena, y el cliente encuentra el servidor automaticamente.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('help_email_clients_recommended', 'Clientes recomendados: Thunderbird (PC), K-9 Mail (Android), Mail (iOS). La mayoria se autoconfiguran via Autoconfig/Autodiscover: solo colocas el correo y la contrasena, y el cliente encuentra el servidor automaticamente.')}</p>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-900">{t('help_delta_chat', 'Delta Chat: chat estilo WhatsApp via correo')}</h4>
-              <p>Delta Chat es un CLIENTE (app) que se instala en el celular o PC de cada miembro, no en el servidor. Para usarlo:</p>
+              <p>{t('help_delta_chat_desc', 'Delta Chat es un CLIENTE (app) que se instala en el celular o PC de cada miembro, no en el servidor. Para usarlo:')}</p>
               <ol className="list-decimal list-inside space-y-1 ml-2 mt-1">
-                <li>Instala Mailu o Mailcow en el nodo.</li>
-                <li>El admin crea una cuenta de correo para cada miembro.</li>
-                <li>Cada miembro instala Delta Chat en su celular (Google Play, App Store, F-Droid).</li>
-                <li>En Delta Chat, coloca su correo@{nodeDomain} y contrasena.</li>
-                <li>Delta Chat se conecta automaticamente al servidor IMAP/SMTP del nodo.</li>
-                <li>Para chatear con alguien de otra aldea: agrega su correo@otra-aldea.com.</li>
+                <li>{t('help_delta_step1', 'Instala Mailu o Mailcow en el nodo.')}</li>
+                <li>{t('help_delta_step2', 'El admin crea una cuenta de correo para cada miembro.')}</li>
+                <li>{t('help_delta_step3', 'Cada miembro instala Delta Chat en su celular (Google Play, App Store, F-Droid).')}</li>
+                <li>{t('help_delta_step4', 'En Delta Chat, coloca su correo@{nodeDomain} y contrasena.', { nodeDomain })}</li>
+                <li>{t('help_delta_step5', 'Delta Chat se conecta automaticamente al servidor IMAP/SMTP del nodo.')}</li>
+                <li>{t('help_delta_step6', 'Para chatear con alguien de otra aldea: agrega su correo@otra-aldea.com.')}</li>
               </ol>
-              <p className="text-xs text-gray-500 mt-1">No hay que configurar servidores manualmente en Delta Chat. Solo correo y contrasena. El chat se ve igual que WhatsApp: mensajes, fotos, archivos, grupos, llamadas.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('help_delta_note', 'No hay que configurar servidores manualmente en Delta Chat. Solo correo y contrasena. El chat se ve igual que WhatsApp: mensajes, fotos, archivos, grupos, llamadas.')}</p>
             </div>
 
             <div>
@@ -1373,8 +1373,8 @@ function VoIPPanel() {
                 <div>
                   <span className="font-medium">{gw.name}</span>
                   {gw.provider && <span className="text-gray-500 ml-2">({gw.provider})</span>}
-                  {gw.inbound_number && <span className="text-gray-400 ml-2 text-xs">Entrante: {gw.inbound_number}</span>}
-                  <span className="text-gray-400 ml-2 text-xs">{gw.cost_per_minute} TQ/min</span>
+                  {gw.inbound_number && <span className="text-gray-400 ml-2 text-xs">{t('pstn_inbound', 'Entrante:')} {gw.inbound_number}</span>}
+                  <span className="text-gray-400 ml-2 text-xs">{gw.cost_per_minute} {t('pstn_per_min', 'TQ/min')}</span>
                 </div>
                 <button onClick={() => deletePSTNGateway(String(gw.id))} className="text-red-500"><Trash2 size={14} /></button>
               </div>
@@ -1382,14 +1382,14 @@ function VoIPPanel() {
           </div>
         )}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-          <input className="input text-sm" placeholder="Nombre (ej: VoIP.ms)" value={newGateway.name} onChange={(e) => setNewGateway({ ...newGateway, name: e.target.value })} />
-          <input className="input text-sm" placeholder="Proveedor" value={newGateway.provider} onChange={(e) => setNewGateway({ ...newGateway, provider: e.target.value })} />
-          <input className="input text-sm" placeholder="Servidor SIP" value={newGateway.sip_server} onChange={(e) => setNewGateway({ ...newGateway, sip_server: e.target.value })} />
-          <input className="input text-sm" placeholder="Usuario SIP" value={newGateway.sip_username} onChange={(e) => setNewGateway({ ...newGateway, sip_username: e.target.value })} />
-          <input className="input text-sm" placeholder="Password SIP" type="password" value={newGateway.sip_password} onChange={(e) => setNewGateway({ ...newGateway, sip_password: e.target.value })} />
-          <input className="input text-sm" placeholder="Numero entrante (opcional)" value={newGateway.inbound_number} onChange={(e) => setNewGateway({ ...newGateway, inbound_number: e.target.value })} />
-          <input className="input text-sm" type="number" placeholder="Costo/min (centavos TQ)" value={newGateway.cost_per_minute || ''} onChange={(e) => setNewGateway({ ...newGateway, cost_per_minute: parseFloat(e.target.value) || 0 })} />
-          <input className="input text-sm" type="number" placeholder="Llamadas simultaneas" value={newGateway.max_concurrent_calls || ''} onChange={(e) => setNewGateway({ ...newGateway, max_concurrent_calls: parseInt(e.target.value) || 2 })} />
+          <input className="input text-sm" placeholder={t('pstn_name_ph', 'Nombre (ej: VoIP.ms)')} value={newGateway.name} onChange={(e) => setNewGateway({ ...newGateway, name: e.target.value })} />
+          <input className="input text-sm" placeholder={t('pstn_provider_ph', 'Proveedor')} value={newGateway.provider} onChange={(e) => setNewGateway({ ...newGateway, provider: e.target.value })} />
+          <input className="input text-sm" placeholder={t('pstn_sip_server_ph', 'Servidor SIP')} value={newGateway.sip_server} onChange={(e) => setNewGateway({ ...newGateway, sip_server: e.target.value })} />
+          <input className="input text-sm" placeholder={t('pstn_sip_user_ph', 'Usuario SIP')} value={newGateway.sip_username} onChange={(e) => setNewGateway({ ...newGateway, sip_username: e.target.value })} />
+          <input className="input text-sm" placeholder={t('pstn_sip_pass_ph', 'Password SIP')} type="password" value={newGateway.sip_password} onChange={(e) => setNewGateway({ ...newGateway, sip_password: e.target.value })} />
+          <input className="input text-sm" placeholder={t('pstn_inbound_ph', 'Numero entrante (opcional)')} value={newGateway.inbound_number} onChange={(e) => setNewGateway({ ...newGateway, inbound_number: e.target.value })} />
+          <input className="input text-sm" type="number" placeholder={t('pstn_cost_ph', 'Costo/min (centavos TQ)')} value={newGateway.cost_per_minute || ''} onChange={(e) => setNewGateway({ ...newGateway, cost_per_minute: parseFloat(e.target.value) || 0 })} />
+          <input className="input text-sm" type="number" placeholder={t('pstn_concurrent_ph', 'Llamadas simultaneas')} value={newGateway.max_concurrent_calls || ''} onChange={(e) => setNewGateway({ ...newGateway, max_concurrent_calls: parseInt(e.target.value) || 2 })} />
           <button onClick={createPSTNGateway} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('add_gateway', 'Agregar pasarela')}</button>
         </div>
       </div>
@@ -1406,9 +1406,9 @@ function VoIPPanel() {
           </div>
         )}
         <div className="flex gap-2">
-          <input className="input text-sm" type="number" placeholder="Monto a recargar (centavos TQ)" value={rechargeAmount || ''} onChange={(e) => setRechargeAmount(parseInt(e.target.value) || 0)} />
-          <input className="input text-sm" placeholder="Metodo (transfer/cash)" value={rechargeMethod} onChange={(e) => setRechargeMethod(e.target.value)} />
-          <input className="input text-sm" placeholder="Referencia" value={rechargeRef} onChange={(e) => setRechargeRef(e.target.value)} />
+          <input className="input text-sm" type="number" placeholder={t('recharge_amount_ph', 'Monto a recargar (centavos TQ)')} value={rechargeAmount || ''} onChange={(e) => setRechargeAmount(parseInt(e.target.value) || 0)} />
+          <input className="input text-sm" placeholder={t('recharge_method_ph', 'Metodo (transfer/cash)')} value={rechargeMethod} onChange={(e) => setRechargeMethod(e.target.value)} />
+          <input className="input text-sm" placeholder={t('recharge_ref_ph', 'Referencia')} value={rechargeRef} onChange={(e) => setRechargeRef(e.target.value)} />
           <button onClick={rechargeVoIP} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm whitespace-nowrap">{t('request_recharge', 'Solicitar recarga')}</button>
         </div>
       </div>
@@ -1427,7 +1427,7 @@ function VoIPPanel() {
                   <span className={`ml-2 px-1.5 py-0.5 rounded ${c.destination_type === 'internal' ? 'bg-green-100 text-green-700' : c.destination_type === 'federated' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
                     {c.destination_type}
                   </span>
-                  {c.direction === 'inbound' && <span className="ml-1 text-gray-400">(entrante)</span>}
+                  {c.direction === 'inbound' && <span className="ml-1 text-gray-400">({t('cdr_inbound', 'entrante')})</span>}
                 </div>
                 <div className="text-right">
                   <div>{c.duration}s | {c.cost_display}</div>
