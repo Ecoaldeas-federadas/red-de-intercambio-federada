@@ -147,6 +147,12 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HOST_DIR_FWD}:/project:rw
       - update_state:/update-state
+  caddy:
+    volumes:
+      - ${HOST_DIR_FWD}/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${HOST_DIR_FWD}/docker/maintenance.html:/srv/maintenance.html:ro
+      - caddy_data:/data
+      - caddy_config:/config
 YAMLEOF
   log "Override generado: $(cat /tmp/docker-compose.override.yml | head -3)"
 else
