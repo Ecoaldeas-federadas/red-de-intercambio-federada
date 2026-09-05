@@ -206,9 +206,9 @@ export default function CalculatorParams() {
           <label className="label">{t('calculator_params.search', 'Buscar parametro')}</label>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-            <input className="input pl-9" placeholder="Ej: carpinteria, harina, albañileria..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="input pl-9" placeholder={t('calc_params_search_placeholder', 'Ej: carpinteria, harina, albañileria...')} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <p className="text-xs text-gray-400 mt-1">Escribe parte del nombre o descripcion del parametro que buscas. Ej: "carpinteria" para encontrar todos los parametros relacionados con carpinteria.</p>
+          <p className="text-xs text-gray-400 mt-1">{t('calc_params_search_hint', 'Escribe parte del nombre o descripcion del parametro que buscas. Ej: "carpinteria" para encontrar todos los parametros relacionados con carpinteria.')}</p>
         </div>
         <div>
           <label className="label">{t('calculator_params.filter_cat', 'Filtrar por categoria')}</label>
@@ -216,7 +216,7 @@ export default function CalculatorParams() {
             <option value="">{t('calculator_params.all_cats', 'Todas las categorias')}</option>
             {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
           </select>
-          <p className="text-xs text-gray-400 mt-1">Selecciona una categoria para ver solo sus parametros. Ej: "Construccion" para ver albañileria, plomeria, etc.</p>
+          <p className="text-xs text-gray-400 mt-1">{t('calc_params_filter_hint', 'Selecciona una categoria para ver solo sus parametros. Ej: "Construccion" para ver albañileria, plomeria, etc.')}</p>
         </div>
         {canManage && (
           <>
@@ -230,14 +230,14 @@ export default function CalculatorParams() {
         <div className="card space-y-3">
           <h3 className="font-semibold">{t('calculator_params.new_cat_title', 'Nueva Categoria')} ({tab === 'work' ? t('calculator_params.work', 'Trabajo') : t('calculator_params.material', 'Material')})</h3>
           <div>
-            <label className="label">Nombre de la categoria</label>
-            <input className="input" placeholder="Ej: Transporte" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Nombre corto que agrupa parametros similares. Ej: "Transporte", "Construccion", "Alimentos", "Salud".</p>
+            <label className="label">{t('calc_params_cat_name', 'Nombre de la categoria')}</label>
+            <input className="input" placeholder={t('calc_params_cat_name_ph', 'Ej: Transporte')} value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">{t('calc_params_cat_name_hint', 'Nombre corto que agrupa parametros similares. Ej: "Transporte", "Construccion", "Alimentos", "Salud".')}</p>
           </div>
           <div>
-            <label className="label">Descripcion de la categoria</label>
-            <input className="input" placeholder="Ej: Trabajos relacionados con transporte de personas y mercancias" value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Breve explicacion de que tipos de parametros pertenecen a esta categoria. Ej: "Trabajos manuales relacionados con la construccion de edificios".</p>
+            <label className="label">{t('calc_params_cat_desc', 'Descripcion de la categoria')}</label>
+            <input className="input" placeholder={t('calc_params_cat_desc_ph', 'Ej: Trabajos relacionados con transporte de personas y mercancias')} value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">{t('calc_params_cat_desc_hint', 'Breve explicacion de que tipos de parametros pertenecen a esta categoria. Ej: "Trabajos manuales relacionados con la construccion de edificios".')}</p>
           </div>
           <button onClick={saveCategory} className="btn-primary">{t('calculator_params.create_cat', 'Crear Categoria')}</button>
         </div>
@@ -252,71 +252,72 @@ export default function CalculatorParams() {
               <option value="">{t('calculator_params.select_cat', 'Seleccionar categoria...')}</option>
               {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
             </select>
-            <p className="text-xs text-gray-400 mt-1">A que categoria pertenece este parametro. Ej: "Construccion" para albañileria, "Alimentos" para harina. Si necesitas una categoria nueva, creala primero con el boton "Nueva Categoria".</p>
+            <p className="text-xs text-gray-400 mt-1">{t('calc_params_param_cat_hint', 'A que categoria pertenece este parametro. Ej: "Construccion" para albañileria, "Alimentos" para harina. Si necesitas una categoria nueva, creala primero con el boton "Nueva Categoria".')}</p>
           </div>
           <div>
-            <label className="label">Subcategoria (opcional)</label>
-            <input className="input" placeholder="Ej: Manual, Electrica, Pesada" value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Subgrupo dentro de la categoria para mayor detalle. Ej: dentro de "Carpinteria" podrias tener "Manual" y "Electrica". Dejar vacio si no aplica.</p>
+            <label className="label">{t('calc_params_subcat', 'Subcategoria (opcional)')}</label>
+            <input className="input" placeholder={t('calc_params_subcat_ph', 'Ej: Manual, Electrica, Pesada')} value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">{t('calc_params_subcat_hint', 'Subgrupo dentro de la categoria para mayor detalle. Ej: dentro de "Carpinteria" podrias tener "Manual" y "Electrica". Dejar vacio si no aplica.')}</p>
           </div>
           <div>
-            <label className="label">Nombre del parametro</label>
-            <input className="input" placeholder={tab === 'work' ? 'Ej: Carpinteria manual' : 'Ej: Harina de trigo'} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Nombre claro del trabajo o insumo. {tab === 'work' ? 'Ej: "Carpinteria manual", "Programacion web", "Atencion al publico".' : 'Ej: "Harina de trigo", "Madera de pino", "Electricidad".'}</p>
+            <label className="label">{t('calc_params_param_name', 'Nombre del parametro')}</label>
+            <input className="input" placeholder={tab === 'work' ? t('calc_params_param_name_work_ph', 'Ej: Carpinteria manual') : t('calc_params_param_name_mat_ph', 'Ej: Harina de trigo')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">{t('calc_params_param_name_hint', 'Nombre claro del trabajo o insumo.')} {tab === 'work' ? t('calc_params_param_name_work_hint', 'Ej: "Carpinteria manual", "Programacion web", "Atencion al publico".') : t('calc_params_param_name_mat_hint', 'Ej: "Harina de trigo", "Madera de pino", "Electricidad".')}</p>
           </div>
           <div>
-            <label className="label">Descripcion del parametro</label>
-            <input className="input" placeholder={tab === 'work' ? 'Ej: Trabajo manual con herramientas basicas de carpinteria' : 'Ej: Harina de trigo refinada, paquete de 1 kg'} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Breve descripcion que ayude a identificar el parametro. Ej: "Trabajo manual con herramientas basicas, sin maquinaria electrica".</p>
+            <label className="label">{t('calc_params_param_desc', 'Descripcion del parametro')}</label>
+            <input className="input" placeholder={tab === 'work' ? t('calc_params_param_desc_work_ph', 'Ej: Trabajo manual con herramientas basicas de carpinteria') : t('calc_params_param_desc_mat_ph', 'Ej: Harina de trigo refinada, paquete de 1 kg')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">{t('calc_params_param_desc_hint', 'Breve descripcion que ayude a identificar el parametro. Ej: "Trabajo manual con herramientas basicas, sin maquinaria electrica".')}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Unidad de medida</label>
-              <input className="input" placeholder={tab === 'work' ? 'Ej: horas' : 'Ej: kg, litros, metros, unidades'} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">{tab === 'work' ? 'Normalmente "horas" (costo por hora de trabajo). Ej: "horas", "jornada".' : 'Unidad en que se mide el material. Ej: "kg", "litros", "metros", "unidades", "m3".'}</p>
+              <label className="label">{t('calc_params_unit', 'Unidad de medida')}</label>
+              <input className="input" placeholder={tab === 'work' ? t('calc_params_unit_work_ph', 'Ej: horas') : t('calc_params_unit_mat_ph', 'Ej: kg, litros, metros, unidades')} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">{tab === 'work' ? t('calc_params_unit_work_hint', 'Normalmente "horas" (costo por hora de trabajo). Ej: "horas", "jornada".') : t('calc_params_unit_mat_hint', 'Unidad en que se mide el material. Ej: "kg", "litros", "metros", "unidades", "m3".')}</p>
             </div>
             {tab === 'work' ? (
               <div>
-                <label className="label">Tipo de esfuerzo (vinculado a tarifa)</label>
+                <label className="label">{t('calc_params_effort_type', 'Tipo de esfuerzo (vinculado a tarifa)')}</label>
                 <select className="input" value={form.tariff_category} onChange={(e) => setForm({ ...form, tariff_category: e.target.value })}>
-                  <option value="">Especificar kWh manualmente</option>
-                  <option value="agricultural">Agricola (esfuerzo {getTariffEffort('agricultural')}x)</option>
-                  <option value="technical">Tecnico (esfuerzo {getTariffEffort('technical')}x)</option>
-                  <option value="admin">Administrativo (esfuerzo {getTariffEffort('admin')}x)</option>
+                  <option value="">{t('calc_params_effort_manual', 'Especificar kWh manualmente')}</option>
+                  <option value="agricultural">{t('calc_params_effort_agri', 'Agricola (esfuerzo {effort}x)', { effort: getTariffEffort('agricultural') })}</option>
+                  <option value="technical">{t('calc_params_effort_tech', 'Tecnico (esfuerzo {effort}x)', { effort: getTariffEffort('technical') })}</option>
+                  <option value="admin">{t('calc_params_effort_admin', 'Administrativo (esfuerzo {effort}x)', { effort: getTariffEffort('admin') })}</option>
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
-                  Vincula este trabajo a la tarifa energetica (canasta vital). El kWh se calcula automaticamente:
-                  base ({fmtNumber(baseRate, 2)}) x esfuerzo ({form.tariff_category ? getTariffEffort(form.tariff_category) : '?'})
-                  {form.tariff_category && ` = ${fmtNumber(baseRate * getTariffEffort(form.tariff_category), 2)} kWh/hora`}
-                  . Si la asamblea cambia la canasta vital, este valor se actualiza solo.
+                  {t('calc_params_effort_link_desc', 'Vincula este trabajo a la tarifa energetica (canasta vital). El kWh se calcula automaticamente:')}
+                  {' '}
+                  {t('calc_params_base', 'base')} ({fmtNumber(baseRate, 2)}) x {t('calc_params_effort', 'esfuerzo')} ({form.tariff_category ? getTariffEffort(form.tariff_category) : '?'})
+                  {form.tariff_category && ` = ${fmtNumber(baseRate * getTariffEffort(form.tariff_category), 2)} kWh/${t('calc_params_hour', 'hora')}`}
+                  . {t('calc_params_effort_link_hint', 'Si la asamblea cambia la canasta vital, este valor se actualiza solo.')}
                 </p>
               </div>
             ) : (
               <div>
-                <label className="label">Costo energetico (kWh por unidad)</label>
-                <input type="number" step="0.0001" className="input" placeholder="Ej: 1.8" value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
-                <p className="text-xs text-gray-400 mt-1">Cuanta energia (kWh) representa una unidad. 1 {currency} = 1 kWh. Ej: harina = 1.8 kWh/kg, madera = 2.5 kWh/m3.</p>
+                <label className="label">{t('calc_params_kwh_unit', 'Costo energetico (kWh por unidad)')}</label>
+                <input type="number" step="0.0001" className="input" placeholder={t('calc_params_kwh_ph', 'Ej: 1.8')} value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
+                <p className="text-xs text-gray-400 mt-1">{t('calc_params_kwh_hint', 'Cuanta energia (kWh) representa una unidad. 1 {currency} = 1 kWh. Ej: harina = 1.8 kWh/kg, madera = 2.5 kWh/m3.', { currency })}</p>
               </div>
             )}
           </div>
           {tab === 'work' && form.tariff_category && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
-              <p><strong>Calculo dinamico:</strong> {fmtNumber(baseRate, 2)} (base) x {getTariffEffort(form.tariff_category)} (esfuerzo {form.tariff_category}) x {form.effort_factor} (factor adicional) = <strong>{fmtNumber(baseRate * getTariffEffort(form.tariff_category) * form.effort_factor, 2)} kWh/hora</strong></p>
-              <p className="text-xs text-gray-500 mt-1">Este valor se recalcula automaticamente si la asamblea cambia la canasta vital o los factores de esfuerzo.</p>
+              <p><strong>{t('calc_params_dyn_calc', 'Calculo dinamico:')}</strong> {fmtNumber(baseRate, 2)} ({t('calc_params_base', 'base')}) x {getTariffEffort(form.tariff_category)} ({t('calc_params_effort', 'esfuerzo')} {form.tariff_category}) x {form.effort_factor} ({t('calc_params_extra_factor', 'factor adicional')}) = <strong>{fmtNumber(baseRate * getTariffEffort(form.tariff_category) * form.effort_factor, 2)} kWh/{t('calc_params_hour', 'hora')}</strong></p>
+              <p className="text-xs text-gray-500 mt-1">{t('calc_params_dyn_calc_hint', 'Este valor se recalcula automaticamente si la asamblea cambia la canasta vital o los factores de esfuerzo.')}</p>
             </div>
           )}
           {tab === 'work' && !form.tariff_category && (
             <div>
-              <label className="label">Costo energetico (kWh por unidad) — manual</label>
-              <input type="number" step="0.0001" className="input" placeholder="Ej: 0.19" value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Cuanta energia (kWh) representa una hora. 1 {currency} = 1 kWh. Este valor es fijo (no se actualiza con la tarifa). Considera vincularlo a un tipo de esfuerzo arriba.</p>
+              <label className="label">{t('calc_params_kwh_manual', 'Costo energetico (kWh por unidad) — manual')}</label>
+              <input type="number" step="0.0001" className="input" placeholder={t('calc_params_kwh_manual_ph', 'Ej: 0.19')} value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">{t('calc_params_kwh_manual_hint', 'Cuanta energia (kWh) representa una hora. 1 {currency} = 1 kWh. Este valor es fijo (no se actualiza con la tarifa). Considera vincularlo a un tipo de esfuerzo arriba.', { currency })}</p>
             </div>
           )}
           {tab === 'work' && (
             <div>
-              <label className="label">Factor de amplificacion adicional</label>
-              <input type="number" step="0.05" className="input" placeholder="Ej: 1.0 (normal), 1.3 (30% mas), 0.8 (20% menos)" value={form.effort_factor} onChange={(e) => setForm({ ...form, effort_factor: parseFloat(e.target.value) || 1.0 })} />
-              <p className="text-xs text-gray-400 mt-1">Multiplicador adicional sobre el esfuerzo base. 1.0 = sin cambio. Usalo para trabajos mas dificiles (1.3 = 30% mas) o mas faciles (0.8 = 20% menos) de lo normal para su categoria.</p>
+              <label className="label">{t('calc_params_amp_factor', 'Factor de amplificacion adicional')}</label>
+              <input type="number" step="0.05" className="input" placeholder={t('calc_params_amp_factor_ph', 'Ej: 1.0 (normal), 1.3 (30% mas), 0.8 (20% menos)')} value={form.effort_factor} onChange={(e) => setForm({ ...form, effort_factor: parseFloat(e.target.value) || 1.0 })} />
+              <p className="text-xs text-gray-400 mt-1">{t('calc_params_amp_factor_hint', 'Multiplicador adicional sobre el esfuerzo base. 1.0 = sin cambio. Usalo para trabajos mas dificiles (1.3 = 30% mas) o mas faciles (0.8 = 20% menos) de lo normal para su categoria.')}</p>
             </div>
           )}
           <button onClick={save} className="btn-primary">{editing ? t('calculator_params.update', 'Actualizar') : t('calculator_params.create', 'Crear')} ({t('calculator_params.pending_approval', 'pendiente de aprobacion')})</button>
@@ -354,14 +355,14 @@ export default function CalculatorParams() {
                             <span className="text-emerald-600 font-medium">
                               {fmtNumber(getDynamicKwh(p) || 0, 2)} kWh/{p.unit}
                             </span>
-                            <span className="text-gray-400"> (dinamico: {fmtNumber(baseRate, 1)} base x {getTariffEffort(p.tariff_category)} {p.tariff_category}</span>
-                            {p.effort_factor !== 1.0 && <span> x {p.effort_factor} amplificacion</span>}
+                            <span className="text-gray-400"> ({t('calc_params_dyn_label', 'dinamico')}: {fmtNumber(baseRate, 1)} {t('calc_params_base_short', 'base')} x {getTariffEffort(p.tariff_category)} {p.tariff_category}</span>
+                            {p.effort_factor !== 1.0 && <span> x {p.effort_factor} {t('calc_params_amp_short', 'amplificacion')}</span>}
                             <span>)</span>
                           </>
                         ) : (
                           <>
                             {p.kwh_per_unit} kWh/{p.unit}
-                            {tab === 'work' && p.effort_factor !== 1.0 && ` | Esfuerzo: x${p.effort_factor}`}
+                            {tab === 'work' && p.effort_factor !== 1.0 && ` | ${t('calc_params_effort_label', 'Esfuerzo')}: x${p.effort_factor}`}
                           </>
                         )}
                       </p>

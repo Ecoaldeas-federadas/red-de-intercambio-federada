@@ -522,5 +522,21 @@
   "federation_wg_endpoint": "Endpoint WireGuard",
   "federation_wg_pubkey": "Clave publica WireGuard",
   "federation_services_running": "Servicios levantados",
-  "federation_updated": "Actualizado:"
+  "federation_updated": "Actualizado:",
+  "peers_help_state_active_label": "active:",
+  "peers_help_state_pending_label": "pending:",
+  "peers_method_auto_label": "Metodo recomendado (automatico):",
+  "peers_method_auto_desc": "Usa la verificacion de 4 opciones en la pagina de Descubrimiento de Nodos. Al confirmar, el nodo se federara automaticamente con toda la red via propagacion en cadena.",
+  "peers_method_manual_label": "Metodo manual (casos especiales):",
+  "peers_manual_step1": "Copia tu clave publica (arriba) y enviasela al admin del otro nodo",
+  "peers_manual_step2": "Pide la clave publica del otro nodo",
+  "peers_manual_step3": "Registra el otro nodo aqui (dominio + clave publica)",
+  "peers_manual_step4": "Pide al otro nodo que te registre a ti",
+  "peers_manual_step5": "Cuando ambos se han registrado, la federacion esta activa",
+  "peers_manual_note": "Nota: El metodo manual solo registra el peer localmente. Para que el nuevo nodo entre a toda la red automaticamente, usa la verificacion de 4 opciones.",
+  "peers_domain_hint": "Identificador unico del otro nodo en la red federada. Ejemplo:",
+  "peers_name_hint": "Nombre descriptivo del nodo para identificarlo facilmente. Ejemplo:",
+  "peers_pubkey_hint": "La clave publica Ed25519 del otro nodo (64 hex chars). Te la debe dar su administrador. Ejemplo:",
+  "peers_url_hint": "Direccion HTTPS para conectarse via federacion. Ejemplo:",
+  "peers_notes_hint": "Notas internas para recordar quien es este nodo. Ejemplo:"
 }

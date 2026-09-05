@@ -102,26 +102,26 @@ export default function CommunityFund() {
 
       {/* Balance del fondo */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Wallet size={18} />Balance del Fondo</h2>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Wallet size={18} />{t('fund_balance_title', 'Balance del Fondo')}</h2>
         {fund ? (
           fund.fund_account ? (
             <div className="space-y-2">
               <div className="text-3xl font-bold text-trueque-700">{fund.balance >= 0 ? '+' : ''}{fmtTQ(fund.balance || 0)} {currency}</div>
-              <p className="text-sm text-gray-500">Cuenta: <b>{fund.display_name || fund.username || 'asamblea'}</b></p>
+              <p className="text-sm text-gray-500">{t('fund_account_label', 'Cuenta:')} <b>{fund.display_name || fund.username || 'asamblea'}</b></p>
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@asamblea</span>
                 <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@impuestos</span>
                 <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@fondo_comunitario</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.</p>
+              <p className="text-xs text-gray-400 mt-1">{t('fund_aliases_hint', 'Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.')}</p>
               {fund.transaction_count > 0 && (
-                <p className="text-xs text-gray-400">{fund.transaction_count} transacciones registradas</p>
+                <p className="text-xs text-gray-400">{fund.transaction_count} {t('fund_tx_count', 'transacciones registradas')}</p>
               )}
             </div>
           ) : (
             <div>
               <p className="text-amber-600 text-sm">{fund.message}</p>
-              <p className="text-xs text-gray-400 mt-2">El Fondo Comunitario es la cuenta de la Asamblea General. Si no existe, crea una cuenta con username 'asamblea'.</p>
+              <p className="text-xs text-gray-400 mt-2">{t('fund_not_exists_hint', "El Fondo Comunitario es la cuenta de la Asamblea General. Si no existe, crea una cuenta con username 'asamblea'.")}</p>
             </div>
           )
         ) : (
@@ -132,41 +132,41 @@ export default function CommunityFund() {
       {/* Propuestas de distribucion */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />Propuestas de Distribucion</h2>
-          <button onClick={() => setShowNewProposal(!showNewProposal)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Propuesta</button>
+          <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />{t('fund_proposals_title', 'Propuestas de Distribucion')}</h2>
+          <button onClick={() => setShowNewProposal(!showNewProposal)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('fund_new_proposal', 'Nueva Propuesta')}</button>
         </div>
 
         {showNewProposal && (
           <div className="card space-y-4">
-            <h3 className="font-semibold">Proponer Distribucion del Fondo</h3>
+            <h3 className="font-semibold">{t('fund_propose_title', 'Proponer Distribucion del Fondo')}</h3>
             <div>
-              <label className="label">Destinatario (organizacion o usuario)</label>
+              <label className="label">{t('fund_recipient_label', 'Destinatario (organizacion o usuario)')}</label>
               <select className="input" value={newProposal.recipient} onChange={(e) => setNewProposal({ ...newProposal, recipient: e.target.value })}>
-                <option value="">Selecciona un destinatario...</option>
+                <option value="">{t('fund_select_recipient', 'Selecciona un destinatario...')}</option>
                 {recipients.map((r: any) => (
-                  <option key={r.id} value={r.username}>{r.display_name || r.username} ({r.username}) - {r.account_type === 'organization' ? 'Organizacion' : 'Usuario'}</option>
+                  <option key={r.id} value={r.username}>{r.display_name || r.username} ({r.username}) - {r.account_type === 'organization' ? t('fund_org_type', 'Organizacion') : t('fund_user_type', 'Usuario')}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Selecciona la cuenta que recibira el dinero del fondo. Solo aparecen usuarios y organizaciones validas del nodo.</p>
+              <p className="text-xs text-gray-400 mt-1">{t('fund_recipient_hint', 'Selecciona la cuenta que recibira el dinero del fondo. Solo aparecen usuarios y organizaciones validas del nodo.')}</p>
             </div>
             <div>
-              <label className="label">Monto ({currency})</label>
-              <input type="number" className="input" placeholder="Ej: 500" value={newProposal.amount} onChange={(e) => setNewProposal({ ...newProposal, amount: toCents(e.target.value) })} />
-              <p className="text-xs text-gray-400 mt-1">Cuanto dinero del fondo se distribuira al destinatario. Debe ser mayor que 0 y no superar el balance disponible. Ej: 500.</p>
+              <label className="label">{t('fund_amount_label', 'Monto ({currency})', { currency })}</label>
+              <input type="number" className="input" placeholder={t('fund_amount_ph', 'Ej: 500')} value={newProposal.amount} onChange={(e) => setNewProposal({ ...newProposal, amount: toCents(e.target.value) })} />
+              <p className="text-xs text-gray-400 mt-1">{t('fund_amount_hint', 'Cuanto dinero del fondo se distribuira al destinatario. Debe ser mayor que 0 y no superar el balance disponible. Ej: 500.')}</p>
             </div>
             <div>
-              <label className="label">Razon</label>
-              <textarea className="input" rows={2} placeholder="Ej: Compra de materiales para taller comunitario" value={newProposal.reason} onChange={(e) => setNewProposal({ ...newProposal, reason: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Explica para que se usara el dinero. Esta razon sera visible para todos los votantes. Ej: "Compra de materiales para taller comunitario".</p>
+              <label className="label">{t('fund_reason_label', 'Razon')}</label>
+              <textarea className="input" rows={2} placeholder={t('fund_reason_ph', 'Ej: Compra de materiales para taller comunitario')} value={newProposal.reason} onChange={(e) => setNewProposal({ ...newProposal, reason: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">{t('fund_reason_hint', 'Explica para que se usara el dinero. Esta razon sera visible para todos los votantes. Ej: "Compra de materiales para taller comunitario".')}</p>
             </div>
-            <button onClick={createProposal} className="btn-primary">Crear Propuesta</button>
+            <button onClick={createProposal} className="btn-primary">{t('fund_create_proposal', 'Crear Propuesta')}</button>
           </div>
         )}
 
         {proposals.length === 0 && !showNewProposal ? (
           <div className="card text-center text-gray-500 py-8">
-            <p>No hay propuestas de distribucion.</p>
-            <p className="text-xs mt-2">Crea una propuesta para distribuir dinero del fondo comunitario.</p>
+            <p>{t('fund_no_proposals', 'No hay propuestas de distribucion.')}</p>
+            <p className="text-xs mt-2">{t('fund_no_proposals_hint', 'Crea una propuesta para distribuir dinero del fondo comunitario.')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -181,14 +181,14 @@ export default function CommunityFund() {
                   }`}>{p.status}</span>
                 </div>
                 <div className="flex items-center gap-4 mt-2 text-sm">
-                  <span className="text-green-600">A favor: {p.votes_for || 0}</span>
-                  <span className="text-red-600">En contra: {p.votes_against || 0}</span>
+                  <span className="text-green-600">{t('fund_votes_for', 'A favor:')} {p.votes_for || 0}</span>
+                  <span className="text-red-600">{t('fund_votes_against', 'En contra:')} {p.votes_against || 0}</span>
                 </div>
                 {p.status === 'pending' && (
                   <div className="flex gap-2 mt-3">
-                    <button onClick={() => vote(p.id, 'for')} className="btn-secondary text-green-600 flex items-center gap-1"><Check size={16} />A favor</button>
-                    <button onClick={() => vote(p.id, 'against')} className="btn-secondary text-red-600 flex items-center gap-1"><X size={16} />En contra</button>
-                    <button onClick={() => execute(p.id)} className="btn-primary ml-auto">Ejecutar</button>
+                    <button onClick={() => vote(p.id, 'for')} className="btn-secondary text-green-600 flex items-center gap-1"><Check size={16} />{t('fund_vote_for', 'A favor')}</button>
+                    <button onClick={() => vote(p.id, 'against')} className="btn-secondary text-red-600 flex items-center gap-1"><X size={16} />{t('fund_vote_against', 'En contra')}</button>
+                    <button onClick={() => execute(p.id)} className="btn-primary ml-auto">{t('fund_execute', 'Ejecutar')}</button>
                   </div>
                 )}
               </div>

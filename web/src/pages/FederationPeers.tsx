@@ -281,8 +281,8 @@ export default function FederationPeers() {
           <p><strong>{t('peers_help_comm_label', 'Como funciona la comunicacion entre nodos:')}</strong> {t('peers_help_comm', 'Cuando dos nodos se federan mutuamente, establecen un canal seguro usando sus claves publicas. Las transacciones entre usuarios de distintos nodos se envian via HTTPS, firmadas criptograficamente. Cada nodo mantiene un saldo bilateral con cada peer.')}</p>
           <p><strong>{t('peers_help_states_label', 'Estados de un nodo peer:')}</strong></p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li><strong>active:</strong> {t('peers_help_state_active', 'El nodo esta registrado y la federacion es mutua (ambos se han registrado).')}</li>
-            <li><strong>pending:</strong> {t('peers_help_state_pending', 'El nodo esta registrado de tu lado pero el otro nodo aun no te ha registrado.')}</li>
+            <li><strong>{t('peers_help_state_active_label', 'active:')}</strong> {t('peers_help_state_active', 'El nodo esta registrado y la federacion es mutua (ambos se han registrado).')}</li>
+            <li><strong>{t('peers_help_state_pending_label', 'pending:')}</strong> {t('peers_help_state_pending', 'El nodo esta registrado de tu lado pero el otro nodo aun no te ha registrado.')}</li>
             <li><strong>{t('peers_help_state_mutual_label', 'Mutuo:')}</strong> {t('peers_help_state_mutual', 'Indica que ambos nodos se han registrado mutuamente y la federacion esta activa.')}</li>
           </ul>
           <p><strong>{t('peers_help_levels_label', 'Niveles de nodo federado:')}</strong> {t('peers_help_levels_desc', 'Cada nodo tiene un nivel que determina su limite y capacidades:')}</p>
@@ -648,16 +648,16 @@ export default function FederationPeers() {
       <div className="card bg-amber-50 border-amber-200">
         <h3 className="font-medium text-amber-800 mb-2">{t('peers_how_to_federate', 'Como federar dos nodos')}</h3>
         <div className="text-sm text-amber-700 space-y-2">
-          <p><strong>Metodo recomendado (automatico):</strong> Usa la verificacion de 4 opciones en la pagina de Descubrimiento de Nodos. Al confirmar, el nodo se federara automaticamente con toda la red via propagacion en cadena.</p>
-          <p><strong>Metodo manual (casos especiales):</strong></p>
+          <p><strong>{t('peers_method_auto_label', 'Metodo recomendado (automatico):')}</strong> {t('peers_method_auto_desc', 'Usa la verificacion de 4 opciones en la pagina de Descubrimiento de Nodos. Al confirmar, el nodo se federara automaticamente con toda la red via propagacion en cadena.')}</p>
+          <p><strong>{t('peers_method_manual_label', 'Metodo manual (casos especiales):')}</strong></p>
           <ol className="space-y-1 list-decimal list-inside">
-            <li>Copia tu clave publica (arriba) y enviasela al admin del otro nodo</li>
-            <li>Pide la clave publica del otro nodo</li>
-            <li>Registra el otro nodo aqui (dominio + clave publica)</li>
-            <li>Pide al otro nodo que te registre a ti</li>
-            <li>Cuando ambos se han registrado, la federacion esta activa</li>
+            <li>{t('peers_manual_step1', 'Copia tu clave publica (arriba) y enviasela al admin del otro nodo')}</li>
+            <li>{t('peers_manual_step2', 'Pide la clave publica del otro nodo')}</li>
+            <li>{t('peers_manual_step3', 'Registra el otro nodo aqui (dominio + clave publica)')}</li>
+            <li>{t('peers_manual_step4', 'Pide al otro nodo que te registre a ti')}</li>
+            <li>{t('peers_manual_step5', 'Cuando ambos se han registrado, la federacion esta activa')}</li>
           </ol>
-          <p className="text-xs text-amber-600 mt-2">Nota: El metodo manual solo registra el peer localmente. Para que el nuevo nodo entre a toda la red automaticamente, usa la verificacion de 4 opciones.</p>
+          <p className="text-xs text-amber-600 mt-2">{t('peers_manual_note', 'Nota: El metodo manual solo registra el peer localmente. Para que el nuevo nodo entre a toda la red automaticamente, usa la verificacion de 4 opciones.')}</p>
         </div>
       </div>
 
@@ -669,27 +669,27 @@ export default function FederationPeers() {
             <div>
               <label className="label">{t('peers_register_modal_domain', 'Dominio del nodo remoto')}</label>
               <input className="input" placeholder="Ej: nodo-b.org" value={newPeer.peer_domain} onChange={(e) => setNewPeer({ ...newPeer, peer_domain: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Identificador unico del otro nodo en la red federada. Ejemplo: <code>nodo-b.org</code></p>
+              <p className="text-xs text-gray-400 mt-1">{t('peers_domain_hint', 'Identificador unico del otro nodo en la red federada. Ejemplo:')} <code>nodo-b.org</code></p>
             </div>
             <div>
               <label className="label">{t('peers_register_modal_name', 'Nombre (opcional)')}</label>
               <input className="input" placeholder="Ej: Banco Comunitario B" value={newPeer.peer_name} onChange={(e) => setNewPeer({ ...newPeer, peer_name: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Nombre descriptivo del nodo para identificarlo facilmente. Ejemplo: <code>Banco Comunitario B</code></p>
+              <p className="text-xs text-gray-400 mt-1">{t('peers_name_hint', 'Nombre descriptivo del nodo para identificarlo facilmente. Ejemplo:')} <code>Banco Comunitario B</code></p>
             </div>
             <div>
               <label className="label">{t('peers_register_modal_pubkey', 'Clave publica (64 caracteres hexadecimales)')}</label>
               <textarea className="input font-mono text-xs" rows={3} placeholder="Ej: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678" value={newPeer.peer_public_key} onChange={(e) => setNewPeer({ ...newPeer, peer_public_key: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">La clave publica Ed25519 del otro nodo (64 hex chars). Te la debe dar su administrador. Ejemplo: <code>a1b2c3d4e5f6...</code></p>
+              <p className="text-xs text-gray-400 mt-1">{t('peers_pubkey_hint', 'La clave publica Ed25519 del otro nodo (64 hex chars). Te la debe dar su administrador. Ejemplo:')} <code>a1b2c3d4e5f6...</code></p>
             </div>
             <div>
               <label className="label">{t('peers_register_modal_url', 'URL del nodo (opcional)')}</label>
               <input className="input" placeholder="Ej: https://nodo-b.org" value={newPeer.peer_endpoint} onChange={(e) => setNewPeer({ ...newPeer, peer_endpoint: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Direccion HTTPS para conectarse via federacion. Ejemplo: <code>https://nodo-b.org</code></p>
+              <p className="text-xs text-gray-400 mt-1">{t('peers_url_hint', 'Direccion HTTPS para conectarse via federacion. Ejemplo:')} <code>https://nodo-b.org</code></p>
             </div>
             <div>
               <label className="label">{t('peers_register_modal_notes', 'Notas (opcional)')}</label>
               <input className="input" placeholder="Ej: Nodo de la comunidad vecina del norte" value={newPeer.notes} onChange={(e) => setNewPeer({ ...newPeer, notes: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Notas internas para recordar quien es este nodo. Ejemplo: <code>Nodo de la comunidad vecina del norte</code></p>
+              <p className="text-xs text-gray-400 mt-1">{t('peers_notes_hint', 'Notas internas para recordar quien es este nodo. Ejemplo:')} <code>Nodo de la comunidad vecina del norte</code></p>
             </div>
             <button onClick={addPeer} className="btn-primary w-full">{t('peers_register_btn', 'Registrar')}</button>
           </div>
