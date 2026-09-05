@@ -436,12 +436,12 @@ export default function ExternalBridge() {
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p>El Comercio Exterior maneja dinero <strong>real</strong> (USD, EUR, COP, etc.). Cada cuenta puede ser:</p>
+            <p>{t('ext_accounts_help', 'El Comercio Exterior maneja dinero')} <strong>{t('ext_real', 'real')}</strong> {t('ext_accounts_help2', '(USD, EUR, COP, etc.). Cada cuenta puede ser:')}</p>
             <ul className="list-disc list-inside ml-2 mt-1">
-              <li><strong>Cuenta bancaria:</strong> dinero en un banco real. Registrar nombre del banco, numero de cuenta, tipo y pais.</li>
-              <li><strong>Efectivo en caja:</strong> dinero fisico guardado en la caja fuerte. No tiene banco ni numero.</li>
+              <li><strong>{t('ext_bank_account', 'Cuenta bancaria:')}</strong> {t('ext_bank_account_desc', 'dinero en un banco real. Registrar nombre del banco, numero de cuenta, tipo y pais.')}</li>
+              <li><strong>{t('ext_cash', 'Efectivo en caja:')}</strong> {t('ext_cash_desc', 'dinero fisico guardado en la caja fuerte. No tiene banco ni numero.')}</li>
             </ul>
-            <p className="mt-1">Cada vez que se aprueba una compra o venta, el saldo se actualiza automaticamente. Puedes editar o eliminar cualquier cuenta, y ver sus movimientos.</p>
+            <p className="mt-1">{t('ext_accounts_help3', 'Cada vez que se aprueba una compra o venta, el saldo se actualiza automaticamente. Puedes editar o eliminar cualquier cuenta, y ver sus movimientos.')}</p>
           </div>
 
           {showBankForm && (
@@ -578,8 +578,8 @@ export default function ExternalBridge() {
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p><strong>Como funciona:</strong> Cuando compras productos afuera, registras que compraste, cuanto, a que precio en moneda externa, y de que banco salio el dinero.</p>
-            <p className="mt-1">El sistema calcula automaticamente el <strong>precio interno sugerido</strong> usando el FC: <code>precio_interno = precio_externo x FC</code>. Esto te dice a cuanto puedes vender el producto internamente.</p>
+            <p><strong>{t('ext_purchases_how', 'Como funciona:')}</strong> {t('ext_purchases_how_desc', 'Cuando compras productos afuera, registras que compraste, cuanto, a que precio en moneda externa, y de que banco salio el dinero.')}</p>
+            <p className="mt-1">{t('ext_purchases_calc', 'El sistema calcula automaticamente el')} <strong>{t('ext_purchases_suggested', 'precio interno sugerido')}</strong> {t('ext_purchases_calc2', 'usando el FC:')} <code>{t('ext_purchases_formula', 'precio_interno = precio_externo x FC')}</code>. {t('ext_purchases_calc3', 'Esto te dice a cuanto puedes vender el producto internamente.')}</p>
           </div>
 
           {showPurchaseForm && (
@@ -611,7 +611,7 @@ export default function ExternalBridge() {
                 <div>
                   <label className="label">{t('purchases_label_bank_account_from', 'Cuenta bancaria (de donde sale)')}</label>
                   <select className="input" value={purchaseForm.bank_account_id} onChange={(e) => setPurchaseForm({ ...purchaseForm, bank_account_id: e.target.value })}>
-                    <option value="">Seleccionar...</option>
+                    <option value="">{t('ext_select_dots', 'Seleccionar...')}</option>
                     {bankAccounts.filter((ba: any) => ba.currency === purchaseForm.currency).map((ba: any) => (
                       <option key={ba.id} value={ba.id}>{ba.account_name} ({ba.balance} {ba.currency})</option>
                     ))}
@@ -644,7 +644,7 @@ export default function ExternalBridge() {
                         <div><span className="text-gray-500">{t('purchases_ext_cost', 'Costo ext:')}</span> <b>{p.currency} {p.unit_cost_external}</b></div>
                         <div><span className="text-gray-500">{t('purchases_ext_total', 'Total ext:')}</span> <b>{p.currency} {p.total_external}</b></div>
                         <div><span className="text-gray-500">{t('purchases_local_total', 'Total {{currency}}:', { currency })}</span> <b className="text-trueque-700">{p.total_local_tq} {currency}</b></div>
-                        <div><span className="text-gray-500">Precio sug.:</span> <b className="text-amber-600">{p.suggested_internal_price} {currency}/{p.unit}</b></div>
+                        <div><span className="text-gray-500">{t('ext_price_sug', 'Precio sug.:')}</span> <b className="text-amber-600">{p.suggested_internal_price} {currency}/{p.unit}</b></div>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {p.supplier && `${t('purchases_supplier', 'Proveedor:')} ${p.supplier} | `}
@@ -677,8 +677,8 @@ export default function ExternalBridge() {
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p><strong>Como funciona:</strong> Cuando vendes productos al exterior, registras que vendiste, cuanto, a que precio en moneda externa, y a que banco entro el dinero.</p>
-            <p className="mt-1">El dinero recibido se suma automaticamente al saldo del banco seleccionado al aprobar la venta.</p>
+            <p><strong>{t('ext_sales_how', 'Como funciona:')}</strong> {t('ext_sales_how_desc', 'Cuando vendes productos al exterior, registras que vendiste, cuanto, a que precio en moneda externa, y a que banco entro el dinero.')}</p>
+            <p className="mt-1">{t('ext_sales_help', 'El dinero recibido se suma automaticamente al saldo del banco seleccionado al aprobar la venta.')}</p>
           </div>
 
           {showSaleForm && (
@@ -710,7 +710,7 @@ export default function ExternalBridge() {
                 <div>
                   <label className="label">{t('sales_label_bank_account_to', 'Cuenta bancaria (a donde entra)')}</label>
                   <select className="input" value={saleForm.bank_account_id} onChange={(e) => setSaleForm({ ...saleForm, bank_account_id: e.target.value })}>
-                    <option value="">Seleccionar...</option>
+                    <option value="">{t('ext_select_dots', 'Seleccionar...')}</option>
                     {bankAccounts.filter((ba: any) => ba.currency === saleForm.currency).map((ba: any) => (
                       <option key={ba.id} value={ba.id}>{ba.account_name} ({ba.balance} {ba.currency})</option>
                     ))}
@@ -736,12 +736,12 @@ export default function ExternalBridge() {
                       <span className="font-medium">{s.product_name}</span>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm">
                         <div><span className="text-gray-500">{t('sales_qty', 'Cant:')}</span> <b>{s.quantity} {s.unit}</b></div>
-                        <div><span className="text-gray-500">Precio ext:</span> <b>{s.currency} {s.unit_price_external}</b></div>
+                        <div><span className="text-gray-500">{t('ext_price_ext', 'Precio ext:')}</span> <b>{s.currency} {s.unit_price_external}</b></div>
                         <div><span className="text-gray-500">{t('sales_ext_total', 'Total ext:')}</span> <b>{s.currency} {s.total_external}</b></div>
                         <div><span className="text-gray-500">{t('sales_local_total', 'Total {{currency}}:', { currency })}</span> <b className="text-trueque-700">{s.total_local_tq} {currency}</b></div>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {s.buyer && `Comprador: ${s.buyer} | `}
+                        {s.buyer && `${t('sales_buyer', 'Comprador:')} ${s.buyer} | `}
                         {s.bank_account_name && `${t('sales_bank', 'Banco:')} ${s.bank_account_name} | `}
                         {t('sales_date', 'Fecha:')} {String(s.sale_date).slice(0, 10)}
                       </p>
@@ -751,7 +751,7 @@ export default function ExternalBridge() {
                         {s.status === 'completed' ? t('status_completed', 'Completado') : s.status === 'rejected' ? t('status_rejected', 'Rechazado') : t('status_pending', 'Pendiente')}
                       </span>
                       {s.status === 'pending' && (
-                        <button onClick={() => approveSale(s.id)} className="btn-secondary flex items-center gap-1 text-sm"><Check size={14} /> Aprobar</button>
+                        <button onClick={() => approveSale(s.id)} className="btn-secondary flex items-center gap-1 text-sm"><Check size={14} /> {t('ext_approve', 'Aprobar')}</button>
                       )}
                     </div>
                   </div>
@@ -772,17 +772,17 @@ export default function ExternalBridge() {
               </p>
               {fc.basket_cost_external > 0 && fc.basket_cost_local_tq > 0 ? (
                 <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
-                  <div><span className="text-gray-500">Canasta en {fc.external_currency}:</span> <b>{getCurrencySymbol(fc.external_currency)}{fc.basket_cost_external}</b></div>
-                  <div><span className="text-gray-500">Canasta en {currency}:</span> <b>{fc.basket_cost_local_tq} {currency}</b></div>
+                  <div><span className="text-gray-500">{t('ext_basket_in', 'Canasta en')} {fc.external_currency}:</span> <b>{getCurrencySymbol(fc.external_currency)}{fc.basket_cost_external}</b></div>
+                  <div><span className="text-gray-500">{t('ext_basket_in', 'Canasta en')} {currency}:</span> <b>{fc.basket_cost_local_tq} {currency}</b></div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
-                  <div><span className="text-gray-500">CPI externo:</span> <b>{fc.external_cpi}</b></div>
-                  <div><span className="text-gray-500">Costo energia local:</span> <b>{fc.local_energy_cost} kWh</b></div>
+                  <div><span className="text-gray-500">{t('ext_cpi_external', 'CPI externo:')}</span> <b>{fc.external_cpi}</b></div>
+                  <div><span className="text-gray-500">{t('ext_energy_cost_local', 'Costo energia local:')}</span> <b>{fc.local_energy_cost} kWh</b></div>
                 </div>
               )}
               <p className="text-xs text-gray-500 mt-2">
-                El FC indica cuantos {currency} equivale 1 {fc.external_currency || 'USD'}, basado en el costo de la canasta basica.
+                {t('fc_current_desc', 'El FC indica cuantos')} {currency} {t('fc_current_desc2', 'equivale 1')} {fc.external_currency || 'USD'}, {t('fc_current_desc3', 'basado en el costo de la canasta basica.')}
               </p>
               {fc.is_default && (
                 <p className="text-xs text-amber-600 mt-1 font-medium">{t('fc_default_warning', 'Valor por defecto - presiona "Editar FC" para configurar el real de tu comunidad')}</p>
@@ -799,15 +799,13 @@ export default function ExternalBridge() {
             <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
               <h3 className="font-medium text-sm flex items-center gap-1"><Calculator size={16} /> {t('fc_calc_title', 'Calcular FC desde Canasta Basica')}</h3>
               <p className="text-xs text-gray-500">
-                Compara el costo de la <strong>misma canasta basica</strong> (alimentos basicos, servicios esenciales)
-                en la moneda externa y en {currency}. El sistema calcula automaticamente el FC.
-                No necesitas hacer calculos: solo ingresa los dos precios.
+                {t('fc_calc_desc', 'Compara el costo de la')} <strong>{t('fc_calc_same_basket', 'misma canasta basica')}</strong> {t('fc_calc_desc2', '(alimentos basicos, servicios esenciales) en la moneda externa y en')} {currency}. {t('fc_calc_desc3', 'El sistema calcula automaticamente el FC. No necesitas hacer calculos: solo ingresa los dos precios.')}
               </p>
 
               <div className="space-y-3">
                 {/* Paso 1: Elegir moneda */}
                 <div>
-                  <label className="label">1. Moneda externa de referencia</label>
+                  <label className="label">1. {t('fc_step1_label', 'Moneda externa de referencia')}</label>
                   <select
                     className="input"
                     value={fcForm.external_currency}
@@ -838,16 +836,14 @@ export default function ExternalBridge() {
                     />
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    Cuanto cuesta una canasta basica de alimentos alla en su moneda.
-                    Ej: si alla cuesta 300 {fcForm.external_currency}, escribe 300.
-                    Puedes buscar "canasta basica {getCurrencyName(fcForm.external_currency)}" en internet.
+                    {t('fc_step2_hint', 'Cuanto cuesta una canasta basica de alimentos alla en su moneda. Ej: si alla cuesta 300')} {fcForm.external_currency}, {t('fc_step2_hint2', 'escribe 300. Puedes buscar')} "canasta basica {getCurrencyName(fcForm.external_currency)}" {t('fc_step2_hint3', 'en internet.')}
                   </p>
                 </div>
 
                 {/* Paso 3: Costo canasta local - SOLO LECTURA, viene de la federacion */}
                 <div>
                   <label className="label">
-                    3. Canasta basica interna (en {currency}) - <span className="text-blue-600">valor federado</span>
+                    3. {t('fc_step3_label', 'Canasta basica interna (en')} {currency}) - <span className="text-blue-600">{t('fc_federated_value', 'valor federado')}</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -859,19 +855,17 @@ export default function ExternalBridge() {
                     <span className="text-gray-500 font-medium">{currency}</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    <strong>Este valor no se puede editar.</strong> Es el mismo en todos los nodos de la federacion.
-                    Solo se puede cambiar mediante una propuesta federada aprobada por consenso.
-                    Ve a "Federacion" para proponer o votar cambios.
+                    <strong>{t('fc_readonly', 'Este valor no se puede editar.')}</strong> {t('fc_readonly_desc', 'Es el mismo en todos los nodos de la federacion. Solo se puede cambiar mediante una propuesta federada aprobada por consenso. Ve a "Federacion" para proponer o votar cambios.')}
                   </p>
                 </div>
               </div>
 
               {/* Ejemplo visual */}
               <div className="text-xs bg-white p-3 rounded border border-blue-100">
-                <p className="font-medium text-gray-600 mb-1">Ejemplo de como funciona:</p>
-                <p>Si alla la canasta cuesta <b>300 {fcForm.external_currency}</b> y aca cuesta <b>{fcForm.basket_cost_local_tq || 500} {currency}</b>:</p>
-                <p className="mt-1">FC = {fcForm.basket_cost_local_tq || 500} / 300 = <b className="text-blue-700">{fmtNumber((fcForm.basket_cost_local_tq || 500) / 300)} {currency}</b> por cada <b>1 {fcForm.external_currency}</b></p>
-                <p className="mt-1 text-gray-400">Esto significa que 1 {fcForm.external_currency} tiene el mismo poder adquisitivo que {fmtNumber((fcForm.basket_cost_local_tq || 500) / 300)} {currency}.</p>
+                <p className="font-medium text-gray-600 mb-1">{t('fc_example_title', 'Ejemplo de como funciona:')}</p>
+                <p>{t('fc_example_desc', 'Si alla la canasta cuesta')} <b>300 {fcForm.external_currency}</b> {t('fc_example_and_here', 'y aca cuesta')} <b>{fcForm.basket_cost_local_tq || 500} {currency}</b>:</p>
+                <p className="mt-1">FC = {fcForm.basket_cost_local_tq || 500} / 300 = <b className="text-blue-700">{fmtNumber((fcForm.basket_cost_local_tq || 500) / 300)} {currency}</b> {t('fc_example_per', 'por cada')} <b>1 {fcForm.external_currency}</b></p>
+                <p className="mt-1 text-gray-400">{t('fc_example_meaning', 'Esto significa que 1')} {fcForm.external_currency} {t('fc_example_meaning2', 'tiene el mismo poder adquisitivo que')} {fmtNumber((fcForm.basket_cost_local_tq || 500) / 300)} {currency}.</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -900,18 +894,11 @@ export default function ExternalBridge() {
               )}
 
               <div className="text-xs text-gray-400 bg-white p-3 rounded border border-gray-100">
-                <p className="font-medium text-gray-600 mb-1">Sobre el FC:</p>
-                <p>El FC es una <strong>referencia contable</strong>, no una tasa de cambio especulativa.
-                Lo decide la asamblea basandose en el costo de vida real.</p>
-                <p className="mt-1"><strong>Cuando actualizarlo:</strong> cuando cambien significativamente los precios
-                alla o aca. No sube ni baja solo - lo actualiza un administrador cuando lo considera necesario.</p>
-                <p className="mt-1"><strong>Por que no es especulativo:</strong> el {currency} no es una moneda financiera.
-                Es una unidad contable comunitaria. El FC solo sirve para saber cuanto vale algo del exterior en terminos locales.</p>
-                <p className="mt-1"><strong>Quien puede actualizarlo:</strong> Lo decide la Asamblea en la
-                pestana <em>Configuracion</em>. Puede ser: un administrador, la junta directiva,
-                una persona autorizada, o solo por votacion de asamblea. En paises con economia
-                inestable (ej: Venezuela), conviene asignar una persona que actualice frecuentemente.
-                En paises estables, puede decidirse por asamblea.</p>
+                <p className="font-medium text-gray-600 mb-1">{t('fc_about_title', 'Sobre el FC:')}</p>
+                <p>{t('fc_about_desc', 'El FC es una')} <strong>{t('fc_about_ref', 'referencia contable')}</strong>, {t('fc_about_desc2', 'no una tasa de cambio especulativa. Lo decide la asamblea basandose en el costo de vida real.')}</p>
+                <p className="mt-1"><strong>{t('fc_when_update', 'Cuando actualizarlo:')}</strong> {t('fc_when_update_desc', 'cuando cambien significativamente los precios alla o aca. No sube ni baja solo - lo actualiza un administrador cuando lo considera necesario.')}</p>
+                <p className="mt-1"><strong>{t('fc_why_not_spec', 'Por que no es especulativo:')}</strong> {t('fc_why_not_spec_desc', 'el')} {currency} {t('fc_why_not_spec_desc2', 'no es una moneda financiera. Es una unidad contable comunitaria. El FC solo sirve para saber cuanto vale algo del exterior en terminos locales.')}</p>
+                <p className="mt-1"><strong>{t('fc_who_update', 'Quien puede actualizarlo:')}</strong> {t('fc_who_update_desc', 'Lo decide la Asamblea en la pestana')} <em>{t('fc_config_tab', 'Configuracion')}</em>. {t('fc_who_update_desc2', 'Puede ser: un administrador, la junta directiva, una persona autorizada, o solo por votacion de asamblea. En paises con economia inestable (ej: Venezuela), conviene asignar una persona que actualice frecuentemente. En paises estables, puede decidirse por asamblea.')}</p>
               </div>
             </div>
           )}
@@ -929,30 +916,30 @@ export default function ExternalBridge() {
               <option value="export">{t('operations_type_export', 'Exportacion (vender afuera)')}</option>
             </select>
             <p className="text-xs text-gray-400 mt-1">
-              Define el sentido de la operacion. Ej: Importacion para traer harina de otra red.
+              {t('operations_type_hint', 'Define el sentido de la operacion. Ej: Importacion para traer harina de otra red.')}
             </p>
             {form.operation_type === 'import' ? (
               <p className="text-xs text-blue-600 mt-1">
-                <strong>Importacion:</strong> Comprar productos de fuera de la red. Pagas en moneda local ({currency}), el vendedor recibe en su moneda.
+                <strong>{t('ext_import_label', 'Importacion:')}</strong> {t('ext_import_desc', 'Comprar productos de fuera de la red. Pagas en moneda local ({currency}), el vendedor recibe en su moneda.', { currency })}
               </p>
             ) : (
               <p className="text-xs text-blue-600 mt-1">
-                <strong>Exportacion:</strong> Vender productos al exterior. Recibes moneda local ({currency}), el comprador paga en su moneda.
+                <strong>{t('ext_export_label', 'Exportacion:')}</strong> {t('ext_export_desc', 'Vender productos al exterior. Recibes moneda local ({currency}), el comprador paga en su moneda.', { currency })}
               </p>
             )}
           </div>
 
           <EntitySelector
             label={t('operations_label_product', 'Producto')}
-            helpText="Selecciona un producto existente en el catalogo. Busca por nombre o descripcion. Ej: Harina de trigo, Energia solar."
-            placeholder="Ej: Harina de trigo, Energia solar..."
+            helpText={t('operations_product_help', 'Selecciona un producto existente en el catalogo. Busca por nombre o descripcion. Ej: Harina de trigo, Energia solar.')}
+            placeholder={t('operations_product_ph', 'Ej: Harina de trigo, Energia solar...')}
             value={form.product_id}
             onChange={onProductSelect}
             endpoint="/products"
             valueKey="id"
             labelKey="name"
             subLabelKey="description"
-            emptyMessage="No se encontraron productos"
+            emptyMessage={t('operations_no_products', 'No se encontraron productos')}
           />
 
           <div className="grid grid-cols-2 gap-3">
@@ -1091,15 +1078,13 @@ export default function ExternalBridge() {
           <div className="card p-4 bg-blue-50 border-blue-200">
             <h3 className="font-semibold flex items-center gap-2 mb-2"><Calculator size={18} /> {t('calculator_title', 'Calculadora de Precios Externos')}</h3>
             <p className="text-sm text-gray-600">
-              Esta tabla muestra el precio de cada producto del nodo convertido a la moneda externa
-              usando el FC actual. Es <strong>informativo</strong>: te ayuda a comparar si el FC
-              calculado desde la canasta basica esta cerca del precio real externo.
+              {t('calc_table_desc', 'Esta tabla muestra el precio de cada producto del nodo convertido a la moneda externa usando el FC actual. Es')} <strong>{t('calc_table_informative', 'informativo')}</strong>: {t('calc_table_desc2', 'te ayuda a comparar si el FC calculado desde la canasta basica esta cerca del precio real externo.')}
             </p>
             {fc && (
               <p className="text-sm mt-2">
                 {t('calculator_current_fc', 'FC actual:')} <strong>1 {fc.external_currency || 'USD'} = {fc.factor} {currency}</strong>
                 <span className="text-gray-500 text-xs ml-2">
-                  (precio externo = precio {currency} / FC)
+                  ({t('calc_external_formula', 'precio externo = precio')} {currency} / FC)
                 </span>
               </p>
             )}
@@ -1173,9 +1158,7 @@ export default function ExternalBridge() {
 
           <div className="card p-3 bg-gray-50 text-xs text-gray-500">
             <p>
-              <strong>Como usar esta tabla:</strong> Compara el "Precio externo" con lo que realmente
-              cuesta ese producto en el pais externo. Si los precios estan cerca, el FC esta bien
-              calibrado. Si estan muy diferentes, considera recalcular el FC desde la canasta basica.
+              <strong>{t('calc_how_to_use', 'Como usar esta tabla:')}</strong> {t('calc_how_to_use_desc', 'Compara el "Precio externo" con lo que realmente cuesta ese producto en el pais externo. Si los precios estan cerca, el FC esta bien calibrado. Si estan muy diferentes, considera recalcular el FC desde la canasta basica.')}
             </p>
           </div>
         </div>
@@ -1209,10 +1192,10 @@ export default function ExternalBridge() {
               <div className="bg-gray-50 p-2 rounded">
                 <div className="text-xs text-gray-500">{t('modal_price', 'Precio')}</div>
                 <div className="font-mono font-medium">{fmtNumber(selectedProduct.price_tq || selectedProduct.price || 0)} {currency}</div>
-                <div className="text-xs text-gray-500">por {selectedProduct.unit || 'unidad'}</div>
+                <div className="text-xs text-gray-500">{t('modal_per_unit', 'por')} {selectedProduct.unit || 'unidad'}</div>
               </div>
               <div className="bg-blue-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Precio base (base de datos mundial)</div>
+                <div className="text-xs text-gray-500">{t('modal_base_price_label', 'Precio base (base de datos mundial)')}</div>
                 <div className="font-mono font-medium">
                   {(selectedProduct.base_price || 0) > 0
                     ? `${selectedProduct.base_price} ${currency}/${selectedProduct.base_unit || 'kg'}`
@@ -1220,7 +1203,7 @@ export default function ExternalBridge() {
                 </div>
               </div>
               <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Peso/cantidad del producto</div>
+                <div className="text-xs text-gray-500">{t('modal_weight_label', 'Peso/cantidad del producto')}</div>
                 <div className="font-mono font-medium">
                   {(selectedProduct.weight_kg || 0) > 0
                     ? `${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'L' : 'kg'}`
@@ -1276,21 +1259,19 @@ export default function ExternalBridge() {
             {/* Calculo explicado */}
             {(selectedProduct.base_price || 0) > 0 && (selectedProduct.weight_kg || 0) > 0 && (
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm">
-                <div className="font-semibold text-amber-800 mb-1">¿Cómo se calcula el precio?</div>
+                <div className="font-semibold text-amber-800 mb-1">{t('modal_price_calc_title', '¿Como se calcula el precio?')}</div>
                 <div className="text-amber-700 font-mono text-xs">
                   {selectedProduct.price_calculation || `${selectedProduct.base_price} ${currency}/${selectedProduct.base_unit || 'kg'} × ${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'L' : 'kg'} = ${fmtNumber(selectedProduct.base_price * selectedProduct.weight_kg)} ${currency}`}
                 </div>
                 <div className="text-xs text-amber-600 mt-1">
-                  El precio base de <strong>{selectedProduct.base_price} {currency}/{selectedProduct.base_unit || 'kg'}</strong> viene de la base de datos mundial
-                  (Agribalyse, FAO, Pimentel). Este producto pesa <strong>{selectedProduct.weight_kg} {selectedProduct.base_unit === 'L' ? 'litros' : 'kg'}</strong>,
-                  por eso el precio es <strong>{fmtNumber(selectedProduct.price_tq || selectedProduct.price || 0)} {currency}</strong>.
+                  {t('modal_price_calc_desc', 'El precio base de')} <strong>{selectedProduct.base_price} {currency}/{selectedProduct.base_unit || 'kg'}</strong> {t('modal_price_calc_desc2', 'viene de la base de datos mundial (Agribalyse, FAO, Pimentel). Este producto pesa')} <strong>{selectedProduct.weight_kg} {selectedProduct.base_unit === 'L' ? t('modal_liters', 'litros') : 'kg'}</strong>, {t('modal_price_calc_desc3', 'por eso el precio es')} <strong>{fmtNumber(selectedProduct.price_tq || selectedProduct.price || 0)} {currency}</strong>.
                 </div>
               </div>
             )}
 
             <div className="text-xs text-gray-500 pt-2 border-t">
-              El precio es por unidad de: <strong>{selectedProduct.unit || 'no especificada'}</strong>.
-              {selectedProduct.base_price > 0 && selectedProduct.weight_kg > 0 && ` Este producto contiene ${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'litros' : 'kilos'} aproximadamente.`}
+              {t('modal_unit_label', 'El precio es por unidad de:')} <strong>{selectedProduct.unit || t('modal_not_specified', 'no especificada')}</strong>.
+              {selectedProduct.base_price > 0 && selectedProduct.weight_kg > 0 && ` ${t('modal_contains_label', 'Este producto contiene')} ${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? t('modal_liters', 'litros') : t('modal_kilos', 'kilos')} ${t('modal_approximately', 'aproximadamente.')}`}
             </div>
 
             <button onClick={() => setSelectedProduct(null)} className="w-full px-4 py-2 bg-gray-200 rounded-lg text-sm">
