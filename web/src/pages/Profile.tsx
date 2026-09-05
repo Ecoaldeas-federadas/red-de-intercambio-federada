@@ -442,33 +442,33 @@ export default function Profile() {
 
       {/* Informacion personal */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><User size={18} />Informacion</h2>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><User size={18} />{t('profile_info_title', 'Informacion')}</h2>
         {me ? (
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Usuario:</span> <b>{me.username}</b></div>
-            <div className="flex justify-between"><span className="text-gray-500">Nombre:</span> <b>{me.display_name || '-'}</b></div>
-            <div className="flex justify-between"><span className="text-gray-500">Tipo:</span> <b>{me.account_type}</b></div>
-            <div className="flex justify-between"><span className="text-gray-500">Balance:</span> <b>{fmtTQ(me.balance)} {currency}</b></div>
-            <div className="flex justify-between"><span className="text-gray-500">Estado:</span> <b>{me.membership_status}</b></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('profile_username', 'Usuario:')}</span> <b>{me.username}</b></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('profile_name', 'Nombre:')}</span> <b>{me.display_name || '-'}</b></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('profile_type', 'Tipo:')}</span> <b>{me.account_type}</b></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('profile_balance', 'Balance:')}</span> <b>{fmtTQ(me.balance)} {currency}</b></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('profile_status', 'Estado:')}</span> <b>{me.membership_status}</b></div>
             {me.is_over_limit && (
               <div className="bg-red-50 border border-red-300 rounded-lg p-2 mt-2 text-sm text-red-800">
-                <strong>⚠ Sobre límite de crédito</strong> — Tu saldo está por debajo de tu límite. No puedes hacer nuevas compras hasta regularizar.
+                <strong>{t('profile_over_limit', '⚠ Sobre limite de credito')}</strong> — {t('profile_over_limit_desc', 'Tu saldo esta por debajo de tu limite. No puedes hacer nuevas compras hasta regularizar.')}
               </div>
             )}
             {me.id && (
               <div className="border-t pt-2 mt-2">
-                <div className="text-gray-500 text-xs mb-1">ID de cuenta (UUID) para pagos manuales:</div>
+                <div className="text-gray-500 text-xs mb-1">{t('profile_uuid_label', 'ID de cuenta (UUID) para pagos manuales:')}</div>
                 <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
                   <code className="text-xs text-gray-700 flex-1 break-all">{me.id}</code>
                   <button
                     onClick={() => { navigator.clipboard.writeText(me.id); setCopiedUuid(true); setTimeout(() => setCopiedUuid(false), 2000) }}
                     className="flex-shrink-0 p-1.5 rounded hover:bg-gray-200 transition"
-                    title="Copiar UUID"
+                    title={t('profile_copy_uuid', 'Copiar UUID')}
                   >
                     {copiedUuid ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-gray-500" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Comparte este ID con quien quiera enviarte un pago manual. Tambien esta dentro de tu codigo QR.</p>
+                <p className="text-xs text-gray-400 mt-1">{t('profile_uuid_hint', 'Comparte este ID con quien quiera enviarte un pago manual. Tambien esta dentro de tu codigo QR.')}</p>
               </div>
             )}
           </div>
@@ -482,8 +482,8 @@ export default function Profile() {
 
       {/* Documentos de identidad (multiples, con modal) */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Documentos de Identidad</h2>
-        <p className="text-xs text-gray-500 mb-3">Agrega todos tus documentos: cedula, pasaporte, carnet de conducir, etc. La comparacion entre nodos federados se hace por tipo + numero + pais. No puede haber dos documentos iguales del mismo pais.</p>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />{t('profile_docs_title', 'Documentos de Identidad')}</h2>
+        <p className="text-xs text-gray-500 mb-3">{t('profile_docs_desc', 'Agrega todos tus documentos: cedula, pasaporte, carnet de conducir, etc. La comparacion entre nodos federados se hace por tipo + numero + pais. No puede haber dos documentos iguales del mismo pais.')}</p>
 
         {/* Lista de documentos existentes */}
         {documents.length > 0 ? (
@@ -504,7 +504,7 @@ export default function Profile() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-400 mb-4">No has agregado documentos todavia.</p>
+          <p className="text-sm text-gray-400 mb-4">{t('profile_no_docs', 'No has agregado documentos todavia.')}</p>
         )}
 
         {docMsg && <div className="text-sm bg-blue-50 text-blue-700 p-2 rounded-lg mb-3">{docMsg}</div>}
@@ -513,7 +513,7 @@ export default function Profile() {
           onClick={() => setShowDocModal(true)}
           className="btn-primary text-sm flex items-center gap-2"
         >
-          <Plus size={16} /> Agregar documento de identidad
+          <Plus size={16} /> {t('profile_add_doc_btn', 'Agregar documento de identidad')}
         </button>
       </div>
 
@@ -522,20 +522,20 @@ export default function Profile() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-lg">Agregar Documento de Identidad</h2>
+              <h2 className="font-semibold text-lg">{t('profile_add_doc', 'Agregar Documento de Identidad')}</h2>
               <button onClick={() => { setShowDocModal(false); setNewDoc({ document_type: '', document_number: '', country_iso2: '' }); setDocPhoto(null); setDocMsg('') }} className="text-gray-400 hover:text-gray-600">
                 <Trash2 size={20} />
               </button>
             </div>
 
             <div>
-              <label className="label">Tipo de documento</label>
+              <label className="label">{t('profile_doc_type', 'Tipo de documento')}</label>
               <select
                 value={newDoc.document_type}
                 onChange={(e) => setNewDoc({ ...newDoc, document_type: e.target.value })}
                 className="input"
               >
-                <option value="">Seleccionar tipo...</option>
+                <option value="">{t('profile_select_type', 'Seleccionar tipo...')}</option>
                 {docTypes.map((t: any) => (
                   <option key={t.code} value={t.code}>{t.name}</option>
                 ))}
@@ -543,46 +543,46 @@ export default function Profile() {
             </div>
 
             <div>
-              <label className="label">Numero de documento</label>
+              <label className="label">{t('profile_doc_number', 'Numero de documento')}</label>
               <input
                 type="text"
                 value={newDoc.document_number}
                 onChange={(e) => setNewDoc({ ...newDoc, document_number: e.target.value })}
-                placeholder="Solo el numero, sin letras (ej: 12345678)"
+                placeholder={t('profile_doc_number_ph', 'Solo el numero, sin letras (ej: 12345678)')}
                 className="input"
               />
             </div>
 
             <div>
-              <label className="label">Pais emisor</label>
+              <label className="label">{t('profile_doc_country', 'Pais emisor')}</label>
               <select
                 value={newDoc.country_iso2}
                 onChange={(e) => setNewDoc({ ...newDoc, country_iso2: e.target.value })}
                 className="input"
               >
-                <option value="">Seleccionar pais...</option>
+                <option value="">{t('profile_select_country', 'Seleccionar pais...')}</option>
                 {countries.map((c: any) => (
                   <option key={c.iso2} value={c.iso2}>{c.name}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">El pais es obligatorio para evitar duplicados: dos cedulas del mismo pais no pueden tener el mismo numero, pero una cedula de Venezuela y una de Colombia pueden tener el mismo numero sin problema.</p>
+              <p className="text-xs text-gray-400 mt-1">{t('profile_country_hint', 'El pais es obligatorio para evitar duplicados: dos cedulas del mismo pais no pueden tener el mismo numero, pero una cedula de Venezuela y una de Colombia pueden tener el mismo numero sin problema.')}</p>
             </div>
 
             <div>
-              <label className="label">Foto del documento (opcional)</label>
+              <label className="label">{t('profile_doc_photo', 'Foto del documento (opcional)')}</label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={(e) => setDocPhoto(e.target.files?.[0] || null)}
                 className="input text-sm"
               />
-              {docPhoto && <p className="text-xs text-gray-500 mt-1">Archivo seleccionado: {docPhoto.name}</p>}
+              {docPhoto && <p className="text-xs text-gray-500 mt-1">{t('profile_file_selected', 'Archivo seleccionado:')} {docPhoto.name}</p>}
             </div>
 
             <div className="flex gap-2 justify-end">
               <button onClick={() => { setShowDocModal(false); setNewDoc({ document_type: '', document_number: '', country_iso2: '' }); setDocPhoto(null); setDocMsg('') }} className="btn-secondary">{t('common:cancel')}</button>
               <button onClick={addDocument} disabled={savingDoc} className="btn-primary">
-                {savingDoc ? t('common:loading') : 'Guardar documento'}
+                {savingDoc ? t('common:loading') : t('profile_save_doc', 'Guardar documento')}
               </button>
             </div>
           </div>
@@ -591,59 +591,59 @@ export default function Profile() {
 
       {/* Nivel de miembro */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Nivel de Miembro</h2>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />{t('profile_level_title', 'Nivel de Miembro')}</h2>
         {upgradeMsg && <div className="text-sm bg-blue-50 text-blue-700 p-3 rounded-lg mb-3">{upgradeMsg}</div>}
-        <button onClick={tryUpgrade} className="btn-secondary flex items-center gap-2 mb-3 text-sm"><TrendingUp size={16} />Pedir ascenso</button>
+        <button onClick={tryUpgrade} className="btn-secondary flex items-center gap-2 mb-3 text-sm"><TrendingUp size={16} />{t('profile_request_upgrade', 'Pedir ascenso')}</button>
         {levelLoading ? (
-          <p className="text-gray-500 text-sm">Cargando nivel...</p>
+          <p className="text-gray-500 text-sm">{t('profile_loading_level', 'Cargando nivel...')}</p>
         ) : myLevel ? (
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Nivel:</span> <b>{myLevel.name}</b></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('profile_level', 'Nivel:')}</span> <b>{myLevel.name}</b></div>
             {myLevel.description && <p className="text-gray-600">{myLevel.description}</p>}
             <div className="flex gap-2 mt-2 flex-wrap">
-              {myLevel.has_voice && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Voz</span>}
-              {myLevel.has_vote && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Voto</span>}
-              {myLevel.counts_in_quorum && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Quorum</span>}
+              {myLevel.has_voice && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t('profile_voice', 'Voz')}</span>}
+              {myLevel.has_vote && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('profile_vote', 'Voto')}</span>}
+              {myLevel.counts_in_quorum && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{t('profile_quorum', 'Quorum')}</span>}
             </div>
             <div className="grid grid-cols-2 gap-2 mt-3">
-              <div><span className="text-gray-500">Limite credito:</span> <b>{fmtTQ(myLevel.credit_limit)} {currency}</b></div>
-              <div><span className="text-gray-500">Limite debito:</span> <b>{fmtTQ(myLevel.debit_limit)} {currency}</b></div>
+              <div><span className="text-gray-500">{t('profile_credit_limit', 'Limite credito:')}</span> <b>{fmtTQ(myLevel.credit_limit)} {currency}</b></div>
+              <div><span className="text-gray-500">{t('profile_debit_limit', 'Limite debito:')}</span> <b>{fmtTQ(myLevel.debit_limit)} {currency}</b></div>
             </div>
             <div className="flex gap-2 mt-2 flex-wrap">
-              {myLevel.can_create_organization && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Crea org</span>}
-              {myLevel.can_cross_node_trade && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">Comercio nodos</span>}
-              {myLevel.can_receive_nfc_card && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">Tarjeta NFC</span>}
-              {myLevel.can_view_audit && <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">Ver auditoria</span>}
-              {myLevel.can_use_external_bridge && <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded">Puente externo</span>}
+              {myLevel.can_create_organization && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">{t('profile_can_create_org', 'Crea org')}</span>}
+              {myLevel.can_cross_node_trade && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">{t('profile_cross_node_trade', 'Comercio nodos')}</span>}
+              {myLevel.can_receive_nfc_card && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">{t('profile_nfc_card', 'Tarjeta NFC')}</span>}
+              {myLevel.can_view_audit && <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{t('profile_view_audit', 'Ver auditoria')}</span>}
+              {myLevel.can_use_external_bridge && <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded">{t('profile_external_bridge', 'Puente externo')}</span>}
             </div>
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">Sin nivel asignado. Pide un ascenso para que la asamblea te asigne un nivel.</p>
+          <p className="text-gray-500 text-sm">{t('profile_no_level', 'Sin nivel asignado. Pide un ascenso para que la asamblea te asigne un nivel.')}</p>
         )}
       </div>
 
       {/* Apadrinamiento */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Heart size={18} />Apadrinamiento</h2>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Heart size={18} />{t('profile_sponsorship_title', 'Apadrinamiento')}</h2>
 
         {/* Como ahijado */}
         {sponsorships.asSponsored ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-            <p className="text-sm font-medium text-blue-700 mb-1">Eres ahijado de:</p>
+            <p className="text-sm font-medium text-blue-700 mb-1">{t('profile_you_are_sponsored', 'Eres ahijado de:')}</p>
             <div className="text-sm space-y-1">
-              <div><span className="text-gray-500">Padrino:</span> <b>{sponsorships.asSponsored.sponsor_username || sponsorships.asSponsored.sponsor_id}</b></div>
-              <div><span className="text-gray-500">Monto asignado:</span> <b>{fmtTQ(sponsorships.asSponsored.amount_held)} {currency}</b></div>
+              <div><span className="text-gray-500">{t('profile_sponsor', 'Padrino:')}</span> <b>{sponsorships.asSponsored.sponsor_username || sponsorships.asSponsored.sponsor_id}</b></div>
+              <div><span className="text-gray-500">{t('profile_assigned_amount', 'Monto asignado:')}</span> <b>{fmtTQ(sponsorships.asSponsored.amount_held)} {currency}</b></div>
             </div>
-            <p className="text-xs text-gray-400 mt-2">Tu padrino te asigno parte de su limite. Cuando subas de nivel, el limite de tu padrino se libera automaticamente.</p>
+            <p className="text-xs text-gray-400 mt-2">{t('profile_sponsor_hint', 'Tu padrino te asigno parte de su limite. Cuando subas de nivel, el limite de tu padrino se libera automaticamente.')}</p>
           </div>
         ) : (
-          <p className="text-xs text-gray-400 mb-3">No tienes padrino. Tu limite viene de tu nivel de miembro.</p>
+          <p className="text-xs text-gray-400 mb-3">{t('profile_no_sponsor', 'No tienes padrino. Tu limite viene de tu nivel de miembro.')}</p>
         )}
 
         {/* Como padrino */}
         {sponsorships.asSponsor.length > 0 ? (
           <div>
-            <p className="text-sm font-medium mb-2">Tus ahijados activos:</p>
+            <p className="text-sm font-medium mb-2">{t('profile_active_godchildren', 'Tus ahijados activos:')}</p>
             <div className="space-y-2">
               {sponsorships.asSponsor.map((s: any, i: number) => (
                 <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-sm">
@@ -651,22 +651,22 @@ export default function Profile() {
                     <span className="font-medium">{s.sponsored_id?.slice(0, 8)}...</span>
                     <span className="text-gray-500 ml-2">{fmtTQ(s.amount_held)} {currency}</span>
                   </div>
-                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Activo</span>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">{t('profile_active', 'Activo')}</span>
                 </div>
               ))}
             </div>
             <p className="text-xs text-gray-400 mt-2">
-              Total retenido: {fmtTQ(sponsorships.asSponsor.reduce((sum: number, s: any) => sum + (s.amount_held || 0), 0))} {currency}
+              {t('profile_total_held', 'Total retenido:')} {fmtTQ(sponsorships.asSponsor.reduce((sum: number, s: any) => sum + (s.amount_held || 0), 0))} {currency}
             </p>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">No estas apadrinando a nadie.</p>
+          <p className="text-xs text-gray-400">{t('profile_not_sponsoring', 'No estas apadrinando a nadie.')}</p>
         )}
       </div>
 
       {/* Passkeys */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Key size={18} />Dispositivos (Passkeys)</h2>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Key size={18} />{t('profile_passkeys_title', 'Dispositivos (Passkeys)')}</h2>
         {passkeyMsg && <div className="text-sm bg-green-50 text-green-700 p-3 rounded-lg mb-3">{passkeyMsg}</div>}
         <button
           onClick={openPasskeyModal}
@@ -674,31 +674,30 @@ export default function Profile() {
           className="btn-secondary flex items-center gap-2 mb-3 text-sm"
         >
           <Plus size={16} />
-          {passkeyLoading ? 'Registrando...' : 'Registrar dispositivo'}
+          {passkeyLoading ? t('profile_registering', 'Registrando...') : t('profile_register_device', 'Registrar dispositivo')}
         </button>
         <p className="text-xs text-gray-500 mb-3">
-          Puedes registrar multiples dispositivos: huella, FaceID, PIN del movil, llave de seguridad USB, etc.
-          Cada uno te permitira iniciar sesion sin contrasena.
+          {t('profile_passkeys_desc', 'Puedes registrar multiples dispositivos: huella, FaceID, PIN del movil, llave de seguridad USB, etc. Cada uno te permitira iniciar sesion sin contrasena.')}
         </p>
         {passkeys.length === 0 ? (
-          <p className="text-gray-500 text-sm">No tienes passkeys registrados.</p>
+          <p className="text-gray-500 text-sm">{t('profile_no_passkeys', 'No tienes passkeys registrados.')}</p>
         ) : (
           <div className="space-y-2">
             {passkeys.map((p, i) => (
               <div key={i} className="flex items-center justify-between text-sm border-b border-gray-100 py-2 last:border-0">
                 <div>
-                  <b>{p.name || `Dispositivo ${i + 1}`}</b>
+                  <b>{p.name || t('profile_device_n', 'Dispositivo {n}', { n: i + 1 })}</b>
                   <p className="text-xs text-gray-400">
-                    {p.created_at && `Registrado: ${p.created_at?.slice(0, 10)}`}
-                    {p.last_used_at && ` | Ultimo uso: ${p.last_used_at?.slice(0, 10)}`}
+                    {p.created_at && `${t('profile_registered', 'Registrado:')} ${p.created_at?.slice(0, 10)}`}
+                    {p.last_used_at && ` | ${t('profile_last_used', 'Ultimo uso:')} ${p.last_used_at?.slice(0, 10)}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Activo</span>
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('profile_active', 'Activo')}</span>
                   <button
                     onClick={() => deletePasskey(p.id)}
                     className="text-red-500 hover:text-red-700"
-                    title="Eliminar dispositivo"
+                    title={t('profile_delete_device', 'Eliminar dispositivo')}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -713,17 +712,16 @@ export default function Profile() {
       {showPasskeyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowPasskeyModal(false)}>
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><Key size={20} />Registrar nuevo dispositivo</h3>
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><Key size={20} />{t('profile_register_new_device', 'Registrar nuevo dispositivo')}</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Dale un nombre a este dispositivo para identificarlo (ej: "Mi celular", "Huella laptop", "Llave USB").
-              Luego tu navegador te pedira confirmar con huella, PIN, FaceID o la llave de seguridad.
+              {t('profile_passkey_modal_desc', 'Dale un nombre a este dispositivo para identificarlo (ej: "Mi celular", "Huella laptop", "Llave USB"). Luego tu navegador te pedira confirmar con huella, PIN, FaceID o la llave de seguridad.')}
             </p>
             <input
               type="text"
               className="input w-full mb-4"
               value={passkeyLabel}
               onChange={(e) => setPasskeyLabel(e.target.value)}
-              placeholder="Nombre del dispositivo"
+              placeholder={t('profile_device_name', 'Nombre del dispositivo')}
               autoFocus
               onKeyDown={(e) => e.key === 'Enter' && registerPasskey()}
             />
@@ -734,7 +732,7 @@ export default function Profile() {
                 className="btn-primary text-sm flex items-center gap-2"
               >
                 <Plus size={16} />
-                Continuar
+                {t('profile_continue', 'Continuar')}
               </button>
             </div>
           </div>
@@ -743,9 +741,9 @@ export default function Profile() {
 
       {/* Tarjetas NFC */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><CreditCard size={18} />Mis Tarjetas NFC</h2>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><CreditCard size={18} />{t('profile_nfc_cards_title', 'Mis Tarjetas NFC')}</h2>
         {nfcCards.length === 0 ? (
-          <p className="text-gray-500 text-sm">No tienes tarjetas NFC asociadas.</p>
+          <p className="text-gray-500 text-sm">{t('profile_no_nfc_cards', 'No tienes tarjetas NFC asociadas.')}</p>
         ) : (
           <div className="space-y-3">
             {nfcCards.map((c, i) => (
@@ -753,26 +751,26 @@ export default function Profile() {
                 <div className="flex items-center justify-between">
                   <div>
                     <b className="text-sm">UID: {c.card_uid?.slice(0, 16)}...</b>
-                    {c.card_type && <p className="text-xs text-gray-400">Tipo: {c.card_type}</p>}
-                    {c.required_doc_type && <p className="text-xs text-blue-600">Documento: {c.required_doc_type}</p>}
+                    {c.card_type && <p className="text-xs text-gray-400">{t('profile_card_type', 'Tipo:')} {c.card_type}</p>}
+                    {c.required_doc_type && <p className="text-xs text-blue-600">{t('profile_doc_label', 'Documento:')} {c.required_doc_type}</p>}
                   </div>
                   <span className={`text-xs px-2 py-1 rounded ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {c.is_active ? 'Activa' : 'Inactiva'}
+                    {c.is_active ? t('profile_card_active', 'Activa') : t('profile_card_inactive', 'Inactiva')}
                   </span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <button onClick={() => openChangePinModal(c.card_uid)} className="btn-secondary text-xs">Cambiar PIN</button>
+                  <button onClick={() => openChangePinModal(c.card_uid)} className="btn-secondary text-xs">{t('profile_change_pin', 'Cambiar PIN')}</button>
                   <button
                     onClick={() => openToggleCardModal(c.card_uid, c.is_active)}
                     className={`text-xs px-3 py-1 rounded ${c.is_active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
                   >
-                    {c.is_active ? 'Desactivar' : 'Activar'}
+                    {c.is_active ? t('profile_deactivate', 'Desactivar') : t('profile_activate', 'Activar')}
                   </button>
                   <button
                     onClick={() => openChangeDocModal(c.card_uid, c.required_doc_type)}
                     className="text-xs px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
                   >
-                    Cambiar Documento
+                    {t('profile_change_doc', 'Cambiar Documento')}
                   </button>
                 </div>
               </div>
@@ -783,9 +781,9 @@ export default function Profile() {
 
       {/* Historial reciente */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><History size={18} />Actividad Reciente</h2>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><History size={18} />{t('profile_activity_title', 'Actividad Reciente')}</h2>
         {history.length === 0 ? (
-          <p className="text-gray-500 text-sm">Sin transacciones.</p>
+          <p className="text-gray-500 text-sm">{t('profile_no_transactions', 'Sin transacciones.')}</p>
         ) : (
           <div className="space-y-2">
             {history.slice(0, 10).map((t, i) => (
@@ -809,57 +807,57 @@ export default function Profile() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">
-                {cardModal.type === 'changePin' && 'Cambiar PIN de Tarjeta'}
-                {cardModal.type === 'toggle' && (cardModal.isActive ? 'Desactivar Tarjeta' : 'Activar Tarjeta')}
-                {cardModal.type === 'changeDoc' && 'Cambiar Documento de Tarjeta'}
+                {cardModal.type === 'changePin' && t('profile_modal_change_pin', 'Cambiar PIN de Tarjeta')}
+                {cardModal.type === 'toggle' && (cardModal.isActive ? t('profile_modal_deactivate', 'Desactivar Tarjeta') : t('profile_modal_activate', 'Activar Tarjeta'))}
+                {cardModal.type === 'changeDoc' && t('profile_modal_change_doc', 'Cambiar Documento de Tarjeta')}
               </h3>
               <button onClick={closeCardModal} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
             </div>
 
             <p className="text-xs text-gray-500 bg-gray-50 rounded p-2">
-              Tarjeta: <b>{cardModal.cardUid.slice(0, 16)}...</b>
+              {t('profile_card_label', 'Tarjeta:')} <b>{cardModal.cardUid.slice(0, 16)}...</b>
             </p>
 
             {/* Re-autenticación obligatoria */}
             <div className="space-y-2">
-              <label className="label flex items-center gap-1"><Shield size={14} /> Verifica tu identidad</label>
+              <label className="label flex items-center gap-1"><Shield size={14} /> {t('profile_verify_identity', 'Verifica tu identidad')}</label>
               <input
                 type="password"
                 className="input w-full"
-                placeholder="Tu contraseña actual"
+                placeholder={t('profile_current_password', 'Tu contrasena actual')}
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
                 autoFocus
               />
-              <p className="text-xs text-gray-400">Por seguridad, confirma tu contraseña antes de continuar. Esto evita que alguien más cambie tu tarjeta si dejaste la sesión abierta.</p>
+              <p className="text-xs text-gray-400">{t('profile_auth_hint', 'Por seguridad, confirma tu contrasena antes de continuar. Esto evita que alguien mas cambie tu tarjeta si dejaste la sesion abierta.')}</p>
             </div>
 
             {/* Campos según el tipo de acción */}
             {cardModal.type === 'changePin' && (
               <>
                 <div className="space-y-2">
-                  <label className="label">Nuevo PIN (4 dígitos)</label>
+                  <label className="label">{t('profile_new_pin', 'Nuevo PIN (4 digitos)')}</label>
                   <input
                     type="password"
                     className="input w-full"
-                    placeholder="Ej: 5678"
+                    placeholder={t('profile_pin_ph', 'Ej: 5678')}
                     maxLength={4}
                     value={newPin1}
                     onChange={(e) => setNewPin1(e.target.value.replace(/\D/g, ''))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label">Confirmar nuevo PIN</label>
+                  <label className="label">{t('profile_confirm_pin', 'Confirmar nuevo PIN')}</label>
                   <input
                     type="password"
                     className="input w-full"
-                    placeholder="Repite el PIN"
+                    placeholder={t('profile_repeat_pin', 'Repite el PIN')}
                     maxLength={4}
                     value={newPin2}
                     onChange={(e) => setNewPin2(e.target.value.replace(/\D/g, ''))}
                   />
                   {newPin1 && newPin2 && newPin1 !== newPin2 && (
-                    <p className="text-xs text-red-500">Los PINs no coinciden</p>
+                    <p className="text-xs text-red-500">{t('profile_pins_dont_match', 'Los PINs no coinciden')}</p>
                   )}
                 </div>
               </>
@@ -867,28 +865,28 @@ export default function Profile() {
 
             {cardModal.type === 'changeDoc' && (
               <div className="space-y-2">
-                <label className="label">Documento a usar en la tarjeta</label>
+                <label className="label">{t('profile_doc_for_card', 'Documento a usar en la tarjeta')}</label>
                 <select
                   className="input w-full"
                   value={selectedDocType}
                   onChange={(e) => setSelectedDocType(e.target.value)}
                 >
-                  <option value="">Usar el default del usuario</option>
+                  <option value="">{t('profile_default_doc', 'Usar el default del usuario')}</option>
                   {documents.map((d: any, i: number) => (
                     <option key={i} value={d.document_type}>
                       {d.document_type_name || d.document_type}: {d.document_number}
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-400">El POS pedirá este documento al pagar con esta tarjeta.</p>
+                <p className="text-xs text-gray-400">{t('profile_doc_for_card_hint', 'El POS pedira este documento al pagar con esta tarjeta.')}</p>
               </div>
             )}
 
             {cardModal.type === 'toggle' && (
               <p className="text-sm text-gray-600">
                 {cardModal.isActive
-                  ? 'La tarjeta se desactivará y no podrá usarse para pagos hasta que la vuelvas a activar.'
-                  : 'La tarjeta se activará y podrá usarse para pagos nuevamente.'}
+                  ? t('profile_deactivate_desc', 'La tarjeta se desactivara y no podra usarse para pagos hasta que la vuelvas a activar.')
+                  : t('profile_activate_desc', 'La tarjeta se activara y podra usarse para pagos nuevamente.')}
               </p>
             )}
 
@@ -907,7 +905,7 @@ export default function Profile() {
                   disabled={cardActionLoading || !authPassword || (cardModal.type === 'changePin' && (newPin1.length !== 4 || newPin1 !== newPin2))}
                   className="btn-primary text-sm"
                 >
-                  {cardActionLoading ? 'Procesando...' : 'Confirmar'}
+                  {cardActionLoading ? t('profile_processing', 'Procesando...') : t('profile_confirm', 'Confirmar')}
                 </button>
               )}
             </div>
