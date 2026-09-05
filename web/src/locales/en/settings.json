@@ -409,6 +409,7 @@
   "settings_installed_commit": "Installed commit",
   "settings_installments": "installments",
   "settings_instructions_1": "Add a new node with the form above.",
+  "settings_instructions_2": "Download the installation script (\"Script\" button).",
   "settings_instructions_3": "Copy the file",
   "settings_instructions_3b": "to the remote server (USB, scp, etc).",
   "settings_instructions_4": "On the remote server, run:",
@@ -785,5 +786,7 @@
   "tariff_help_what_label": "What is the energy tariff:",
   "tariff_help_who": "The assembly. Changing these values affects all price calculations.",
   "tariff_help_who_label": "Who configures it:",
-  "tax_rate": "Tax rate"
+  "tax_rate": "Tax rate",
+  "settings_title": "Settings",
+  "settings_desc": "Choose how the portal header and navigation look."
 }
