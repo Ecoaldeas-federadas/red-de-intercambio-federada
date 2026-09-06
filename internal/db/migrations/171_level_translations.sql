@@ -8,7 +8,7 @@
 -- 1. Traducciones de niveles de miembro
 CREATE TABLE IF NOT EXISTS member_level_translations (
   id SERIAL PRIMARY KEY,
-  level_id UUID REFERENCES member_levels(id) ON DELETE CASCADE,
+  level_id TEXT REFERENCES member_levels(id) ON DELETE CASCADE,
   language VARCHAR(10) NOT NULL,
   name VARCHAR(255),
   description TEXT,
