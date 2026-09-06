@@ -167,11 +167,14 @@ export default function TranslationEditor() {
   }
 
   const handleSeed = async () => {
+    if (!confirm(t('seed_force_confirm', `Esto sobrescribira TODAS las traducciones de "${selectedLang}" en la base de datos con los valores de los archivos JSON. Continuar?`))) {
+      return
+    }
     setSeeding(true)
     setSaveMsg('')
     try {
-      const res = await api.post<any>('/translations/seed', {})
-      setSaveMsg(t('seed_done', `Seed completado: ${res?.inserted || 0} insertadas, ${res?.skipped || 0} omitidas`))
+      const res = await api.post<any>(`/translations/seed?lang=${selectedLang}&force=true`, {})
+      setSaveMsg(t('seed_done', `Seed completado: ${res?.inserted || 0} insertadas/actualizadas, ${res?.skipped || 0} omitidas`))
       loadAllKeys()
       loadAuditData()
     } catch (e: any) {
@@ -321,10 +324,10 @@ export default function TranslationEditor() {
           onClick={handleSeed}
           disabled={seeding}
           className="btn-secondary text-sm py-1 px-3 flex items-center gap-2"
-          title={t('seed_tooltip', 'Cargar todas las claves de los JSON a la base de datos')}
+          title={t('seed_tooltip', 'Sobrescribe las traducciones del idioma seleccionado en la BD con los valores de los archivos JSON')}
         >
           {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
-          {t('seed_btn', 'Cargar claves a BD')}
+          {t('seed_btn', 'Restaurar traducciones desde JSON')}
         </button>
       </div>
 
@@ -429,14 +432,14 @@ export default function TranslationEditor() {
           <div className="text-center py-8 text-gray-400">
             <AlertCircle size={32} className="mx-auto mb-2 text-amber-500" />
             <p className="mb-2">{t('no_keys', 'No hay claves cargadas.')}</p>
-            <p className="text-sm mb-3">{t('seed_hint', 'Haz clic en "Cargar claves a BD" para importar todas las claves de los archivos JSON a la base de datos.')}</p>
+            <p className="text-sm mb-3">{t('seed_hint', 'Haz clic en "Restaurar traducciones desde JSON" para importar todas las claves de los archivos JSON a la base de datos.')}</p>
             <button
               onClick={handleSeed}
               disabled={seeding}
               className="btn-primary text-sm py-1 px-3 flex items-center gap-2 mx-auto"
             >
               {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
-              {t('seed_btn', 'Cargar claves a BD')}
+              {t('seed_btn', 'Restaurar traducciones desde JSON')}
             </button>
           </div>
         ) : (
