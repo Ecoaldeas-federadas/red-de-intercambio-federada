@@ -814,14 +814,14 @@ export function PublicFederationPage() {
                     >
                       {demoPresets.map((p: any) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} ({p.category})
+                          {t(`preset_${p.id}_name`, p.name)} ({p.category})
                         </option>
                       ))}
                     </select>
                   )}
                   {demoPresetsLoaded && demoPresets.length > 0 && demoPresets.find((p) => p.id === demoPresetSel) && (
                     <p className="text-xs text-emerald-200 italic mt-2 bg-white/10 rounded-lg p-2">
-                      {demoPresets.find((p) => p.id === demoPresetSel)?.description}
+                      {(() => { const p = demoPresets.find((dp) => dp.id === demoPresetSel); return p ? t(`preset_${p.id}_desc`, String(p.description || '')) : ''; })()}
                     </p>
                   )}
                 </div>

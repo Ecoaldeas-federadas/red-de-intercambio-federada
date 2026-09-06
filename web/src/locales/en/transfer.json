@@ -149,6 +149,7 @@
   },
   "recipient_hint": "Identifier of who will receive the money. Format @user@node. E.g. @maria@localhost or @carlos@node2.org. If they are on your same node, just @maria.",
   "recipient_label": "Recipient",
+  "reference_placeholder": "e.g. Bread payment",
   "reference_hint": "Note so the recipient knows the reason for the payment. Appears in both histories.",
   "reference_label": "Reference (optional)",
   "sending": "Sending...",

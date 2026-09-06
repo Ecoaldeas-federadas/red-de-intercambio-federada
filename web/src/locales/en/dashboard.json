@@ -91,5 +91,13 @@
   "help_buy": "Buy",
   "help_buy_desc": "View products available in the store",
   "help_calculator_desc": "Use the equivalence calculator",
-  "help_quick_actions_tip": "Just click the button and it will take you to that page. It is a shortcut to avoid searching the side menu."
+  "help_quick_actions_tip": "Just click the button and it will take you to that page. It is a shortcut to avoid searching the side menu.",
+  "presential_badge": "In-person",
+  "session_type_ordinaria": "Ordinary",
+  "session_type_extraordinaria": "Extraordinary",
+  "session_type_urgente": "Urgent",
+  "status_scheduled": "Scheduled",
+  "status_waiting_quorum": "Waiting for quorum",
+  "status_active": "Active",
+  "status_closed": "Closed"
 }

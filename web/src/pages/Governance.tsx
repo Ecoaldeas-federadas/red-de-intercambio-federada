@@ -52,7 +52,7 @@ const SEVERITIES = [
 
 export default function Governance() {
   const { hasPermission } = usePermissions()
-  const { t } = useTranslation('assembly')
+  const { t, i18n } = useTranslation('assembly')
   const [rules, setRules] = useState<GovernanceRule[]>([])
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [showCreate, setShowCreate] = useState(false)
@@ -79,7 +79,7 @@ export default function Governance() {
 
   const loadRules = async () => {
     try {
-      const data = await api.get<any>('/governance/rules')
+      const data = await api.get<any>(`/governance/rules?lang=${i18n.language}`)
       setRules(Array.isArray(data) ? data : [])
     } catch (e: any) {
       setError(e instanceof Error ? e.message : t('governance.error_load', 'Error al cargar reglas'))

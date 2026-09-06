@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { translateAccountName, translateAlias } from '../i18n/accountNames'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
@@ -107,13 +108,13 @@ export default function CommunityFund() {
           fund.fund_account ? (
             <div className="space-y-2">
               <div className="text-3xl font-bold text-trueque-700">{fund.balance >= 0 ? '+' : ''}{fmtTQ(fund.balance || 0)} {currency}</div>
-              <p className="text-sm text-gray-500">{t('fund_account_label', 'Cuenta:')} <b>{fund.display_name || fund.username || 'asamblea'}</b></p>
+              <p className="text-sm text-gray-500">{t('fund_account_label')} <b>{translateAccountName(fund.display_name || fund.username || 'asamblea', fund.username)}</b></p>
               <div className="flex flex-wrap gap-2 mt-2">
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@asamblea</span>
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@impuestos</span>
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@fondo_comunitario</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@{translateAlias('asamblea')}</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@{translateAlias('impuestos')}</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@{translateAlias('fondo_comunitario')}</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">{t('fund_aliases_hint', 'Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.')}</p>
+              <p className="text-xs text-gray-400 mt-1">{t('fund_aliases_hint')}</p>
               {fund.transaction_count > 0 && (
                 <p className="text-xs text-gray-400">{fund.transaction_count} {t('fund_tx_count', 'transacciones registradas')}</p>
               )}

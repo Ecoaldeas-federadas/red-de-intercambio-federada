@@ -45,20 +45,20 @@ const DEFAULT_ORG_TYPES = ORG_TYPE_OPTIONS.map((o) => o.value)
 
 const HELP_SECTIONS = [
   {
-    title: 'Que son las organizaciones',
-    body: 'Las organizaciones son grupos internos de la comunidad. No son tipos legales externos. Cada comunidad define sus propios tipos segun sus necesidades. Permiten agrupar personas para producir, consumir, gestionar o ejecutar tareas conjuntas.',
+    title: 'org_help_what_title',
+    body: 'org_help_what_body',
   },
   {
-    title: 'Que tipos existen',
-    body: 'Grupo de produccion (fabrica o produce bienes), Grupo de consumo (compra bienes para distribuir), Comision (grupo temporal para una tarea especifica), Proyecto (iniciativa con objetivo y plazo), Institucion publica (sin fines de lucro, exenta de impuestos) y Cooperativa (propiedad compartida).',
+    title: 'org_help_types_title',
+    body: 'org_help_types_body',
   },
   {
-    title: 'Que es la junta directiva de una organizacion',
-    body: 'La junta directiva es el grupo de personas elegidas para dirigir y representar a la organizacion. Se encarga de coordinar las actividades, administrar los recursos y tomar decisiones en nombre de los miembros.',
+    title: 'org_help_board_title',
+    body: 'org_help_board_body',
   },
   {
-    title: 'Como se toman decisiones en una organizacion',
-    body: 'Las decisiones pueden tomarse por consenso, votacion o delegacion segun los estatutos de cada organizacion. Generalmente la asamblea de miembros define las reglas y la junta directiva ejecuta lo acordado.',
+    title: 'org_help_decisions_title',
+    body: 'org_help_decisions_body',
   },
 ]
 
@@ -103,7 +103,7 @@ export default function Organizations() {
 
   const loadTypes = async () => {
     try {
-      const data = await api.get('/organizations/types')
+      const data = await api.get<any>('/organizations/types')
       const types = Array.isArray(data) ? data : data?.types
       if (Array.isArray(types) && types.length > 0) {
         setOrgTypes(types)
@@ -190,8 +190,8 @@ export default function Organizations() {
             <div className="space-y-3">
               {HELP_SECTIONS.map((section, i) => (
                 <div key={i}>
-                  <h4 className="text-sm font-semibold text-gray-800">{section.title}</h4>
-                  <p className="text-sm text-gray-700 mt-0.5">{section.body}</p>
+                  <h4 className="text-sm font-semibold text-gray-800">{t(section.title)}</h4>
+                  <p className="text-sm text-gray-700 mt-0.5">{t(section.body)}</p>
                 </div>
               ))}
             </div>

@@ -70,7 +70,7 @@ const ALL_NS = [
   'satellite', 'translations',
 ]
 
-const esResources: Record<string, unknown> = {
+const esResources: Record<string, any> = {
   common: esCommon, dashboard: esDashboard, transfer: esTransfer,
   nfc: esNfc, federation: esFederation, assembly: esAssembly,
   organizations: esOrganizations, products: esProducts, settings: esSettings,
@@ -80,7 +80,7 @@ const esResources: Record<string, unknown> = {
   translations: esTranslations,
 }
 
-const enResources: Record<string, unknown> = {
+const enResources: Record<string, any> = {
   common: enCommon, dashboard: enDashboard, transfer: enTransfer,
   nfc: enNfc, federation: enFederation, assembly: enAssembly,
   organizations: enOrganizations, products: enProducts, settings: enSettings,
@@ -108,5 +108,13 @@ i18n.use(initReactI18next).init({
     useSuspense: false, // No usar Suspense para evitar flashes
   },
 })
+
+// Sync language to window for apiFetch to use in Accept-Language header
+if (typeof window !== 'undefined') {
+  ;(window as any).__i18n_lang__ = i18n.language || 'es'
+  i18n.on('languageChanged', (lng) => {
+    ;(window as any).__i18n_lang__ = lng
+  })
+}
 
 export default i18n

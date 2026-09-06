@@ -286,7 +286,7 @@ func (h *NodeProfileHandler) addProhibition(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Tambien marcar productos locales coincidentes como prohibidos
-	h.markLocalProductsProhibited(r, nodeDomain, req.ProductName, req.ProductCategory)
+	h.markLocalProductsProhibited(r, nodeDomain, req.ProductName)
 
 	_ = userID
 
@@ -389,7 +389,7 @@ func (h *NodeProfileHandler) approvePendingProhibition(w http.ResponseWriter, r 
 		WHERE id = $1 AND node_domain = $2`, id, nodeDomain, userID)
 
 	// Marcar productos locales
-	h.markLocalProductsProhibited(r, nodeDomain, productName, category)
+	h.markLocalProductsProhibited(r, nodeDomain, productName)
 
 	writeJSON(w, 200, map[string]interface{}{"success": true})
 }
@@ -422,7 +422,7 @@ func (h *NodeProfileHandler) currentNodeDomain(r *http.Request) string {
 
 // markLocalProductsProhibited marca productos locales cuyo nombre coincide con
 // la prohibicion como prohibidos en catalog_dietary_rules.
-func (h *NodeProfileHandler) markLocalProductsProhibited(r *http.Request, nodeDomain, productName string, category *string) {
+func (h *NodeProfileHandler) markLocalProductsProhibited(r *http.Request, nodeDomain, productName string) {
 	// Buscar productos locales que coincidan por nombre (contains, case-insensitive)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id::text, name FROM products

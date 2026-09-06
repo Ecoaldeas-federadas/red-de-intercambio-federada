@@ -163,11 +163,11 @@ export default function FederationLimits() {
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
                   <p>{t('limits_no_federated_nodes', 'No hay nodos federados registrados todavia.')}</p>
                   <p className="text-xs mt-1">{t('limits_no_federated_hint', 'Para proponer un limite bilateral, primero debes registrar un nodo peer.')}</p>
-                  <a href={`${import.meta.env.BASE_URL}app/federation/peers`} className="inline-block mt-2 text-blue-600 underline text-sm font-medium">{t('limits_go_register_peer', 'Ir a registrar nodo peer')} →</a>
+                  <a href={`${(import.meta as any).env?.BASE_URL || '/'}app/federation/peers`} className="inline-block mt-2 text-blue-600 underline text-sm font-medium">{t('limits_go_register_peer', 'Ir a registrar nodo peer')} →</a>
                 </div>
               </div>
             )}
-            {nodes.length > 0 && <p className="text-xs text-gray-400 mt-1">Selecciona de la lista de nodos federados registrados. Ejemplo: <code>nodo-b.org</code></p>}
+            {nodes.length > 0 && <p className="text-xs text-gray-400 mt-1">{t('limits_select_from_list', 'Select from the list of registered federated nodes. Example:')} <code>nodo-b.org</code></p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

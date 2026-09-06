@@ -538,5 +538,6 @@
   "peers_name_hint": "Nombre descriptivo del nodo para identificarlo facilmente. Ejemplo:",
   "peers_pubkey_hint": "La clave publica Ed25519 del otro nodo (64 hex chars). Te la debe dar su administrador. Ejemplo:",
   "peers_url_hint": "Direccion HTTPS para conectarse via federacion. Ejemplo:",
-  "peers_notes_hint": "Notas internas para recordar quien es este nodo. Ejemplo:"
+  "peers_notes_hint": "Notas internas para recordar quien es este nodo. Ejemplo:",
+  "limits_select_from_list": "Selecciona de la lista de nodos federados registrados. Ejemplo:"
 }

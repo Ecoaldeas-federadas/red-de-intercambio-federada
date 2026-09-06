@@ -94,11 +94,19 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/member-levels", h.listMemberLevels)
 	r.With(am.RequirePermission("config.manage")).Post("/api/member-levels", h.createMemberLevel)
 	r.With(am.RequirePermission("config.manage")).Put("/api/member-levels/{id}", h.updateMemberLevel)
+	// Traducciones de niveles de miembro
+	r.With(am.RequireAuth).Get("/api/member-levels/{id}/translations", h.getMemberLevelTranslations)
+	r.With(am.RequireAuth).Get("/api/member-levels/{id}/translations/{lang}", h.getMemberLevelTranslation)
+	r.With(am.RequirePermission("config.manage")).Put("/api/member-levels/{id}/translations/{lang}", h.updateMemberLevelTranslation)
 
 	// Niveles de organizacion (CRUD completo, separados de member_levels)
 	r.With(am.RequireAuth).Get("/api/organization-levels", h.listOrganizationLevels)
 	r.With(am.RequirePermission("config.manage")).Post("/api/organization-levels", h.createOrganizationLevel)
 	r.With(am.RequirePermission("config.manage")).Put("/api/organization-levels/{id}", h.updateOrganizationLevel)
+	// Traducciones de niveles de organizacion
+	r.With(am.RequireAuth).Get("/api/organization-levels/{id}/translations", h.getOrgLevelTranslations)
+	r.With(am.RequireAuth).Get("/api/organization-levels/{id}/translations/{lang}", h.getOrgLevelTranslation)
+	r.With(am.RequirePermission("config.manage")).Put("/api/organization-levels/{id}/translations/{lang}", h.updateOrgLevelTranslation)
 
 	// Tarifa energetica
 	r.With(am.RequireAuth).Get("/api/calculator/tariff", h.getTariff)
@@ -145,6 +153,30 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("governance.manage")).Post("/api/governance/rules", h.createGovernanceRule)
 	r.With(am.RequirePermission("governance.manage")).Put("/api/governance/rules/{id}", h.updateGovernanceRule)
 	r.With(am.RequirePermission("governance.manage")).Delete("/api/governance/rules/{id}", h.deleteGovernanceRule)
+
+	// Traducciones de reglas de gobernanza
+	r.With(am.RequireAuth).Get("/api/governance/rules/{id}/translations", h.getGovernanceRuleTranslations)
+	r.With(am.RequirePermission("governance.manage")).Put("/api/governance/rules/{id}/translations/{lang}", h.updateGovernanceRuleTranslation)
+
+	// Traducciones de parametros de calculadora
+	r.With(am.RequireAuth).Get("/api/calculator/parameters/{id}/translations", h.getCalculatorParameterTranslations)
+	r.With(am.RequirePermission("config.manage")).Put("/api/calculator/parameters/{id}/translations/{lang}", h.updateCalculatorParameterTranslation)
+
+	// Traducciones de categorias de calculadora
+	r.With(am.RequireAuth).Get("/api/calculator/categories/{id}/translations", h.getCalculatorCategoryTranslations)
+	r.With(am.RequirePermission("config.manage")).Put("/api/calculator/categories/{id}/translations/{lang}", h.updateCalculatorCategoryTranslation)
+
+	// Traducciones de productos
+	r.With(am.RequireAuth).Get("/api/products/{id}/translations", h.getProductTranslations)
+	r.With(am.RequirePermission("config.manage")).Put("/api/products/{id}/translations/{lang}", h.updateProductTranslation)
+
+	// Traducciones de configuracion de asamblea
+	r.With(am.RequireAuth).Get("/api/assembly/config/{id}/translations", h.getAssemblyConfigTranslations)
+	r.With(am.RequirePermission("config.manage")).Put("/api/assembly/config/{id}/translations/{lang}", h.updateAssemblyConfigTranslation)
+
+	// Traducciones de constantes federadas
+	r.With(am.RequireAuth).Get("/api/federation/constants/{key}/translations", h.getFederationConstantTranslations)
+	r.With(am.RequirePermission("config.manage")).Put("/api/federation/constants/{key}/translations/{lang}", h.updateFederationConstantTranslation)
 
 	// Auto-ascenso de nivel
 	r.With(am.RequireAuth).Post("/api/member-levels/auto-upgrade", h.autoUpgradeLevel)
@@ -428,6 +460,9 @@ func (h *SystemHandler) listMemberLevels(w http.ResponseWriter, r *http.Request)
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
+	// Idioma solicitado para traducciones
+	lang := resolveLang(r)
+
 	// Intentar usar el node_domain real del usuario autenticado
 	userID, err := h.Auth.GetUserID(r)
 	var userMemberLevelID *string
@@ -439,26 +474,32 @@ func (h *SystemHandler) listMemberLevels(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Query base: niveles del dominio del usuario.
+	// Query base: niveles del dominio del usuario, con traducciones si existen.
 	// Si el usuario tiene un member_level_id que no pertenece a este dominio,
 	// tambien lo incluimos (puede pasar si el nivel se asigno antes de configurar el dominio).
 	query := `
-		SELECT id, name, description, level, has_voice, has_vote, counts_in_quorum,
-			   credit_limit, debit_limit, per_transaction_limit, daily_limit, monthly_limit,
-			   tax_rate, auto_upgrade_after_days, upgrade_to,
-			   can_create_organization, can_cross_node_trade, can_receive_nfc_card,
-			   can_view_audit, can_use_external_bridge, max_organizations, can_request_limit_increase, is_system
-		FROM member_levels WHERE node_domain = $1 AND is_active = true`
-	args := []interface{}{nodeDomain}
+		SELECT ml.id, COALESCE(t.name, ml.name) AS name, COALESCE(t.description, ml.description) AS description,
+			   ml.level, ml.has_voice, ml.has_vote, ml.counts_in_quorum,
+			   ml.credit_limit, ml.debit_limit, ml.per_transaction_limit, ml.daily_limit, ml.monthly_limit,
+			   ml.tax_rate, ml.auto_upgrade_after_days, ml.upgrade_to,
+			   ml.can_create_organization, ml.can_cross_node_trade, ml.can_receive_nfc_card,
+			   ml.can_view_audit, ml.can_use_external_bridge, ml.max_organizations, ml.can_request_limit_increase, ml.is_system
+		FROM member_levels ml
+		LEFT JOIN member_level_translations t ON t.level_id = ml.id AND t.language = $2
+		WHERE ml.node_domain = $1 AND ml.is_active = true`
+	args := []interface{}{nodeDomain, lang}
 	if userMemberLevelID != nil && *userMemberLevelID != "" {
 		query += `
 		UNION ALL
-		SELECT id, name, description, level, has_voice, has_vote, counts_in_quorum,
-			   credit_limit, debit_limit, per_transaction_limit, daily_limit, monthly_limit,
-			   tax_rate, auto_upgrade_after_days, upgrade_to,
-			   can_create_organization, can_cross_node_trade, can_receive_nfc_card,
-			   can_view_audit, can_use_external_bridge, max_organizations, can_request_limit_increase, is_system
-		FROM member_levels WHERE id = $2 AND NOT (node_domain = $1 AND is_active = true)`
+		SELECT ml.id, COALESCE(t.name, ml.name) AS name, COALESCE(t.description, ml.description) AS description,
+			   ml.level, ml.has_voice, ml.has_vote, ml.counts_in_quorum,
+			   ml.credit_limit, ml.debit_limit, ml.per_transaction_limit, ml.daily_limit, ml.monthly_limit,
+			   ml.tax_rate, ml.auto_upgrade_after_days, ml.upgrade_to,
+			   ml.can_create_organization, ml.can_cross_node_trade, ml.can_receive_nfc_card,
+			   ml.can_view_audit, ml.can_use_external_bridge, ml.max_organizations, ml.can_request_limit_increase, ml.is_system
+		FROM member_levels ml
+		LEFT JOIN member_level_translations t ON t.level_id = ml.id AND t.language = $2
+		WHERE ml.id = $3 AND NOT (ml.node_domain = $1 AND ml.is_active = true)`
 		args = append(args, *userMemberLevelID)
 	}
 	query += ` ORDER BY level`
@@ -712,21 +753,28 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	search := r.URL.Query().Get("search")
+
+	// Idioma solicitado para traducciones
+	lang := resolveLang(r)
+
 	// Mostrar productos del nodo local (aprobados y no aprobados) para que el admin
 	// pueda ver permitidos y no permitidos. is_allowed distingue permitido/no-permitido.
 	query := `
-		SELECT id, name, COALESCE(description,''), COALESCE(parent_category,''),
-		       COALESCE(category,''), COALESCE(subcategory,''), unit, price_per_unit,
-		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
-		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden,
-		       COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL)
-		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_hidden = false AND COALESCE(is_composite, false) = false`
-	args := []interface{}{nodeDomain}
+		SELECT p.id, COALESCE(t.name, p.name) AS name, COALESCE(t.description, p.description) AS description,
+		       COALESCE(p.parent_category,''), COALESCE(p.category,''), COALESCE(p.subcategory,''),
+		       p.unit, p.price_per_unit, COALESCE(p.price_per_kg,0), COALESCE(p.weight_kg,0),
+		       COALESCE(p.base_unit,'kg'), p.is_approved, p.origin, p.badge, p.image_url,
+		       p.product_code, p.is_system, p.is_hidden, COALESCE(p.image_thumb_url,''),
+		       COALESCE(p.is_allowed, NULL)
+		FROM products p
+		LEFT JOIN product_translations t ON t.product_id = p.id AND t.language = $2
+		WHERE p.node_domain IN ($1, 'localhost', 'default') AND p.is_hidden = false AND COALESCE(p.is_composite, false) = false`
+	args := []interface{}{nodeDomain, lang}
 	if search != "" {
-		query += ` AND LOWER(name) LIKE LOWER($2)`
+		query += ` AND LOWER(COALESCE(t.name, p.name)) LIKE LOWER($3)`
 		args = append(args, "%"+search+"%")
 	}
-	query += ` ORDER BY COALESCE(parent_category,''), COALESCE(category,''), COALESCE(subcategory,''), name LIMIT 500`
+	query += ` ORDER BY COALESCE(p.parent_category,''), COALESCE(p.category,''), COALESCE(p.subcategory,''), COALESCE(t.name, p.name) LIMIT 500`
 	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -1860,25 +1908,32 @@ func (h *SystemHandler) listCalcParams(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	approvedOnly := r.URL.Query().Get("approved") == "true"
 
-	query := `SELECT id, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, is_active, approved, created_at, COALESCE(tariff_category,'')
-		FROM calculator_parameters WHERE node_domain = $1`
-	args := []interface{}{db.LOCAL_NODE_DOMAIN}
-	argIdx := 2
+	// Idioma solicitado para traducciones
+	lang := resolveLang(r)
+
+	query := `SELECT cp.id, cp.parameter_type, cp.category, cp.subcategory,
+			COALESCE(t.name, cp.name) AS name, COALESCE(t.description, cp.description) AS description,
+			cp.unit, cp.kwh_per_unit, cp.effort_factor, cp.is_active, cp.approved, cp.created_at, COALESCE(cp.tariff_category,'')
+			FROM calculator_parameters cp
+			LEFT JOIN calculator_parameter_translations t ON t.parameter_id = cp.id AND t.language = $2
+			WHERE cp.node_domain = $1`
+	args := []interface{}{db.LOCAL_NODE_DOMAIN, lang}
+	argIdx := 3
 
 	if paramType != "" {
-		query += fmt.Sprintf(" AND parameter_type = $%d", argIdx)
+		query += fmt.Sprintf(" AND cp.parameter_type = $%d", argIdx)
 		args = append(args, paramType)
 		argIdx++
 	}
 	if category != "" {
-		query += fmt.Sprintf(" AND category = $%d", argIdx)
+		query += fmt.Sprintf(" AND cp.category = $%d", argIdx)
 		args = append(args, category)
 		argIdx++
 	}
 	if approvedOnly {
-		query += " AND approved = true"
+		query += " AND cp.approved = true"
 	}
-	query += " ORDER BY category, name"
+	query += " ORDER BY cp.category, cp.name"
 
 	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
@@ -1924,10 +1979,16 @@ func (h *SystemHandler) listCalcParams(w http.ResponseWriter, r *http.Request) {
 func (h *SystemHandler) listCalcCategories(w http.ResponseWriter, r *http.Request) {
 	paramType := r.URL.Query().Get("type")
 
-	query := `SELECT id, parameter_type, name, description, is_active FROM calculator_categories WHERE node_domain = $1`
-	args := []interface{}{db.LOCAL_NODE_DOMAIN}
+	// Idioma solicitado para traducciones
+	lang := resolveLang(r)
+
+	query := `SELECT cc.id, cc.parameter_type, COALESCE(t.name, cc.name) AS name, COALESCE(t.description, cc.description) AS description, cc.is_active
+			FROM calculator_categories cc
+			LEFT JOIN calculator_category_translations t ON t.category_id = cc.id AND t.language = $2
+			WHERE cc.node_domain = $1`
+	args := []interface{}{db.LOCAL_NODE_DOMAIN, lang}
 	if paramType != "" {
-		query += " AND parameter_type = $2"
+		query += " AND cc.parameter_type = $3"
 		args = append(args, paramType)
 	}
 	query += " ORDER BY name"
@@ -2166,12 +2227,17 @@ func (h *SystemHandler) listOrganizationLevels(w http.ResponseWriter, r *http.Re
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
+	// Idioma solicitado para traducciones
+	lang := resolveLang(r)
+
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id::text, name, COALESCE(description, ''), level, credit_limit, debit_limit, tax_rate,
-		       can_cross_node_trade, can_use_external_bridge, can_view_audit, max_members, is_active
-		FROM organization_levels
-		WHERE node_domain = $1 AND is_active = true
-		ORDER BY level, name`, nodeDomain)
+		SELECT ol.id::text, COALESCE(t.name, ol.name) AS name, COALESCE(t.description, ol.description) AS description,
+		       ol.level, ol.credit_limit, ol.debit_limit, ol.tax_rate,
+		       ol.can_cross_node_trade, ol.can_use_external_bridge, ol.can_view_audit, ol.max_members, ol.is_active
+		FROM organization_levels ol
+		LEFT JOIN organization_level_translations t ON t.level_id = ol.id AND t.language = $2
+		WHERE ol.node_domain = $1 AND ol.is_active = true
+		ORDER BY ol.level, ol.name`, nodeDomain, lang)
 	if err != nil {
 		writeError(w, 500, "error listing organization levels")
 		return
@@ -4491,15 +4557,21 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 	}
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
+	// Idioma solicitado para traducciones
+	lang := resolveLang(r)
+
 	// Cargar valores dinamicos de la configuracion real del nodo
 	dynValues := h.loadGovernanceDynamicValues(r.Context(), nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, category, title, description, severity, icon, sort_order, is_active, rule_type
-		FROM governance_rules
-		WHERE node_domain IN ($1, 'localhost', 'default') AND is_active = true
-		ORDER BY category, sort_order`,
-		nodeDomain,
+		SELECT gr.id, gr.category, COALESCE(t.title, gr.title) AS title,
+		       COALESCE(t.description, gr.description) AS description,
+		       gr.severity, gr.icon, gr.sort_order, gr.is_active, gr.rule_type
+		FROM governance_rules gr
+		LEFT JOIN governance_rule_translations t ON t.rule_id = gr.id AND t.language = $2
+		WHERE gr.node_domain IN ($1, 'localhost', 'default') AND gr.is_active = true
+		ORDER BY gr.category, gr.sort_order`,
+		nodeDomain, lang,
 	)
 	if err != nil {
 		writeError(w, 500, err.Error())

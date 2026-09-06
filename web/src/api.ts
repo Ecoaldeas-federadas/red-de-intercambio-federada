@@ -90,9 +90,11 @@ function getNodeDomain(): string {
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
+  const lang = typeof window !== 'undefined' && (window as any).__i18n_lang__ ? (window as any).__i18n_lang__ : 'es'
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Node-Domain': getNodeDomain(),
+    'Accept-Language': lang,
     ...(options.headers as Record<string, string>),
   }
   if (token) {

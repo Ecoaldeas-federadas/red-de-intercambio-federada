@@ -103,14 +103,14 @@ export default function NetworkConfig() {
 
   const loadStatus = async () => {
     try {
-      const res = await api.get('/network/status')
+      const res = await api.get<NetworkStatus>('/network/status')
       setStatus(res)
     } catch (e) { console.error(e) }
   }
 
   const loadConfig = async () => {
     try {
-      const res = await api.get('/network/config')
+      const res = await api.get<NetworkConfigData>('/network/config')
       setConfig(res)
     } catch (e) { console.error(e) }
   }
@@ -607,20 +607,20 @@ Puerto WireGuard: ${myInfo.wireguard_port}`}</pre>
             <h3 className="font-semibold mb-3 flex items-center gap-2"><Plus size={18} /> {t('net_register_service', 'Registrar Servicio')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">{t('net_service_name', 'Nombre del servicio *')}</label>
-                <input className="input" placeholder="ej: tienda, voip, video" value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })} />
+                <label className="block text-xs text-gray-500 mb-1">{t('net_service_name', 'Service name *')}</label>
+                <input className="input" placeholder={t('net_service_name_ph', 'e.g: store, voip, video')} value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })} />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">{t('net_service_ipv6', 'Direccion IPv6 *')}</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('net_service_ipv6', 'IPv6 address *')}</label>
                 <input className="input font-mono text-sm" placeholder="fd12:3456:7890::20" value={newService.ipv6_address} onChange={(e) => setNewService({ ...newService, ipv6_address: e.target.value })} />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">{t('net_service_desc', 'Descripcion')}</label>
-                <input className="input" placeholder="Descripcion del servicio" value={newService.description} onChange={(e) => setNewService({ ...newService, description: e.target.value })} />
+                <label className="block text-xs text-gray-500 mb-1">{t('net_service_desc', 'Description')}</label>
+                <input className="input" placeholder={t('net_service_desc_ph', 'Service description')} value={newService.description} onChange={(e) => setNewService({ ...newService, description: e.target.value })} />
               </div>
             </div>
             <button onClick={addService} disabled={saving} className="mt-3 px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50">
-              <Plus size={14} className="inline mr-1" />{t('net_register_btn', 'Registrar')}
+              <Plus size={14} className="inline mr-1" />{t('net_register_btn', 'Register')}
             </button>
           </div>
         </div>
@@ -629,69 +629,69 @@ Puerto WireGuard: ${myInfo.wireguard_port}`}</pre>
       {/* Installer */}
       {subTab === 'installer' && (
         <div className="card p-4 space-y-4">
-          <h3 className="font-semibold flex items-center gap-2"><Download size={18} /> {t('net_image_title', 'Generar Imagen OpenWrt')}</h3>
+          <h3 className="font-semibold flex items-center gap-2"><Download size={18} /> {t('net_image_title', 'Generate OpenWrt Image')}</h3>
 
           {/* De donde obtener los datos */}
           <div className="bg-blue-50 p-3 rounded-lg text-sm">
-            <p className="font-medium text-blue-700 mb-2">{t('net_image_data_source', 'De donde obtener los datos de OpenWrt:')}</p>
+            <p className="font-medium text-blue-700 mb-2">{t('net_image_data_source', 'Where to get OpenWrt data:')}</p>
             <ul className="space-y-2 text-xs text-gray-700">
-              <li><strong>{t('net_image_openwrt_address', 'Direccion de OpenWrt:')}</strong> Es la IP del servidor OpenWrt en tu LAN.
-                Por defecto: <code className="bg-white px-1 rounded">192.168.1.1</code>.
-                La encuentras en el panel de OpenWrt en <em>Network → Interfaces</em>.</li>
-              <li><strong>{t('net_image_openwrt_domain', 'Dominio de la aldea:')}</strong> Es el dominio que configures en OpenWrt
-                (ej: <code className="bg-white px-1 rounded">aldea1.com</code>).
-                Se configura en <em>System → Hostname</em> o en el DNS de OpenWrt.</li>
-              <li><strong>{t('net_image_openwrt_token', 'Token API de OpenWrt:')}</strong> Se obtiene del panel de OpenWrt en
+              <li><strong>{t('net_image_openwrt_address', 'OpenWrt address:')}</strong> {t('net_image_openwrt_addr_desc', 'This is the IP address of the OpenWrt server on your LAN. Default:')}
+                <code className="bg-white px-1 rounded">192.168.1.1</code>.
+                {t('net_image_openwrt_addr_find', 'You can find it in the OpenWrt panel under')} <em>Network → Interfaces</em>.</li>
+              <li><strong>{t('net_image_openwrt_domain', 'Village domain:')}</strong> {t('net_image_openwrt_dom_desc', 'This is the domain you configure in OpenWrt')}
+                ({t('net_image_openwrt_dom_eg', 'e.g:')} <code className="bg-white px-1 rounded">village1.com</code>).
+                {t('net_image_openwrt_dom_cfg', 'Configure it in')} <em>System → Hostname</em> {t('net_image_openwrt_dom_or', 'or in the OpenWrt DNS')}.</li>
+              <li><strong>{t('net_image_openwrt_token', 'OpenWrt API token:')}</strong> {t('net_image_openwrt_token_desc', 'Get it from the OpenWrt panel in')}
                 <em> System → Administration → API Token</em>.
-                Si no lo encuentras, puedes dejarlo vacio y configurarlo despues.</li>
-              <li><strong>{t('net_image_ipv6_ula', 'IPv6 ULA:')}</strong> Se genera automaticamente con el boton
-                <strong> "Generar"</strong> de abajo. No necesitas buscarla en ningun sitio.</li>
-              <li><strong>{t('net_image_wg_keys', 'Claves WireGuard:')}</strong> Se generan automaticamente con el boton
-                <strong> "Generar claves WireGuard"</strong> en la pestana "Mis Datos de Red".</li>
-              <li><strong>{t('net_image_wg_port', 'Puerto WireGuard:')}</strong> Por defecto <code className="bg-white px-1 rounded">51820</code>.
-                Cambialo solo si tienes otro servicio en ese puerto.</li>
+                {t('net_image_openwrt_token_opt', 'If you can\'t find it, you can leave it empty and configure it later')}.</li>
+              <li><strong>{t('net_image_ipv6_ula', 'IPv6 ULA:')}</strong> {t('net_image_ipv6_ula_desc', 'Generated automatically with the')}
+                <strong> "{t('net_generate', 'Generate')}"</strong> {t('net_image_ipv6_ula_btn', 'button below. You don\'t need to look for it anywhere')}.</li>
+              <li><strong>{t('net_image_wg_keys', 'WireGuard keys:')}</strong> {t('net_image_wg_keys_desc', 'Generated automatically with the')}
+                <strong> "{t('net_generate_wg_keys', 'Generate WireGuard keys')}"</strong> {t('net_image_wg_keys_tab', 'button in the')} "{t('net_my_network_data', 'My Network Data')}" {t('net_image_wg_keys_tab2', 'tab')}.</li>
+              <li><strong>{t('net_image_wg_port', 'WireGuard port:')}</strong> {t('net_image_wg_port_def', 'Default')} <code className="bg-white px-1 rounded">51820</code>.
+                {t('net_image_wg_port_change', 'Change it only if you have another service on that port')}.</li>
             </ul>
           </div>
 
           <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
-            <p className="mb-2"><strong>{t('net_image_what_you_need', 'Que necesitas:')}</strong></p>
+            <p className="mb-2"><strong>{t('net_image_what_you_need', 'What you need:')}</strong></p>
             <ul className="list-disc list-inside space-y-1">
-              <li>{t('net_image_need_mini_pc', 'Mini-PC x86_64 con 2 tarjetas de red (WAN + LAN)')}</li>
-              <li>{t('net_image_need_internet', 'Conexion a Internet (fibra, cable, ADSL, radioenlace)')}</li>
-              <li>{t('net_image_need_usb', 'USB o disco para flashear la imagen')}</li>
-              <li>{t('net_image_need_flasher', 'BalenaEtcher o Rufus para flashear')}</li>
+              <li>{t('net_image_need_mini_pc', 'Mini-PC x86_64 with 2 network cards (WAN + LAN)')}</li>
+              <li>{t('net_image_need_internet', 'Internet connection (fiber, cable, ADSL, radio link)')}</li>
+              <li>{t('net_image_need_usb', 'USB or disk to flash the image')}</li>
+              <li>{t('net_image_need_flasher', 'BalenaEtcher or Rufus to flash')}</li>
             </ul>
-            <p className="mt-2 text-xs">Ver <a href="https://github.com/discapacidad5/red-de-intercambio-federada/tree/main/network/docs/EQUIPAMENTO.md" target="_blank" className="underline">{t('net_image_recommended_equipment', 'equipamento recomendado')}</a></p>
+            <p className="mt-2 text-xs">{t('net_image_see', 'See')} <a href="https://github.com/discapacidad5/red-de-intercambio-federada/tree/main/network/docs/EQUIPAMENTO.md" target="_blank" className="underline">{t('net_image_recommended_equipment', 'recommended equipment')}</a></p>
           </div>
 
           <div className="border-t pt-3">
-            <h4 className="text-sm font-medium mb-2">{t('net_image_for_village', 'Imagen para esta aldea')}</h4>
-            <p className="text-xs text-gray-500 mb-2">{t('net_image_for_village_desc', 'Genera una imagen OpenWrt con la configuracion actual de esta aldea.')}</p>
+            <h4 className="text-sm font-medium mb-2">{t('net_image_for_village', 'Image for this village')}</h4>
+            <p className="text-xs text-gray-500 mb-2">{t('net_image_for_village_desc', 'Generate an OpenWrt image with the current configuration of this village.')}</p>
             <button onClick={() => { setImageDomain(''); generateImage(); }} disabled={saving} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50">
-              <Download size={14} className="inline mr-1" />{saving ? t('net_generating', 'Generando...') : t('net_download', 'Descargar para esta aldea')}
+              <Download size={14} className="inline mr-1" />{saving ? t('net_generating', 'Generating...') : t('net_download', 'Download for this village')}
             </button>
           </div>
 
           <div className="border-t pt-3">
-            <h4 className="text-sm font-medium mb-2">{t('net_image_new_village', 'Imagen para nueva aldea (llave en mano)')}</h4>
-            <p className="text-xs text-gray-500 mb-2">{t('net_image_new_village_desc', 'Genera una imagen pre-configurada para entregar a otra aldea. Incluye IPv6 ULA y claves WireGuard nuevas, pre-federada con esta aldea.')}</p>
+            <h4 className="text-sm font-medium mb-2">{t('net_image_new_village', 'Image for new village (turnkey)')}</h4>
+            <p className="text-xs text-gray-500 mb-2">{t('net_image_new_village_desc', 'Generate a pre-configured image to deliver to another village. Includes new IPv6 ULA and WireGuard keys, pre-federated with this village.')}</p>
             <div className="flex gap-2">
-              <input className="input" placeholder="ej: aldea2.com" value={imageDomain} onChange={(e) => setImageDomain(e.target.value)} />
+              <input className="input" placeholder={t('net_image_new_village_ph', 'e.g: village2.com')} value={imageDomain} onChange={(e) => setImageDomain(e.target.value)} />
               <button onClick={generateImage} disabled={saving || !imageDomain} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm whitespace-nowrap disabled:opacity-50">
-                <Download size={14} className="inline mr-1" />{saving ? t('net_generating', 'Generando...') : t('net_generate_btn', 'Generar')}
+                <Download size={14} className="inline mr-1" />{saving ? t('net_generating', 'Generating...') : t('net_generate_btn', 'Generate')}
               </button>
             </div>
           </div>
 
           <div className="border-t pt-3">
-            <h4 className="text-sm font-medium mb-2">{t('net_instructions', 'Instrucciones')}</h4>
+            <h4 className="text-sm font-medium mb-2">{t('net_instructions', 'Instructions')}</h4>
             <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
-              <li>{t('net_inst_download', 'Descargar la imagen OpenWrt')}</li>
-              <li>{t('net_inst_flash', 'Flashear con BalenaEtcher en un USB o disco')}</li>
-              <li>{t('net_inst_connect', 'Conectar el servidor de aldea: eth0 a Internet, eth1 a la LAN')}</li>
-              <li>{t('net_inst_power', 'Encender el servidor desde el USB/disco')}</li>
-              <li>{t('net_inst_auto', 'La aldea se configura automaticamente')}</li>
-              <li>{t('net_inst_install_node', 'Instalar el nodo de la aplicacion en otro servidor de la aldea')}</li>
+              <li>{t('net_inst_download', 'Download the OpenWrt image')}</li>
+              <li>{t('net_inst_flash', 'Flash with BalenaEtcher onto a USB or disk')}</li>
+              <li>{t('net_inst_connect', 'Connect the village server: eth0 to Internet, eth1 to LAN')}</li>
+              <li>{t('net_inst_power', 'Power on the server from the USB/disk')}</li>
+              <li>{t('net_inst_auto', 'The village configures automatically')}</li>
+              <li>{t('net_inst_install_node', 'Install the application node on another server in the village')}</li>
             </ol>
           </div>
         </div>

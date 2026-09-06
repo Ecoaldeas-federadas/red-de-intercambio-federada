@@ -538,5 +538,6 @@
   "peers_name_hint": "Descriptive name of the node for easy identification. Example:",
   "peers_pubkey_hint": "The Ed25519 public key of the other node (64 hex chars). Its administrator should give it to you. Example:",
   "peers_url_hint": "HTTPS address to connect via federation. Example:",
-  "peers_notes_hint": "Internal notes to remember who this node is. Example:"
+  "peers_notes_hint": "Internal notes to remember who this node is. Example:",
+  "limits_select_from_list": "Select from the list of registered federated nodes. Example:"
 }

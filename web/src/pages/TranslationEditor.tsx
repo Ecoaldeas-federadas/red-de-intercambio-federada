@@ -170,11 +170,11 @@ export default function TranslationEditor() {
     try {
       await api.put(`/translations/${selectedLang}/${ns}/key`, { key, value })
       markSaved(ns, key, value)
-      setSaveMsg(t('key_saved', 'Clave guardada en la base de datos'))
+      setSaveMsg(t('key_saved'))
       loadAuditData()
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error saving'))
     } finally {
       setSavingKey(null)
     }
@@ -188,11 +188,11 @@ export default function TranslationEditor() {
     try {
       await api.put(`/translations/${selectedLang}/${ns}/key`, { key: entry.key, value: entry.value })
       markSaved(ns, entry.key, entry.value)
-      setSaveMsg(t('key_applied', 'Traduccion aplicada a la base de datos'))
+      setSaveMsg(t('key_applied'))
       loadAuditData()
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('save_error', 'Error al aplicar'))
+      setSaveMsg(e.message || t('save_error', 'Error applying'))
     } finally {
       setSavingKey(null)
     }
@@ -203,7 +203,7 @@ export default function TranslationEditor() {
     setSavingKey('new')
     try {
       await api.post(`/translations/${selectedLang}/${selectedNs}/key`, { key: newKey, value: newValue })
-      setSaveMsg(t('key_added', 'Clave agregada a la base de datos'))
+      setSaveMsg(t('key_added'))
       setSaveError(false)
       setNewKey('')
       setNewValue('')
@@ -212,14 +212,14 @@ export default function TranslationEditor() {
       loadAuditData()
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('save_error', 'Error al agregar'))
+      setSaveMsg(e.message || t('save_error', 'Error adding'))
     } finally {
       setSavingKey(null)
     }
   }
 
   const handleSeed = async () => {
-    if (!confirm(t('seed_force_confirm', `Esto sobrescribira TODAS las traducciones de "${selectedLang}" en la base de datos con los valores de los archivos JSON. Continuar?`))) {
+    if (!confirm(t('seed_force_confirm', { lang: selectedLang }))) {
       return
     }
     setSeeding(true)
@@ -227,12 +227,12 @@ export default function TranslationEditor() {
     setSaveError(false)
     try {
       const res = await api.post<any>(`/translations/seed?lang=${selectedLang}&force=true`, {})
-      setSaveMsg(t('seed_done', `Seed completado: ${res?.inserted || 0} insertadas/actualizadas, ${res?.skipped || 0} omitidas`))
+      setSaveMsg(t('seed_done', `Seed completed: ${res?.inserted || 0} inserted/updated, ${res?.skipped || 0} skipped`))
       loadAllKeys()
       loadAuditData()
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('seed_error', 'Error en seed'))
+      setSaveMsg(e.message || t('seed_error', 'Seed error'))
     } finally {
       setSeeding(false)
     }
@@ -262,10 +262,10 @@ export default function TranslationEditor() {
     }
     setApplyingAll(false)
     if (errors === 0) {
-      setSaveMsg(t('apply_all_done', `${applied} claves actualizadas con los valores JSON corregidos.`))
+      setSaveMsg(t('apply_all_done', { count: applied }))
     } else {
       setSaveError(true)
-      setSaveMsg(t('apply_all_partial', `${applied} actualizadas, ${errors} errores.`))
+      setSaveMsg(t('apply_all_partial', { applied, errors }))
     }
     loadAllKeys()
     loadAuditData()
@@ -284,7 +284,7 @@ export default function TranslationEditor() {
       URL.revokeObjectURL(url)
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('download_error', 'Error al descargar'))
+      setSaveMsg(e.message || t('download_error', 'Error downloading'))
     }
   }
 
@@ -294,7 +294,7 @@ export default function TranslationEditor() {
       loadLanguages()
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error saving'))
     }
   }
 
@@ -304,7 +304,7 @@ export default function TranslationEditor() {
       loadLanguages()
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error saving'))
     }
   }
 
@@ -322,10 +322,10 @@ export default function TranslationEditor() {
       setNewLangNative('')
       loadLanguages()
       setSaveError(false)
-      setSaveMsg(t('language_added', 'Idioma anadido'))
+      setSaveMsg(t('language_added', 'Language added'))
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error saving'))
     }
   }
 
@@ -348,17 +348,17 @@ export default function TranslationEditor() {
         const err = await res.json()
         throw new Error(err.error || 'Upload failed')
       }
-      setUploadMsg(t('upload_success', 'Archivo subido correctamente'))
+      setUploadMsg(t('upload_success', 'File uploaded successfully'))
       loadAllKeys()
       loadAuditData()
     } catch (err: any) {
       setUploadError(true)
-      setUploadMsg(err.message || t('upload_error', 'Error al subir archivo'))
+      setUploadMsg(err.message || t('upload_error', 'Error uploading file'))
     }
   }
 
   const handleInstallFederated = async (ft: any) => {
-    if (!confirm(t('confirm_apply', 'Aplicar esta traduccion? Sobrescribira tus traducciones actuales de este idioma.'))) {
+    if (!confirm(t('confirm_apply', 'Apply this translation? It will overwrite your current translations for this language.'))) {
       return
     }
     try {
@@ -366,13 +366,13 @@ export default function TranslationEditor() {
         source_node: ft.source_node,
         language_code: ft.language_code,
       })
-      setSaveMsg(t('installed', 'Instalado'))
+      setSaveMsg(t('installed', 'Installed'))
       loadFederatedTranslations()
       loadAllKeys()
       loadAuditData()
     } catch (e: any) {
       setSaveError(true)
-      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error saving'))
     }
   }
 
@@ -428,15 +428,15 @@ export default function TranslationEditor() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('title', 'Traducciones')}</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <button
           onClick={handleSeed}
           disabled={seeding}
           className="btn-secondary text-sm py-1 px-3 flex items-center gap-2"
-          title={t('seed_tooltip', 'Sobrescribe TODAS las traducciones del idioma seleccionado en la BD con los valores de los archivos JSON')}
+          title={t('seed_tooltip')}
         >
           {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
-          {t('seed_btn', 'Restaurar traducciones desde JSON')}
+          {t('seed_btn')}
         </button>
       </div>
 
@@ -447,27 +447,27 @@ export default function TranslationEditor() {
           className="w-full flex items-center justify-between text-left"
         >
           <h2 className="font-semibold flex items-center gap-2 text-blue-800">
-            <Info size={18} /> {t('help_title', 'Como funcionan las traducciones')}
+            <Info size={18} /> {t('help_title')}
           </h2>
           <span className="text-blue-600 text-sm">{showHelp ? '−' : '+'}</span>
         </button>
         {showHelp && (
           <div className="mt-3 text-sm text-blue-900 space-y-2">
             <p>
-              <strong>{t('help_db', 'Base de datos (oficial):')}</strong>{' '}
-              {t('help_db_desc', 'lo que esta en la base de datos es lo que realmente se muestra en la interfaz. Cuando editas una clave y pulsas Guardar, el cambio se aplica de inmediato.')}
+              <strong>{t('help_db')}</strong>{' '}
+              {t('help_db_desc')}
             </p>
             <p>
-              <strong>{t('help_json', 'Diferencias (JSON vs BD):')}</strong>{' '}
-              {t('help_json_desc', 'muestra las claves donde el valor de la base de datos difiere del archivo JSON corregido. El valor JSON es la traduccion nueva/corregida. Pulsa "Aplicar JSON" para actualizar la BD, o "Aplicar todas" para corregir masivamente.')}
+              <strong>{t('help_json')}</strong>{' '}
+              {t('help_json_desc')}
             </p>
             <p>
-              <strong>{t('help_dirty', 'Editada sin guardar:')}</strong>{' '}
-              {t('help_dirty_desc', 'si modificas un texto, la clave se marca como "sin guardar" hasta que pulses Guardar. Solo entonces pasa a la base de datos.')}
+              <strong>{t('help_dirty')}</strong>{' '}
+              {t('help_dirty_desc')}
             </p>
             <p>
-              <strong>{t('help_seed', 'Restaurar desde JSON:')}</strong>{' '}
-              {t('help_seed_desc', 'el boton de arriba copia TODOS los valores de los archivos JSON a la base de datos para el idioma seleccionado, sobrescribiendo lo que haya. Usalo para descartar cambios viejos o aplicar una actualizacion masiva.')}
+              <strong>{t('help_seed')}</strong>{' '}
+              {t('help_seed_desc')}
             </p>
           </div>
         )}
@@ -477,7 +477,7 @@ export default function TranslationEditor() {
       {auditData && auditData.languages.length > 0 && (
         <div className="card p-4">
           <h2 className="font-semibold mb-3 flex items-center gap-2">
-            <CheckCircle size={18} /> {t('audit_title', 'Estado de traducciones')}
+            <CheckCircle size={18} /> {t('audit_title', 'Translation status')}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {auditData.languages.map((lang: any) => (
@@ -502,7 +502,7 @@ export default function TranslationEditor() {
                   />
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {lang.translated} / {lang.total} {t('keys_translated', 'claves traducidas')}
+                  {lang.translated} / {lang.total} {t('keys_translated', 'keys translated')}
                 </div>
               </div>
             ))}
@@ -513,7 +513,7 @@ export default function TranslationEditor() {
       {/* Selector de idioma */}
       <div className="card p-4">
         <label className="label flex items-center gap-2 mb-2">
-          <Languages size={16} /> {t('select_language', 'Idioma que estas editando')}
+          <Languages size={16} /> {t('select_language', 'Language you are editing')}
         </label>
         <div className="flex gap-2 flex-wrap">
           {languages.filter(l => l.enabled).map((lang) => (
@@ -549,14 +549,14 @@ export default function TranslationEditor() {
       <div className="card p-4">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h2 className="font-semibold flex items-center gap-2">
-            <Pencil size={18} /> {t('editor_title', 'Editor de claves')}
+            <Pencil size={18} /> {t('editor_title', 'Key editor')}
             <span className="text-sm font-normal text-gray-500">
-              ({visibleCount} {t('visible', 'visibles')})
+              ({visibleCount} {t('visible', 'visible')})
             </span>
           </h2>
           {dirtyCount > 0 && (
             <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 font-medium">
-              {dirtyCount} {t('unsaved_count', 'editada(s) sin guardar')}
+              {dirtyCount} {t('unsaved_count', 'edited unsaved')}
             </span>
           )}
         </div>
@@ -572,7 +572,7 @@ export default function TranslationEditor() {
             }`}
           >
             <Database size={14} className="inline mr-1" />
-            {t('tab_db', 'En la base de datos')} ({dbCount})
+            {t('tab_db', 'In the database')} ({dbCount})
           </button>
           <button
             onClick={() => setTab('diff')}
@@ -583,14 +583,14 @@ export default function TranslationEditor() {
             }`}
           >
             <AlertCircle size={14} className="inline mr-1" />
-            {t('tab_diff', 'Diferencias (JSON vs BD)')} ({diffCount})
+            {t('tab_diff', 'Differences (JSON vs DB)')} ({diffCount})
           </button>
         </div>
 
         <p className="text-xs text-gray-500 mb-3">
           {tab === 'db'
-            ? t('tab_db_hint', 'Estas claves ya estan en la base de datos: son las que se muestran en la interfaz. Edita el texto y pulsa Guardar para aplicar el cambio.')
-            : t('tab_diff_hint', 'Estas claves tienen un valor diferente en la base de datos vs el archivo JSON corregido. El valor JSON es la traduccion nueva/corregida. Pulsa "Aplicar JSON" para actualizar la BD con el valor corregido.')}
+            ? t('tab_db_hint', 'These keys are already in the database: they are what is shown in the interface. Edit the text and press Save to apply the change.')
+            : t('tab_diff_hint', 'These keys have a different value in the database vs the corrected JSON file. The JSON value is the new/corrected translation. Press "Apply JSON" to update the DB with the corrected value.')}
         </p>
 
         {/* Barra de busqueda */}
@@ -598,7 +598,7 @@ export default function TranslationEditor() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder={t('search_keys', 'Buscar claves o valores...')}
+            placeholder={t('search_keys', 'Search keys or values...')}
             className="input text-sm pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -614,22 +614,22 @@ export default function TranslationEditor() {
             {tab === 'db' ? (
               <>
                 <AlertCircle size={32} className="mx-auto mb-2 text-amber-500" />
-                <p className="mb-2">{t('no_db_keys', 'No hay claves en la base de datos para este idioma.')}</p>
-                <p className="text-sm mb-3">{t('no_db_keys_hint', 'Usa "Restaurar traducciones desde JSON" para cargarlas todas.')}</p>
+                <p className="mb-2">{t('no_db_keys', 'No keys in the database for this language.')}</p>
+                <p className="text-sm mb-3">{t('no_db_keys_hint', 'Use "Restore translations from JSON" to load them all.')}</p>
                 <button
                   onClick={handleSeed}
                   disabled={seeding}
                   className="btn-primary text-sm py-1 px-3 flex items-center gap-2 mx-auto"
                 >
                   {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
-                  {t('seed_btn', 'Restaurar traducciones desde JSON')}
+                  {t('seed_btn')}
                 </button>
               </>
             ) : (
               <>
                 <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
-                <p className="mb-2">{t('no_diff', 'No hay diferencias entre la BD y los archivos JSON.')}</p>
-                <p className="text-sm">{t('no_diff_hint', 'Todos los valores en la base de datos coinciden con los archivos JSON corregidos. Nada que actualizar.')}</p>
+                <p className="mb-2">{t('no_diff', 'No differences between the DB and the JSON files.')}</p>
+                <p className="text-sm">{t('no_diff_hint', 'All values in the database match the corrected JSON files. Nothing to update.')}</p>
               </>
             )}
           </div>
@@ -639,7 +639,7 @@ export default function TranslationEditor() {
             {tab === 'diff' && diffCount > 0 && (
               <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <span className="text-sm text-amber-800">
-                  {diffCount} {t('diff_count_label', 'claves con diferencias encontradas. Puedes aplicarlas todas a la vez o una por una.')}
+                  {diffCount} {t('diff_count_label', 'keys with differences found. You can apply them all at once or one by one.')}
                 </span>
                 <button
                   onClick={() => setShowApplyAllModal(true)}
@@ -647,7 +647,7 @@ export default function TranslationEditor() {
                   className="btn-primary text-sm py-1.5 px-3 flex items-center gap-2 whitespace-nowrap"
                 >
                   {applyingAll ? <Loader2 size={14} className="animate-spin" /> : <CheckSquare size={14} />}
-                  {t('apply_all_diffs', 'Aplicar todas')}
+                  {t('apply_all_diffs', 'Apply all')}
                 </button>
               </div>
             )}
@@ -660,7 +660,7 @@ export default function TranslationEditor() {
                   selectedNs === '' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {t('all_namespaces', 'Todos')} ({visibleCount})
+                {t('all_namespaces', 'All')} ({visibleCount})
               </button>
               {activeData.map((ns) => (
                 <button
@@ -683,12 +683,12 @@ export default function TranslationEditor() {
                     onClick={() => setShowAddKey(true)}
                     className="btn-secondary text-xs py-1 px-3 flex items-center gap-1"
                   >
-                    <Plus size={14} /> {t('add_key', 'Agregar clave nueva a la BD')}
+                    <Plus size={14} /> {t('add_key', 'Add new key to DB')}
                   </button>
                 ) : (
                   <div className="border rounded-lg p-3 bg-gray-50 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{t('add_key_to', 'Agregar clave a')}: {selectedNs}</span>
+                      <span className="text-sm font-medium">{t('add_key_to', 'Add key to')}: {selectedNs}</span>
                       <button onClick={() => setShowAddKey(false)} className="text-gray-400 hover:text-gray-600">
                         <X size={16} />
                       </button>
@@ -696,14 +696,14 @@ export default function TranslationEditor() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <input
                         type="text"
-                        placeholder={t('key_name', 'Nombre de la clave')}
+                        placeholder={t('key_name', 'Key name')}
                         className="input text-sm"
                         value={newKey}
                         onChange={(e) => setNewKey(e.target.value)}
                       />
                       <input
                         type="text"
-                        placeholder={t('key_value', 'Valor')}
+                        placeholder={t('key_value', 'Value')}
                         className="input text-sm"
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
@@ -715,7 +715,7 @@ export default function TranslationEditor() {
                       className="btn-primary text-xs py-1 px-3 flex items-center gap-1"
                     >
                       {savingKey === 'new' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                      {t('save_to_db', 'Guardar en BD')}
+                      {t('save_to_db', 'Save to DB')}
                     </button>
                   </div>
                 )}
@@ -732,7 +732,7 @@ export default function TranslationEditor() {
                     className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition"
                   >
                     <span className="font-medium text-sm">{ns.namespace}</span>
-                    <span className="text-xs text-gray-500">{ns.keys.length} {t('keys', 'claves')}</span>
+                    <span className="text-xs text-gray-500">{ns.keys.length} {t('keys', 'keys')}</span>
                   </button>
                   {isExpanded && (
                     <div className="divide-y">
@@ -748,21 +748,21 @@ export default function TranslationEditor() {
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-mono text-gray-500 truncate">{entry.key}</span>
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
-                                  {t('badge_diff', 'Diferente')}
+                                  {t('badge_diff', 'Different')}
                                 </span>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {/* Valor actual en BD */}
                                 <div className="border border-red-200 rounded-lg p-2 bg-white">
                                   <div className="text-xs font-semibold text-red-600 mb-1 flex items-center gap-1">
-                                    <Database size={12} /> {t('current_db_value', 'BD actual')}
+                                    <Database size={12} /> {t('current_db_value', 'Current DB')}
                                   </div>
                                   <p className="text-sm text-gray-700">{entry.value}</p>
                                 </div>
                                 {/* Valor JSON corregido */}
                                 <div className="border border-green-200 rounded-lg p-2 bg-green-50">
                                   <div className="text-xs font-semibold text-green-600 mb-1 flex items-center gap-1">
-                                    <CheckCircle size={12} /> {t('json_corrected_value', 'JSON corregido')}
+                                    <CheckCircle size={12} /> {t('json_corrected_value', 'Corrected JSON')}
                                   </div>
                                   <p className="text-sm text-gray-700">{entry.json_value}</p>
                                 </div>
@@ -772,10 +772,10 @@ export default function TranslationEditor() {
                                   onClick={() => handleApplySuggested(ns.namespace, { key: entry.key, value: entry.json_value, is_default: false, json_value: entry.json_value })}
                                   disabled={savingKey === editKey}
                                   className="btn-primary text-xs py-1 px-3 flex items-center gap-1 whitespace-nowrap"
-                                  title={t('apply_json_tooltip', 'Reemplazar el valor de la BD con el valor JSON corregido')}
+                                  title={t('apply_json_tooltip', 'Replace the DB value with the corrected JSON value')}
                                 >
                                   {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <ArrowLeft size={12} />}
-                                  {t('apply_json', 'Aplicar JSON')}
+                                  {t('apply_json', 'Apply JSON')}
                                 </button>
                                 <button
                                   onClick={() => {
@@ -783,10 +783,10 @@ export default function TranslationEditor() {
                                     setEditingSuggested(editKey)
                                   }}
                                   className="btn-secondary text-xs py-1 px-3 flex items-center gap-1 whitespace-nowrap"
-                                  title={t('edit_before_apply', 'Editar el valor JSON antes de aplicarlo')}
+                                  title={t('edit_before_apply', 'Edit the JSON value before applying it')}
                                 >
                                   <Pencil size={12} />
-                                  {t('edit_btn', 'Editar')}
+                                  {t('edit_btn', 'Edit')}
                                 </button>
                               </div>
                               {isEditingSug && (
@@ -804,7 +804,7 @@ export default function TranslationEditor() {
                                       className="btn-primary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
                                     >
                                       {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                                      {t('save_to_db', 'Guardar en BD')}
+                                      {t('save_to_db', 'Save to DB')}
                                     </button>
                                     <button
                                       onClick={() => setEditingSuggested(null)}
@@ -826,11 +826,11 @@ export default function TranslationEditor() {
                               <span className="text-xs font-mono text-gray-500 block truncate">{entry.key}</span>
                               {dirty ? (
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
-                                  {t('badge_unsaved', 'Editada sin guardar')}
+                                  {t('badge_unsaved', 'Edited unsaved')}
                                 </span>
                               ) : (
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
-                                  {t('badge_saved', 'En BD')}
+                                  {t('badge_saved', 'In DB')}
                                 </span>
                               )}
                             </div>
@@ -846,7 +846,7 @@ export default function TranslationEditor() {
                               className={`text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap ${
                                 dirty ? 'btn-primary' : 'btn-secondary opacity-50 cursor-not-allowed'
                               }`}
-                              title={dirty ? t('save_tooltip', 'Guardar cambio en la base de datos') : t('saved_tooltip', 'Sin cambios por guardar')}
+                              title={dirty ? t('save_tooltip', 'Save change to the database') : t('saved_tooltip', 'No changes to save')}
                             >
                               {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
                               {t('common:save')}
@@ -866,7 +866,7 @@ export default function TranslationEditor() {
       {/* Gestion de idiomas */}
       <div className="card p-4">
         <h2 className="font-semibold mb-3 flex items-center gap-2">
-          <Plus size={18} /> {t('manage_languages', 'Gestionar idiomas')}
+          <Plus size={18} /> {t('manage_languages', 'Manage languages')}
         </h2>
 
         <div className="space-y-2 mb-4">
@@ -882,7 +882,7 @@ export default function TranslationEditor() {
                 )}
                 {!lang.enabled && (
                   <span className="text-xs ml-2 px-2 py-0.5 rounded bg-gray-200 text-gray-600">
-                    {t('disabled', 'deshabilitado')}
+                    {t('disabled', 'disabled')}
                   </span>
                 )}
               </div>
@@ -890,7 +890,7 @@ export default function TranslationEditor() {
                 <button
                   onClick={() => handleDownload(lang.code)}
                   className="btn-secondary text-xs py-1 px-2 flex items-center gap-1"
-                  title={t('download', 'Descargar archivo')}
+                  title={t('download', 'Download')}
                 >
                   <Download size={14} />
                 </button>
@@ -898,14 +898,14 @@ export default function TranslationEditor() {
                   onClick={() => handleToggleEnabled(lang)}
                   className="btn-secondary text-xs py-1 px-2"
                 >
-                  {lang.enabled ? t('disable', 'Deshabilitar') : t('enable', 'Habilitar')}
+                  {lang.enabled ? t('disable', 'Disable') : t('enable', 'Enable')}
                 </button>
                 {!lang.is_default && (
                   <button
                     onClick={() => handleSetDefault(lang.code)}
                     className="btn-secondary text-xs py-1 px-2"
                   >
-                    {t('set_default', 'Establecer como default')}
+                    {t('set_default', 'Set as default')}
                   </button>
                 )}
               </div>
@@ -914,25 +914,25 @@ export default function TranslationEditor() {
         </div>
 
         <div className="border-t pt-4">
-          <h3 className="font-medium text-sm mb-2">{t('add_language', 'Anadir idioma')}</h3>
+          <h3 className="font-medium text-sm mb-2">{t('add_language', 'Add language')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <input
               type="text"
-              placeholder={t('language_code', 'Codigo (ej: en, pt, fr)')}
+              placeholder={t('language_code', 'Code (e.g. en, pt, fr)')}
               className="input text-sm"
               value={newLangCode}
               onChange={(e) => setNewLangCode(e.target.value)}
             />
             <input
               type="text"
-              placeholder={t('language_name', 'Nombre (ej: English)')}
+              placeholder={t('language_name', 'Name (e.g. English)')}
               className="input text-sm"
               value={newLangName}
               onChange={(e) => setNewLangName(e.target.value)}
             />
             <input
               type="text"
-              placeholder={t('language_native', 'Nombre nativo (ej: English)')}
+              placeholder={t('language_native', 'Native name (e.g. English)')}
               className="input text-sm"
               value={newLangNative}
               onChange={(e) => setNewLangNative(e.target.value)}
@@ -943,13 +943,13 @@ export default function TranslationEditor() {
             disabled={!newLangCode || !newLangName}
             className="btn-primary text-sm mt-2 py-1 px-3 flex items-center gap-1"
           >
-            <Plus size={14} /> {t('add_language', 'Anadir idioma')}
+            <Plus size={14} /> {t('add_language', 'Add language')}
           </button>
         </div>
 
         <div className="border-t pt-4 mt-4">
           <h3 className="font-medium text-sm mb-2 flex items-center gap-1">
-            <Upload size={14} /> {t('upload', 'Subir archivo')}
+            <Upload size={14} /> {t('upload', 'Upload file')}
           </h3>
           <input
             type="file"
@@ -968,12 +968,12 @@ export default function TranslationEditor() {
       {/* Traducciones de otros nodos federados */}
       <div className="card p-4">
         <h2 className="font-semibold mb-3 flex items-center gap-2">
-          <Network size={18} /> {t('federation', 'Traducciones de otros nodos')}
+          <Network size={18} /> {t('federation', 'Translations from other nodes')}
         </h2>
         {federatedTranslations.length === 0 ? (
           <div className="text-center py-6 text-gray-400">
             <Network size={24} className="mx-auto mb-2 opacity-30" />
-            <p className="text-sm">{t('no_federation_translations', 'No hay traducciones disponibles de otros nodos')}</p>
+            <p className="text-sm">{t('no_federation_translations', 'No translations available from other nodes')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -983,7 +983,7 @@ export default function TranslationEditor() {
                   <span className="font-medium text-sm">{ft.display_name}</span>
                   <span className="text-xs text-gray-500 ml-2">({ft.language_code})</span>
                   <div className="text-xs text-gray-400 mt-0.5">
-                    {t('node', 'Nodo')}: {ft.source_node} · v{ft.version} · {ft.num_keys} keys
+                    {t('node', 'Node')}: {ft.source_node} · v{ft.version} · {ft.num_keys} keys
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -992,11 +992,11 @@ export default function TranslationEditor() {
                       onClick={() => handleInstallFederated(ft)}
                       className="btn-primary text-xs py-1 px-2 flex items-center gap-1"
                     >
-                      <Download size={14} /> {t('download', 'Descargar')}
+                      <Download size={14} /> {t('download', 'Download')}
                     </button>
                   ) : (
                     <span className="text-xs text-green-600 flex items-center gap-1">
-                      <CheckCircle size={14} /> {t('installed', 'Instalado')}
+                      <CheckCircle size={14} /> {t('installed', 'Installed')}
                     </span>
                   )}
                 </div>
@@ -1013,9 +1013,9 @@ export default function TranslationEditor() {
             <div className="flex items-start gap-3 mb-4">
               <AlertCircle size={24} className="text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">{t('apply_all_title', 'Aplicar todas las diferencias')}</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('apply_all_title')}</h3>
                 <p className="text-sm text-gray-600">
-                  {t('apply_all_confirm', `Esto sobrescribira ${diffCount} claves en la base de datos con los valores corregidos de los archivos JSON. Continuar?`)}
+                  {t('apply_all_confirm', { count: diffCount })}
                 </p>
               </div>
             </div>
@@ -1024,14 +1024,14 @@ export default function TranslationEditor() {
                 onClick={() => setShowApplyAllModal(false)}
                 className="btn-secondary text-sm py-2 px-4"
               >
-                {t('common:cancel', 'Cancelar')}
+                {t('common:cancel', 'Cancel')}
               </button>
               <button
                 onClick={handleApplyAllDiffs}
                 className="btn-primary text-sm py-2 px-4 flex items-center gap-2"
               >
                 <CheckSquare size={16} />
-                {t('apply_all_confirm_btn', 'Si, aplicar')}
+                {t('apply_all_confirm_btn')}
               </button>
             </div>
           </div>

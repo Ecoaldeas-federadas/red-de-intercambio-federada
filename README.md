@@ -1,35 +1,36 @@
 # Red de Intercambio Federada
 
-Sistema de moneda comunitaria federada para redes de trueque y bancos comunitarios.
-Cada nodo opera de forma independiente y se federa con otros nodos via protocolo mTLS.
+Sistema de contabilidad descentralizada y crédito mutuo de suma cero para redes de trueque federadas.
+Cada nodo opera de forma independiente y gestiona su propio libro contable de "Mano Vuelta" (saldo cero), federándose con otros nodos vía protocolo mTLS para el intercambio multilateral.
 
-## Caracteristicas
+## Características
 
-- **Moneda digital local**: cada nodo emite y gestiona su propia moneda comunitaria (TQ)
-- **TQ no es dinero**: registra energia, contribuciones y compromisos. No es bancario, no genera intereses
-- **Modelo energetico**: precios basados en energia incorporada por kg de material (estandar ICE Database)
-- **Federacion entre nodos**: transferencias cross-node con piscina global multilateral y piscinas bilaterales
-- **Piscina global**: saldo compartido entre todos los nodos — un saldo ganado con el nodo B se gasta con el nodo C
-- **Piscinas bilaterales**: acuerdos especificos entre dos nodos, independientes de la piscina global
-- **Integridad distribuida**: firma dual (ambos nodos firman) + hash encadenado + reconciliacion al reconectar
-- **Niveles de nodo federado**: Nodo Nuevo (nivel 1, sin voto), Nodo Aceptado (nivel 2, con voto), Nodo Pleno (nivel 3)
-- **Sistema de padrino**: un nodo nivel 2+ ingresa nodos nuevos y es responsable de su deuda
-- **Verificacion de 4 opciones**: emparejamiento POS y federacion usan 4 codigos para verificar comunicacion fuera de banda
-- **Federacion de productos**: productos aprobados por un nodo se distribuyen a otros para aprobacion individual
-- **Productos compuestos**: cualquier usuario crea productos combinando materias primas aprobadas, precio automatico
-- **Calculo por rendimiento**: especificas cuanto compraste y cuantos productos salen, el sistema calcula el costo por unidad
-- **Grupos de productos**: items del mismo precio se agrupan en un contenedor padre (ej: Frutas de Temporada contiene Mango, Naranja, etc.)
-- **Categorias jerarquicas**: 3 niveles controlados (padre > categoria > subcategoria), los vendedores no crean categorias
-- **Buscador de componentes**: modal con busqueda de texto y filtro por categoria
-- **Tienda comunitaria**: tipo Mercado Libre por nodo, cada usuario tiene su tienda personal
-- **Pagos QR**: generar y escanear codigos QR con monto fijo o libre (como pago movil)
-- **Terminales NFC ESP32**: pagos con tarjetas NFC, claves efimeras por transaccion (forward secrecy)
-- **NFC federado**: tarjetas de otros nodos funcionan via consulta directa al nodo origen (BIN-style)
-- **Gobernanza**: asambleas, organizaciones, departamentos con permisos granulares
-- **Paridad**: calculo de paridad entre monedas de diferentes nodos
-- **Comercio externo**: puente con moneda fiat externa
-- **Recuperacion de cuentas**: via claves de recuperacion
-- **Sitio web publico**: cada nodo tiene su pagina web publica configurable
+- **Registro contable de saldo cero**: El sistema no emite ni crea tokens virtuales del vacío. Cada nodo gestiona un libro de crédito mutuo simétrico (TQ) que registra compromisos y derechos de esfuerzo, donde la suma global siempre da exactamente cero.
+- **TQ no es dinero**: No es un depósito de valor ni un commodity financiero; es una métrica contable que mide energía, contribuciones y compromisos reales de sustento. No es bancario, no genera intereses y es inacumulable.
+- **Modelo energético**: Valoración y precios basados en la energía incorporada por kg de material (estándar ICE Database).
+- **Federación entre nodos**: Transferencias cross-node con piscina global multilateral y piscinas bilaterales para compensación de balances.
+- **Piscina global**: Balance compartido entre todos los nodos — un saldo de esfuerzo ganado con el nodo B se puede redimir con el nodo C.
+- **Piscinas bilaterales**: Acuerdos específicos de intercambio directo entre dos nodos, independientes de la piscina global.
+- **Integridad distribuida**: Firma dual (ambos usuarios firman la transacción) + hash encadenado por cuenta + reconciliación de balances al reconectar.
+- **Niveles de nodo federado**: Nodo Nuevo (nivel 1, sin voto), Nodo Aceptado (nivel 2, con voto), Nodo Pleno (nivel 3, confianza total).
+- **Sistema de padrino**: Un nodo nivel 2+ ingresa nodos nuevos y actúa como garante y responsable de su balance de deuda.
+- **Verificación de 4 opciones**: Emparejamiento POS y federación usan 4 códigos visuales/auditivos para verificar la comunicación segura fuera de banda.
+- **Federación de productos**: Los catálogos de productos aprobados por un nodo se distribuyen a otros para su validación e incorporación individual.
+- **Productos compuestos**: Cualquier usuario crea productos combinando materias primas aprobadas, con cálculo automático del costo energético.
+- **Cálculo por rendimiento**: Especificas cuánto compraste y cuántos productos resultaron de la receta; el sistema calcula automáticamente el costo de esfuerzo por unidad.
+- **Grupos de productos**: Ítems del mismo valor se agrupan en un contenedor padre (ej: "Frutas de Temporada" contiene Mango, Naranja, etc.) para simplificar el inventario.
+- **Categorías jerárquicas**: 3 niveles de categorías controladas por la asamblea (Padre > Categoría > Subcategoría). Los vendedores no pueden inventar categorías al azar.
+- **Buscador de componentes**: Modal interactivo con búsqueda de texto y filtro avanzado por categoría.
+- **Tienda comunitaria**: Interfaz tipo mercado libre local por nodo; cada usuario tiene su vitrina o tienda personal de ofertas.
+- **Pagos QR**: Generación y escaneo de códigos QR dinámicos con monto fijo o libre para transacciones rápidas.
+- **Terminales NFC ESP32**: Pagos físicos offline mediante tarjetas o llaveros NFC de bajo costo, utilizando claves efímeras por transacción (forward secrecy).
+- **NFC federado**: Las tarjetas de un nodo funcionan de forma segura en terminales de otros nodos vía consulta directa al nodo de origen (estilo BIN bancario).
+- **Gobernanza local**: Módulos para gestión de asambleas, registro de organizaciones comunitarias y departamentos con permisos granulares.
+- **Paridad de métrica**: Cálculo de paridad y equivalencia de esfuerzo entre los límites de diferentes nodos federados.
+- **Comercio externo**: Puertas de enlace (gateways) de bienes físicos para transaccionar con el exterior de forma regulada.
+- **Recuperación de cuentas**: Recuperación segura de billeteras mediante criptografía de claves compartidas.
+- **Sitio web público**: Cada nodo autogestiona su página web pública informativa y configurable de forma nativa.
+
 
 ## Requisitos
 
@@ -268,17 +269,21 @@ red-de-intercambio-federada/
 ├── cmd/node/              # Punto de entrada (main.go)
 ├── cmd/install/           # Instalador CLI
 ├── cmd/installer/         # Instalador web
+├── cmd/nfc-pkg/           # CLI para crear, firmar y verificar paquetes .nfcpkg
 ├── internal/
 │   ├── api/               # Handlers HTTP (REST API)
 │   ├── accounts/          # Cuentas, usuarios, organizaciones
+│   ├── config/            # Carga de configuracion
 │   ├── crypto/            # Criptografia (Ed25519, ECDH, AES-GCM)
-│   ├── db/migrations/     # Migraciones SQL (001-045)
+│   ├── db/migrations/     # Migraciones SQL
 │   ├── external/          # DEX, tienda comunitaria, productos compuestos
 │   ├── federation/        # Protocolo de federacion (mTLS, gossip, productos)
 │   ├── ledger/            # Libro contable, transacciones, limites
-│   └── payments/          # Pagos QR, NFC, manual
+│   ├── payments/          # Pagos QR, NFC, manual, terminales ESP32
+│   └── pricing/           # Calculadora energetica, productos
 ├── web/                   # Frontend React + Vite + Tailwind
 ├── firmware/              # Firmware ESP32 para terminales NFC
+├── templates/             # Plantillas (nfc-driver-template)
 ├── docs/                  # Documentacion completa
 ├── docker/                # Dockerfile
 ├── config.yaml            # Configuracion del nodo
@@ -340,19 +345,94 @@ Los nodos se comunican via mTLS en el puerto `8443`:
 
 ## Documentacion
 
-- [docs/INDEX.md](docs/INDEX.md) — Indice completo de documentacion
-- [docs/architecture.md](docs/architecture.md) — Arquitectura del sistema
-- [docs/api.md](docs/api.md) — API REST completa
-- [docs/pricing.md](docs/pricing.md) — Modelo de precios energeticos
-- [docs/composite_products.md](docs/composite_products.md) — Productos compuestos
-- [docs/currency_exchange.md](docs/currency_exchange.md) — Sistema de intercambio y moneda TQ
-- [docs/feria_conuquera.md](docs/feria_conuquera.md) — Feria Conuquera Agroecologica
-- [docs/federation.md](docs/federation.md) — Federacion entre nodos
-- [docs/database.md](docs/database.md) — Esquema de base de datos
-- [docs/security.md](docs/security.md) — Modelo de seguridad
-- [docs/deployment.md](docs/deployment.md) — Guia de despliegue
-- [docs/frontend.md](docs/frontend.md) — Frontend PWA
-- [firmware/README.md](firmware/README.md) — Firmware ESP32 para terminales NFC
+El indice maestro con todos los documentos esta en [docs/INDEX.md](docs/INDEX.md).
+A continuacion el listado completo agrupado por tema:
+
+### Indice y vision general
+- [docs/INDEX.md](docs/INDEX.md) — Indice completo de toda la documentacion
+- [docs/architecture.md](docs/architecture.md) — Arquitectura del sistema, componentes, flujo de datos
+
+### API y base de datos
+- [docs/api.md](docs/api.md) — API REST completa: endpoints, request/response, autenticacion
+- [docs/database.md](docs/database.md) — Esquema de base de datos, tablas, relaciones, migraciones
+- [docs/scaling_yugabytedb.md](docs/scaling_yugabytedb.md) — Escalar YugabyteDB: limite de tabletas, agregar nodos, colocation, cluster
+
+### Seguridad y despliegue
+- [docs/security.md](docs/security.md) — Modelo de seguridad: Passkeys, Ed25519, hash chain, JWT
+- [docs/deployment.md](docs/deployment.md) — Guia de despliegue con Docker, instalacion de nuevo nodo, setup wizard
+- [docs/audit.md](docs/audit.md) — Auditoria, transparencia, verificacion hash chain
+
+### Modelo economico
+- [docs/pricing.md](docs/pricing.md) — Calculadora energetica, catalogo, tarifas, energia por kg (ICE Database)
+- [docs/currency_exchange.md](docs/currency_exchange.md) — Sistema de intercambio y moneda TQ, credito mutuo, 5 pilares
+- [docs/composite_products.md](docs/composite_products.md) — Productos compuestos, materias primas, recetas, rendimiento
+- [docs/feria_conuquera.md](docs/feria_conuquera.md) — Feria Conuquera Agroecologica: historia, filosofia, productos
+
+### Federacion
+- [docs/federation.md](docs/federation.md) — Protocolo de federacion: mTLS, gossip, mensajes, productos federados
+- [docs/federation_limits.md](docs/federation_limits.md) — Piscina global multilateral, piscinas bilaterales, integridad distribuida
+- [docs/federation_governance.md](docs/federation_governance.md) — Gobernanza federada, constantes, votacion entre nodos, padrino, 4 opciones
+- [docs/satellite.md](docs/satellite.md) — Nodo satelite portatil para ferias offline
+
+### Gobernanza y asambleas
+- [docs/governance.md](docs/governance.md) — Ley de la Aldea, jerarquia nodo/org/depto, asambleas por scope
+- [docs/assembly.md](docs/assembly.md) — Sistema de asambleas: sesiones, propuestas, votacion, convocatoria
+- [docs/taxes.md](docs/taxes.md) — Impuestos por nivel, cuenta de la asamblea, distribucion
+- [docs/accounts.md](docs/accounts.md) — Cuentas y miembros: tipos de cuenta, niveles, admision
+- [docs/recovery.md](docs/recovery.md) — Recuperacion de cuenta: aprobacion configurable, multi-firma
+- [docs/departments.md](docs/departments.md) — Departamentos con jerarquia, roles, permisos granulares
+- [docs/PLAN_SERVICIOS_ORGANIZACIONES.md](docs/PLAN_SERVICIOS_ORGANIZACIONES.md) — Plan de servicios de organizaciones
+
+### Pagos
+- [docs/payments.md](docs/payments.md) — Pagos QR, NFC, manual, terminales ESP32
+
+### NFC y tarjetas
+- [docs/nfc_hardware.md](docs/nfc_hardware.md) — Hardware NFC: terminales ESP32, PN532, componentes
+- [docs/nfc_tipos_tarjetas.md](docs/nfc_tipos_tarjetas.md) — Catalogo de tarjetas NFC: tipos, compatibilidad, seguridad
+- [docs/tarjeta-classic-certificados.md](docs/tarjeta-classic-certificados.md) — MIFARE Classic: certificados dinamicos, 6 capas, provisionamiento
+- [docs/tarjeta-ntag215-protocolo.md](docs/tarjeta-ntag215-protocolo.md) — Protocolo NTAG215: 30 slots, PWD unica, rotacion
+- [docs/tarjeta-ultralight-c-protocolo.md](docs/tarjeta-ultralight-c-protocolo.md) — Protocolo Ultralight C: 8 slots, 3DES, fallback
+- [docs/card-drivers/](docs/card-drivers/) — Drivers de tarjetas NFC modulares (manifiestos JSON)
+
+### Drivers NFC auto-instalables
+- [docs/diseno-drivers-auto-instalables.md](docs/diseno-drivers-auto-instalables.md) — Diseno: paquetes .nfcpkg firmados, auto-instalables, sharing federado
+- [docs/guia-agregar-tarjeta-nfc.md](docs/guia-agregar-tarjeta-nfc.md) — Guia: como agregar una nueva tarjeta NFC al sistema modular
+- [docs/guia-crear-paquete-nfcpkg.md](docs/guia-crear-paquete-nfcpkg.md) — Guia para programadores: crear, firmar y distribuir .nfcpkg
+- [docs/guia-instalar-driver-web.md](docs/guia-instalar-driver-web.md) — Guia para admin: instalar driver desde la web sin programar
+- [templates/nfc-driver-template/](templates/nfc-driver-template/) — Plantilla base para crear drivers NFC
+
+### Perfiles de nodo
+- [docs/diseno-perfiles-nodo-productos-prohibidos.md](docs/diseno-perfiles-nodo-productos-prohibidos.md) — Diseno: perfiles dinamicos con prohibiciones compartidas via federation
+- [docs/guia-perfiles-nodo.md](docs/guia-perfiles-nodo.md) — Guia: configurar perfil del nodo, marcar productos prohibidos
+
+### Comercio externo
+- [docs/external_bridge.md](docs/external_bridge.md) — Puente de comercio externo: FC, DEX, tienda comunitaria
+
+### Notificaciones
+- [docs/notifications.md](docs/notifications.md) — Sistema unificado, pasarelas federadas (Matrix, Telegram, XMPP)
+
+### Internacionalizacion (i18n)
+- [docs/I18N.md](docs/I18N.md) — Sistema de internacionalizacion: arquitectura, JSON + BD, namespaces
+- [docs/I18N-STATUS.md](docs/I18N-STATUS.md) — Estado maestro de i18n: auditoria, tareas pendientes, progreso
+- [docs/backend-i18n-plan.md](docs/backend-i18n-plan.md) — Plan de i18n del backend
+
+### Frontend y POS
+- [docs/frontend.md](docs/frontend.md) — Frontend PWA: React, TypeScript, TailwindCSS, Vite, service worker
+- [docs/COMPARACION_KOTLIN_VS_REACT.md](docs/COMPARACION_KOTLIN_VS_REACT.md) — Comparacion Kotlin vs React
+- [docs/android-app-spec.md](docs/android-app-spec.md) — Especificacion de la app Android
+- [pos/README.md](pos/README.md) — POS Web (React/Vite): flujo QR, flujo NFC, terminal auth
+- [punto-de-venta-pos/docs/README.md](punto-de-venta-pos/docs/README.md) — POS Android: arquitectura, flujos, API, criptografia (13 documentos)
+
+### Guias y principios
+- [docs/guia-inicio-desarrolladores-tq.md](docs/guia-inicio-desarrolladores-tq.md) — Guia de inicio para desarrolladores: stack, estructura, colaboracion
+- [docs/guia-usuario.md](docs/guia-usuario.md) — Guia de usuario: saldo cero, trueque, asambleas, tarjetas NFC
+- [docs/PRINCIPIOS_INNEGOCIABLES.md](docs/PRINCIPIOS_INNEGOCIABLES.md) — 10 principios innegociables para desarrollar
+
+### Libro Ecoaldeas Federadas
+- [docs/Libro Ecoaldeas Federadas/](docs/Libro%20Ecoaldeas%20Federadas/) — Libro completo en 22 capitulos (.docx): indice, conclusion y partes 1-6
+
+### Firmware
+- [firmware/README.md](firmware/README.md) — Firmware ESP32 para terminales NFC (keypad, touch, community, BLE reader)
 
 ## Licencia
 

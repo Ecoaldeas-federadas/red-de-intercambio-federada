@@ -5,6 +5,7 @@
   "amount_label": "Monto",
   "amount_hint": "Cantidad de Trueques a enviar. Acepta decimales (centavos). Ej: 1.50 para enviar un Trueque con cincuenta centavos.",
   "reference_label": "Referencia (opcional)",
+  "reference_placeholder": "Ej: Pago por panaderia",
   "reference_hint": "Nota para que el destinatario sepa el motivo del pago. Aparece en el historial de ambos.",
   "transfer_button": "Transferir",
   "sending": "Enviando...",

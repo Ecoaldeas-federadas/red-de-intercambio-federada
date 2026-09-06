@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -185,7 +186,7 @@ func (h *CommerceScheduleHandler) toggleCommerceHours(w http.ResponseWriter, r *
 func IsCommerceBlocked(pool *pgxpool.Pool, nodeDomain string) (bool, string) {
 	// Verificar si esta activado
 	var enabled bool
-	err := pool.QueryRow(nil, `
+	err := pool.QueryRow(context.TODO(), `
 		SELECT COALESCE(commerce_hours_enabled, false) FROM public_settings WHERE node_domain = $1`,
 		nodeDomain).Scan(&enabled)
 	if err != nil || !enabled {
@@ -197,7 +198,7 @@ func IsCommerceBlocked(pool *pgxpool.Pool, nodeDomain string) (bool, string) {
 	hourMin := now.Format("15:04")
 
 	// Buscar reglas activas que apliquen a este momento
-	rows, err := pool.Query(nil, `
+	rows, err := pool.Query(context.TODO(), `
 		SELECT block_type, block_message, day_of_week, start_time, end_time,
 		       crosses_midnight, end_day_of_week
 		FROM commerce_schedule
