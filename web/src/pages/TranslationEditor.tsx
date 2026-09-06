@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
-import { Languages, Download, Upload, CheckCircle, AlertCircle, Loader2, Save, Plus, Network, Search, Database, Edit3, X } from 'lucide-react'
+import { Languages, Download, CheckCircle, AlertCircle, Loader2, Save, Plus, Network, Search, Database, X, Pencil, Info, ArrowRight, Upload } from 'lucide-react'
 
 type KeyEntry = {
   key: string
@@ -14,6 +14,8 @@ type NSResult = {
   keys: KeyEntry[]
 }
 
+type Tab = 'db' | 'suggested'
+
 export default function TranslationEditor() {
   const { t } = useTranslation(['translations', 'common'])
   const [languages, setLanguages] = useState<any[]>([])
@@ -23,9 +25,12 @@ export default function TranslationEditor() {
   const [auditData, setAuditData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [loadingKeys, setLoadingKeys] = useState(false)
+  // editingValues: valor actual en el textarea. savedValues: ultimo valor conocido del servidor.
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
+  const [savedValues, setSavedValues] = useState<Record<string, string>>({})
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [saveMsg, setSaveMsg] = useState('')
+  const [saveError, setSaveError] = useState(false)
   const [newLangCode, setNewLangCode] = useState('')
   const [newLangName, setNewLangName] = useState('')
   const [newLangNative, setNewLangNative] = useState('')
@@ -38,6 +43,9 @@ export default function TranslationEditor() {
   const [newValue, setNewValue] = useState('')
   const [seeding, setSeeding] = useState(false)
   const [expandedNs, setExpandedNs] = useState<Set<string>>(new Set())
+  const [tab, setTab] = useState<Tab>('db')
+  const [editingSuggested, setEditingSuggested] = useState<string | null>(null)
+  const [showHelp, setShowHelp] = useState(true)
 
   useEffect(() => {
     loadLanguages()
@@ -116,6 +124,8 @@ export default function TranslationEditor() {
         }
       }
       setEditingValues(vals)
+      setSavedValues(vals)
+      setEditingSuggested(null)
     } catch {
       setAllKeys([])
     } finally {
@@ -123,8 +133,29 @@ export default function TranslationEditor() {
     }
   }
 
+  // Una clave esta "sucia" si el texto editado difiere del ultimo valor guardado
+  const isDirty = (editKey: string) =>
+    editingValues[editKey] !== undefined && editingValues[editKey] !== savedValues[editKey]
+
+  const dirtyCount = useMemo(
+    () => Object.keys(editingValues).filter(isDirty).length,
+    [editingValues, savedValues]
+  )
+
   const handleEdit = (ns: string, key: string, value: string) => {
     setEditingValues((prev) => ({ ...prev, [`${ns}.${key}`]: value }))
+  }
+
+  const markSaved = (ns: string, key: string, value: string) => {
+    const editKey = `${ns}.${key}`
+    setSavedValues((prev) => ({ ...prev, [editKey]: value }))
+    setAllKeys((prev) =>
+      prev.map((nsData) =>
+        nsData.namespace === ns
+          ? { ...nsData, keys: nsData.keys.map((k) => (k.key === key ? { ...k, value, is_default: false } : k)) }
+          : nsData
+      )
+    )
   }
 
   const handleSaveKey = async (ns: string, key: string) => {
@@ -132,17 +163,33 @@ export default function TranslationEditor() {
     if (value === undefined) return
     setSavingKey(`${ns}.${key}`)
     setSaveMsg('')
+    setSaveError(false)
     try {
       await api.put(`/translations/${selectedLang}/${ns}/key`, { key, value })
-      setSaveMsg(t('key_saved', 'Clave guardada'))
-      setAllKeys(prev => prev.map(nsData =>
-        nsData.namespace === ns
-          ? { ...nsData, keys: nsData.keys.map(k => k.key === key ? { ...k, value, is_default: false } : k) }
-          : nsData
-      ))
+      markSaved(ns, key, value)
+      setSaveMsg(t('key_saved', 'Clave guardada en la base de datos'))
       loadAuditData()
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('save_error', 'Error al guardar'))
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
+  // Aplica una clave sugerida (JSON) a la BD tal cual, sin editar
+  const handleApplySuggested = async (ns: string, entry: KeyEntry) => {
+    setSavingKey(`${ns}.${entry.key}`)
+    setSaveMsg('')
+    setSaveError(false)
+    try {
+      await api.put(`/translations/${selectedLang}/${ns}/key`, { key: entry.key, value: entry.value })
+      markSaved(ns, entry.key, entry.value)
+      setSaveMsg(t('key_applied', 'Traduccion aplicada a la base de datos'))
+      loadAuditData()
+    } catch (e: any) {
+      setSaveError(true)
+      setSaveMsg(e.message || t('save_error', 'Error al aplicar'))
     } finally {
       setSavingKey(null)
     }
@@ -153,13 +200,15 @@ export default function TranslationEditor() {
     setSavingKey('new')
     try {
       await api.post(`/translations/${selectedLang}/${selectedNs}/key`, { key: newKey, value: newValue })
-      setSaveMsg(t('key_added', 'Clave agregada'))
+      setSaveMsg(t('key_added', 'Clave agregada a la base de datos'))
+      setSaveError(false)
       setNewKey('')
       setNewValue('')
       setShowAddKey(false)
       loadAllKeys()
       loadAuditData()
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('save_error', 'Error al agregar'))
     } finally {
       setSavingKey(null)
@@ -172,12 +221,14 @@ export default function TranslationEditor() {
     }
     setSeeding(true)
     setSaveMsg('')
+    setSaveError(false)
     try {
       const res = await api.post<any>(`/translations/seed?lang=${selectedLang}&force=true`, {})
       setSaveMsg(t('seed_done', `Seed completado: ${res?.inserted || 0} insertadas/actualizadas, ${res?.skipped || 0} omitidas`))
       loadAllKeys()
       loadAuditData()
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('seed_error', 'Error en seed'))
     } finally {
       setSeeding(false)
@@ -196,6 +247,7 @@ export default function TranslationEditor() {
       a.click()
       URL.revokeObjectURL(url)
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('download_error', 'Error al descargar'))
     }
   }
@@ -205,6 +257,7 @@ export default function TranslationEditor() {
       await api.put(`/languages/${lang.code}`, { enabled: !lang.enabled })
       loadLanguages()
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
@@ -214,6 +267,7 @@ export default function TranslationEditor() {
       await api.put(`/languages/${code}`, { is_default: true })
       loadLanguages()
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
@@ -231,8 +285,10 @@ export default function TranslationEditor() {
       setNewLangName('')
       setNewLangNative('')
       loadLanguages()
+      setSaveError(false)
       setSaveMsg(t('language_added', 'Idioma anadido'))
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
@@ -279,12 +335,13 @@ export default function TranslationEditor() {
       loadAllKeys()
       loadAuditData()
     } catch (e: any) {
+      setSaveError(true)
       setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
 
   const toggleNs = (ns: string) => {
-    setExpandedNs(prev => {
+    setExpandedNs((prev) => {
       const next = new Set(prev)
       if (next.has(ns)) next.delete(ns)
       else next.add(ns)
@@ -292,21 +349,37 @@ export default function TranslationEditor() {
     })
   }
 
-  const filteredData = useMemo(() => {
-    if (!searchTerm) return allKeys
-    const term = searchTerm.toLowerCase()
-    return allKeys.map(ns => ({
-      ...ns,
-      keys: ns.keys.filter(k =>
-        k.key.toLowerCase().includes(term) ||
-        k.value.toLowerCase().includes(term)
-      ),
-    })).filter(ns => ns.keys.length > 0)
-  }, [allKeys, searchTerm])
+  // Divide las claves: en BD (oficiales) vs sugeridas (solo JSON)
+  const { dbData, suggestedData } = useMemo(() => {
+    const db: NSResult[] = []
+    const sug: NSResult[] = []
+    for (const ns of allKeys) {
+      const dbKeys = ns.keys.filter((k) => !k.is_default)
+      const sugKeys = ns.keys.filter((k) => k.is_default)
+      if (dbKeys.length) db.push({ namespace: ns.namespace, keys: dbKeys })
+      if (sugKeys.length) sug.push({ namespace: ns.namespace, keys: sugKeys })
+    }
+    return { dbData: db, suggestedData: sug }
+  }, [allKeys])
 
-  const totalKeys = allKeys.reduce((sum, ns) => sum + ns.keys.length, 0)
-  const defaultKeys = allKeys.reduce((sum, ns) => sum + ns.keys.filter(k => k.is_default).length, 0)
-  const overrideKeys = totalKeys - defaultKeys
+  const activeData = tab === 'db' ? dbData : suggestedData
+
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return activeData
+    const term = searchTerm.toLowerCase()
+    return activeData
+      .map((ns) => ({
+        ...ns,
+        keys: ns.keys.filter(
+          (k) => k.key.toLowerCase().includes(term) || k.value.toLowerCase().includes(term)
+        ),
+      }))
+      .filter((ns) => ns.keys.length > 0)
+  }, [activeData, searchTerm])
+
+  const dbCount = dbData.reduce((s, ns) => s + ns.keys.length, 0)
+  const sugCount = suggestedData.reduce((s, ns) => s + ns.keys.length, 0)
+  const visibleCount = filteredData.reduce((s, ns) => s + ns.keys.length, 0)
 
   if (loading) {
     return (
@@ -324,11 +397,44 @@ export default function TranslationEditor() {
           onClick={handleSeed}
           disabled={seeding}
           className="btn-secondary text-sm py-1 px-3 flex items-center gap-2"
-          title={t('seed_tooltip', 'Sobrescribe las traducciones del idioma seleccionado en la BD con los valores de los archivos JSON')}
+          title={t('seed_tooltip', 'Sobrescribe TODAS las traducciones del idioma seleccionado en la BD con los valores de los archivos JSON')}
         >
           {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
           {t('seed_btn', 'Restaurar traducciones desde JSON')}
         </button>
+      </div>
+
+      {/* Ayuda: como funciona el sistema de traducciones */}
+      <div className="card p-4 border-l-4 border-blue-400 bg-blue-50">
+        <button
+          onClick={() => setShowHelp(!showHelp)}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <h2 className="font-semibold flex items-center gap-2 text-blue-800">
+            <Info size={18} /> {t('help_title', 'Como funcionan las traducciones')}
+          </h2>
+          <span className="text-blue-600 text-sm">{showHelp ? '−' : '+'}</span>
+        </button>
+        {showHelp && (
+          <div className="mt-3 text-sm text-blue-900 space-y-2">
+            <p>
+              <strong>{t('help_db', 'Base de datos (oficial):')}</strong>{' '}
+              {t('help_db_desc', 'lo que esta en la base de datos es lo que realmente se muestra en la interfaz. Cuando editas una clave y pulsas Guardar, el cambio se aplica de inmediato.')}
+            </p>
+            <p>
+              <strong>{t('help_json', 'Sugeridas (JSON):')}</strong>{' '}
+              {t('help_json_desc', 'son los textos que vienen con el sistema en los archivos de idioma. Si una clave no esta en la base de datos, la interfaz usa este valor como respaldo. Puedes aplicarla tal cual con "Aplicar" o editarla antes de guardarla.')}
+            </p>
+            <p>
+              <strong>{t('help_dirty', 'Editada sin guardar:')}</strong>{' '}
+              {t('help_dirty_desc', 'si modificas un texto, la clave se marca como "sin guardar" hasta que pulses Guardar. Solo entonces pasa a la base de datos.')}
+            </p>
+            <p>
+              <strong>{t('help_seed', 'Restaurar desde JSON:')}</strong>{' '}
+              {t('help_seed_desc', 'el boton de arriba copia TODOS los valores de los archivos JSON a la base de datos para el idioma seleccionado, sobrescribiendo lo que haya. Usalo para descartar cambios viejos o aplicar una actualizacion masiva.')}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Panel de auditoria */}
@@ -371,7 +477,7 @@ export default function TranslationEditor() {
       {/* Selector de idioma */}
       <div className="card p-4">
         <label className="label flex items-center gap-2 mb-2">
-          <Languages size={16} /> {t('select_language', 'Seleccionar idioma')}
+          <Languages size={16} /> {t('select_language', 'Idioma que estas editando')}
         </label>
         <div className="flex gap-2 flex-wrap">
           {languages.filter(l => l.enabled).map((lang) => (
@@ -393,24 +499,63 @@ export default function TranslationEditor() {
         </div>
       </div>
 
-      {/* Mensaje de guardado */}
+      {/* Mensaje de estado */}
       {saveMsg && (
-        <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-700">
-          {savingKey ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+        <div className={`flex items-center gap-2 text-sm p-3 rounded-lg border ${
+          saveError ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-200 text-blue-700'
+        }`}>
+          {savingKey ? <Loader2 size={16} className="animate-spin" /> : saveError ? <AlertCircle size={16} /> : <CheckCircle size={16} />}
           {saveMsg}
         </div>
       )}
 
-      {/* Editor de traducciones - TODAS las claves */}
+      {/* Editor de traducciones */}
       <div className="card p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h2 className="font-semibold flex items-center gap-2">
-            <Edit3 size={18} /> {t('all_keys', 'Todas las claves')}
+            <Pencil size={18} /> {t('editor_title', 'Editor de claves')}
             <span className="text-sm font-normal text-gray-500">
-              ({totalKeys} {t('total', 'total')})
+              ({visibleCount} {t('visible', 'visibles')})
             </span>
           </h2>
+          {dirtyCount > 0 && (
+            <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 font-medium">
+              {dirtyCount} {t('unsaved_count', 'editada(s) sin guardar')}
+            </span>
+          )}
         </div>
+
+        {/* Pestañas: BD vs Sugeridas */}
+        <div className="flex gap-1 mb-4 border-b">
+          <button
+            onClick={() => setTab('db')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+              tab === 'db'
+                ? 'border-trueque-600 text-trueque-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Database size={14} className="inline mr-1" />
+            {t('tab_db', 'En la base de datos')} ({dbCount})
+          </button>
+          <button
+            onClick={() => setTab('suggested')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+              tab === 'suggested'
+                ? 'border-trueque-600 text-trueque-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <ArrowRight size={14} className="inline mr-1" />
+            {t('tab_suggested', 'Sugeridas (JSON)')} ({sugCount})
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 mb-3">
+          {tab === 'db'
+            ? t('tab_db_hint', 'Estas claves ya estan en la base de datos: son las que se muestran en la interfaz. Edita el texto y pulsa Guardar para aplicar el cambio.')
+            : t('tab_suggested_hint', 'Estas claves vienen de los archivos JSON del sistema y aun no estan en la base de datos. La interfaz las usa como respaldo. Pulsa "Aplicar" para hacerlas oficiales tal cual, o "Editar" para modificarlas antes de guardarlas.')}
+        </p>
 
         {/* Barra de busqueda */}
         <div className="relative mb-4">
@@ -428,19 +573,28 @@ export default function TranslationEditor() {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="animate-spin text-trueque-600" size={24} />
           </div>
-        ) : filteredData.length === 0 || totalKeys === 0 ? (
+        ) : filteredData.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             <AlertCircle size={32} className="mx-auto mb-2 text-amber-500" />
-            <p className="mb-2">{t('no_keys', 'No hay claves cargadas.')}</p>
-            <p className="text-sm mb-3">{t('seed_hint', 'Haz clic en "Restaurar traducciones desde JSON" para importar todas las claves de los archivos JSON a la base de datos.')}</p>
-            <button
-              onClick={handleSeed}
-              disabled={seeding}
-              className="btn-primary text-sm py-1 px-3 flex items-center gap-2 mx-auto"
-            >
-              {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
-              {t('seed_btn', 'Restaurar traducciones desde JSON')}
-            </button>
+            {tab === 'db' ? (
+              <>
+                <p className="mb-2">{t('no_db_keys', 'No hay claves en la base de datos para este idioma.')}</p>
+                <p className="text-sm mb-3">{t('no_db_keys_hint', 'Aplica claves desde la pestana "Sugeridas" o usa "Restaurar traducciones desde JSON" para cargarlas todas.')}</p>
+                <button
+                  onClick={handleSeed}
+                  disabled={seeding}
+                  className="btn-primary text-sm py-1 px-3 flex items-center gap-2 mx-auto"
+                >
+                  {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
+                  {t('seed_btn', 'Restaurar traducciones desde JSON')}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mb-2">{t('no_suggested', 'No hay claves sugeridas pendientes.')}</p>
+                <p className="text-sm">{t('no_suggested_hint', 'Todas las claves de los archivos JSON ya estan en la base de datos.')}</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -452,34 +606,30 @@ export default function TranslationEditor() {
                   selectedNs === '' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {t('all_namespaces', 'Todos')} ({totalKeys})
+                {t('all_namespaces', 'Todos')} ({visibleCount})
               </button>
-              {allKeys.map(ns => {
-                const count = ns.keys.length
-                if (count === 0) return null
-                return (
-                  <button
-                    key={ns.namespace}
-                    onClick={() => setSelectedNs(selectedNs === ns.namespace ? '' : ns.namespace)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                      selectedNs === ns.namespace ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {ns.namespace} ({count})
-                  </button>
-                )
-              })}
+              {activeData.map((ns) => (
+                <button
+                  key={ns.namespace}
+                  onClick={() => setSelectedNs(selectedNs === ns.namespace ? '' : ns.namespace)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    selectedNs === ns.namespace ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {ns.namespace} ({ns.keys.length})
+                </button>
+              ))}
             </div>
 
-            {/* Boton agregar clave */}
-            {selectedNs && (
+            {/* Boton agregar clave (solo en pestana BD) */}
+            {tab === 'db' && selectedNs && (
               <div className="mb-3">
                 {!showAddKey ? (
                   <button
                     onClick={() => setShowAddKey(true)}
                     className="btn-secondary text-xs py-1 px-3 flex items-center gap-1"
                   >
-                    <Plus size={14} /> {t('add_key', 'Agregar clave')}
+                    <Plus size={14} /> {t('add_key', 'Agregar clave nueva a la BD')}
                   </button>
                 ) : (
                   <div className="border rounded-lg p-3 bg-gray-50 space-y-2">
@@ -511,7 +661,7 @@ export default function TranslationEditor() {
                       className="btn-primary text-xs py-1 px-3 flex items-center gap-1"
                     >
                       {savingKey === 'new' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                      {t('common:save')}
+                      {t('save_to_db', 'Guardar en BD')}
                     </button>
                   </div>
                 )}
@@ -519,7 +669,7 @@ export default function TranslationEditor() {
             )}
 
             {/* Lista de claves por namespace */}
-            {(selectedNs ? filteredData.filter(ns => ns.namespace === selectedNs) : filteredData).map(ns => {
+            {(selectedNs ? filteredData.filter((ns) => ns.namespace === selectedNs) : filteredData).map((ns) => {
               const isExpanded = expandedNs.has(ns.namespace) || !!selectedNs || !!searchTerm
               return (
                 <div key={ns.namespace} className="border rounded-lg overflow-hidden">
@@ -534,26 +684,100 @@ export default function TranslationEditor() {
                     <div className="divide-y">
                       {ns.keys.map((entry) => {
                         const editKey = `${ns.namespace}.${entry.key}`
+                        const dirty = isDirty(editKey)
+                        const isEditingSug = editingSuggested === editKey
+
+                        if (tab === 'suggested') {
+                          // ---- Fila de clave SUGERIDA (JSON, no en BD) ----
+                          return (
+                            <div key={entry.key} className="p-2 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono text-gray-500 truncate">{entry.key}</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+                                  {t('badge_suggested', 'Sugerida (JSON)')}
+                                </span>
+                              </div>
+                              {isEditingSug ? (
+                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-start">
+                                  <textarea
+                                    className="input text-sm py-1"
+                                    value={editingValues[editKey] ?? entry.value}
+                                    onChange={(e) => handleEdit(ns.namespace, entry.key, e.target.value)}
+                                    rows={2}
+                                  />
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => handleSaveKey(ns.namespace, entry.key)}
+                                      disabled={savingKey === editKey}
+                                      className="btn-primary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
+                                    >
+                                      {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                      {t('save_to_db', 'Guardar en BD')}
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingSuggested(null)}
+                                      className="btn-secondary text-xs py-1 px-2"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-center">
+                                  <p className="text-sm text-gray-700 bg-gray-50 rounded px-2 py-1">{entry.value}</p>
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => handleApplySuggested(ns.namespace, entry)}
+                                      disabled={savingKey === editKey}
+                                      className="btn-primary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
+                                      title={t('apply_tooltip', 'Aplicar este texto a la base de datos tal cual')}
+                                    >
+                                      {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
+                                      {t('apply_btn', 'Aplicar')}
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingSuggested(editKey)}
+                                      className="btn-secondary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
+                                      title={t('edit_tooltip', 'Editar antes de guardar en la base de datos')}
+                                    >
+                                      <Pencil size={12} />
+                                      {t('edit_btn', 'Editar')}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+
+                        // ---- Fila de clave EN BD (oficial) ----
                         return (
                           <div key={entry.key} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 p-2 items-start">
                             <div className="min-w-0">
                               <span className="text-xs font-mono text-gray-500 block truncate">{entry.key}</span>
-                              {entry.is_default ? (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">JSON</span>
+                              {dirty ? (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+                                  {t('badge_unsaved', 'Editada sin guardar')}
+                                </span>
                               ) : (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">BD</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                                  {t('badge_saved', 'En BD')}
+                                </span>
                               )}
                             </div>
                             <textarea
-                              className="input text-sm py-1"
+                              className={`input text-sm py-1 ${dirty ? 'border-amber-400 bg-amber-50' : ''}`}
                               value={editingValues[editKey] ?? entry.value}
                               onChange={(e) => handleEdit(ns.namespace, entry.key, e.target.value)}
                               rows={1}
                             />
                             <button
                               onClick={() => handleSaveKey(ns.namespace, entry.key)}
-                              disabled={savingKey === editKey}
-                              className="btn-primary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
+                              disabled={savingKey === editKey || !dirty}
+                              className={`text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap ${
+                                dirty ? 'btn-primary' : 'btn-secondary opacity-50 cursor-not-allowed'
+                              }`}
+                              title={dirty ? t('save_tooltip', 'Guardar cambio en la base de datos') : t('saved_tooltip', 'Sin cambios por guardar')}
                             >
                               {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
                               {t('common:save')}
@@ -655,7 +879,9 @@ export default function TranslationEditor() {
         </div>
 
         <div className="border-t pt-4 mt-4">
-          <h3 className="font-medium text-sm mb-2">{t('upload', 'Subir archivo')}</h3>
+          <h3 className="font-medium text-sm mb-2 flex items-center gap-1">
+            <Upload size={14} /> {t('upload', 'Subir archivo')}
+          </h3>
           <input
             type="file"
             accept=".json"
