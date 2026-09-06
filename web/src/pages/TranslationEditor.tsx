@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
-import { Languages, Download, CheckCircle, AlertCircle, Loader2, Save, Plus, Network, Search, Database, X, Pencil, Info, ArrowRight, Upload } from 'lucide-react'
+import { Languages, Download, CheckCircle, AlertCircle, Loader2, Save, Plus, Network, Search, Database, X, Pencil, Info, ArrowRight, Upload, ArrowLeft, CheckSquare } from 'lucide-react'
 
 type KeyEntry = {
   key: string
   value: string
   is_default: boolean
+  json_value: string
 }
 
 type NSResult = {
@@ -14,7 +15,7 @@ type NSResult = {
   keys: KeyEntry[]
 }
 
-type Tab = 'db' | 'suggested'
+type Tab = 'db' | 'diff'
 
 export default function TranslationEditor() {
   const { t } = useTranslation(['translations', 'common'])
@@ -46,6 +47,7 @@ export default function TranslationEditor() {
   const [tab, setTab] = useState<Tab>('db')
   const [editingSuggested, setEditingSuggested] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(true)
+  const [applyingAll, setApplyingAll] = useState(false)
 
   useEffect(() => {
     loadLanguages()
@@ -235,6 +237,41 @@ export default function TranslationEditor() {
     }
   }
 
+  const handleApplyAllDiffs = async () => {
+    if (!confirm(t('apply_all_confirm', `Esto sobrescribira ${diffCount} claves en la base de datos con los valores corregidos de los archivos JSON. Continuar?`))) {
+      return
+    }
+    setApplyingAll(true)
+    setSaveMsg('')
+    setSaveError(false)
+    let applied = 0
+    let errors = 0
+    for (const ns of diffData) {
+      for (const entry of ns.keys) {
+        if (entry.json_value && entry.value !== entry.json_value) {
+          try {
+            await api.put(`/translations/${selectedLang}/${ns.namespace}/key`, {
+              key: entry.key,
+              value: entry.json_value,
+            })
+            applied++
+          } catch {
+            errors++
+          }
+        }
+      }
+    }
+    setApplyingAll(false)
+    if (errors === 0) {
+      setSaveMsg(t('apply_all_done', `${applied} claves actualizadas con los valores JSON corregidos.`))
+    } else {
+      setSaveError(true)
+      setSaveMsg(t('apply_all_partial', `${applied} actualizadas, ${errors} errores.`))
+    }
+    loadAllKeys()
+    loadAuditData()
+  }
+
   const handleDownload = async (lang: string) => {
     try {
       const res = await fetch(`/api/translations/${lang}/download`)
@@ -349,20 +386,20 @@ export default function TranslationEditor() {
     })
   }
 
-  // Divide las claves: en BD (oficiales) vs sugeridas (solo JSON)
-  const { dbData, suggestedData } = useMemo(() => {
+  // Divide las claves: en BD (oficiales) vs diferencias (BD != JSON)
+  const { dbData, diffData } = useMemo(() => {
     const db: NSResult[] = []
-    const sug: NSResult[] = []
+    const dif: NSResult[] = []
     for (const ns of allKeys) {
       const dbKeys = ns.keys.filter((k) => !k.is_default)
-      const sugKeys = ns.keys.filter((k) => k.is_default)
+      const diffKeys = ns.keys.filter((k) => !k.is_default && k.json_value && k.value !== k.json_value)
       if (dbKeys.length) db.push({ namespace: ns.namespace, keys: dbKeys })
-      if (sugKeys.length) sug.push({ namespace: ns.namespace, keys: sugKeys })
+      if (diffKeys.length) dif.push({ namespace: ns.namespace, keys: diffKeys })
     }
-    return { dbData: db, suggestedData: sug }
+    return { dbData: db, diffData: dif }
   }, [allKeys])
 
-  const activeData = tab === 'db' ? dbData : suggestedData
+  const activeData = tab === 'db' ? dbData : diffData
 
   const filteredData = useMemo(() => {
     if (!searchTerm) return activeData
@@ -378,7 +415,7 @@ export default function TranslationEditor() {
   }, [activeData, searchTerm])
 
   const dbCount = dbData.reduce((s, ns) => s + ns.keys.length, 0)
-  const sugCount = suggestedData.reduce((s, ns) => s + ns.keys.length, 0)
+  const diffCount = diffData.reduce((s, ns) => s + ns.keys.length, 0)
   const visibleCount = filteredData.reduce((s, ns) => s + ns.keys.length, 0)
 
   if (loading) {
@@ -422,8 +459,8 @@ export default function TranslationEditor() {
               {t('help_db_desc', 'lo que esta en la base de datos es lo que realmente se muestra en la interfaz. Cuando editas una clave y pulsas Guardar, el cambio se aplica de inmediato.')}
             </p>
             <p>
-              <strong>{t('help_json', 'Sugeridas (JSON):')}</strong>{' '}
-              {t('help_json_desc', 'son los textos que vienen con el sistema en los archivos de idioma. Si una clave no esta en la base de datos, la interfaz usa este valor como respaldo. Puedes aplicarla tal cual con "Aplicar" o editarla antes de guardarla.')}
+              <strong>{t('help_json', 'Diferencias (JSON vs BD):')}</strong>{' '}
+              {t('help_json_desc', 'muestra las claves donde el valor de la base de datos difiere del archivo JSON corregido. El valor JSON es la traduccion nueva/corregida. Pulsa "Aplicar JSON" para actualizar la BD, o "Aplicar todas" para corregir masivamente.')}
             </p>
             <p>
               <strong>{t('help_dirty', 'Editada sin guardar:')}</strong>{' '}
@@ -539,22 +576,22 @@ export default function TranslationEditor() {
             {t('tab_db', 'En la base de datos')} ({dbCount})
           </button>
           <button
-            onClick={() => setTab('suggested')}
+            onClick={() => setTab('diff')}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
-              tab === 'suggested'
+              tab === 'diff'
                 ? 'border-trueque-600 text-trueque-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            <ArrowRight size={14} className="inline mr-1" />
-            {t('tab_suggested', 'Sugeridas (JSON)')} ({sugCount})
+            <AlertCircle size={14} className="inline mr-1" />
+            {t('tab_diff', 'Diferencias (JSON vs BD)')} ({diffCount})
           </button>
         </div>
 
         <p className="text-xs text-gray-500 mb-3">
           {tab === 'db'
             ? t('tab_db_hint', 'Estas claves ya estan en la base de datos: son las que se muestran en la interfaz. Edita el texto y pulsa Guardar para aplicar el cambio.')
-            : t('tab_suggested_hint', 'Estas claves vienen de los archivos JSON del sistema y aun no estan en la base de datos. La interfaz las usa como respaldo. Pulsa "Aplicar" para hacerlas oficiales tal cual, o "Editar" para modificarlas antes de guardarlas.')}
+            : t('tab_diff_hint', 'Estas claves tienen un valor diferente en la base de datos vs el archivo JSON corregido. El valor JSON es la traduccion nueva/corregida. Pulsa "Aplicar JSON" para actualizar la BD con el valor corregido.')}
         </p>
 
         {/* Barra de busqueda */}
@@ -575,11 +612,11 @@ export default function TranslationEditor() {
           </div>
         ) : filteredData.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
-            <AlertCircle size={32} className="mx-auto mb-2 text-amber-500" />
             {tab === 'db' ? (
               <>
+                <AlertCircle size={32} className="mx-auto mb-2 text-amber-500" />
                 <p className="mb-2">{t('no_db_keys', 'No hay claves en la base de datos para este idioma.')}</p>
-                <p className="text-sm mb-3">{t('no_db_keys_hint', 'Aplica claves desde la pestana "Sugeridas" o usa "Restaurar traducciones desde JSON" para cargarlas todas.')}</p>
+                <p className="text-sm mb-3">{t('no_db_keys_hint', 'Usa "Restaurar traducciones desde JSON" para cargarlas todas.')}</p>
                 <button
                   onClick={handleSeed}
                   disabled={seeding}
@@ -591,13 +628,31 @@ export default function TranslationEditor() {
               </>
             ) : (
               <>
-                <p className="mb-2">{t('no_suggested', 'No hay claves sugeridas pendientes.')}</p>
-                <p className="text-sm">{t('no_suggested_hint', 'Todas las claves de los archivos JSON ya estan en la base de datos.')}</p>
+                <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
+                <p className="mb-2">{t('no_diff', 'No hay diferencias entre la BD y los archivos JSON.')}</p>
+                <p className="text-sm">{t('no_diff_hint', 'Todos los valores en la base de datos coinciden con los archivos JSON corregidos. Nada que actualizar.')}</p>
               </>
             )}
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Boton aplicar todas las diferencias */}
+            {tab === 'diff' && diffCount > 0 && (
+              <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <span className="text-sm text-amber-800">
+                  {diffCount} {t('diff_count_label', 'claves con diferencias encontradas. Puedes aplicarlas todas a la vez o una por una.')}
+                </span>
+                <button
+                  onClick={handleApplyAllDiffs}
+                  disabled={applyingAll}
+                  className="btn-primary text-sm py-1.5 px-3 flex items-center gap-2 whitespace-nowrap"
+                >
+                  {applyingAll ? <Loader2 size={14} className="animate-spin" /> : <CheckSquare size={14} />}
+                  {t('apply_all_diffs', 'Aplicar todas')}
+                </button>
+              </div>
+            )}
+
             {/* Selector de namespace */}
             <div className="flex flex-wrap gap-1 mb-3">
               <button
@@ -687,21 +742,59 @@ export default function TranslationEditor() {
                         const dirty = isDirty(editKey)
                         const isEditingSug = editingSuggested === editKey
 
-                        if (tab === 'suggested') {
-                          // ---- Fila de clave SUGERIDA (JSON, no en BD) ----
+                        if (tab === 'diff') {
+                          // ---- Fila de clave con DIFERENCIA (BD vs JSON) ----
                           return (
-                            <div key={entry.key} className="p-2 space-y-2">
+                            <div key={entry.key} className="p-3 space-y-2 bg-red-50/30">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-mono text-gray-500 truncate">{entry.key}</span>
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
-                                  {t('badge_suggested', 'Sugerida (JSON)')}
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                  {t('badge_diff', 'Diferente')}
                                 </span>
                               </div>
-                              {isEditingSug ? (
-                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-start">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {/* Valor actual en BD */}
+                                <div className="border border-red-200 rounded-lg p-2 bg-white">
+                                  <div className="text-xs font-semibold text-red-600 mb-1 flex items-center gap-1">
+                                    <Database size={12} /> {t('current_db_value', 'BD actual')}
+                                  </div>
+                                  <p className="text-sm text-gray-700">{entry.value}</p>
+                                </div>
+                                {/* Valor JSON corregido */}
+                                <div className="border border-green-200 rounded-lg p-2 bg-green-50">
+                                  <div className="text-xs font-semibold text-green-600 mb-1 flex items-center gap-1">
+                                    <CheckCircle size={12} /> {t('json_corrected_value', 'JSON corregido')}
+                                  </div>
+                                  <p className="text-sm text-gray-700">{entry.json_value}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleApplySuggested(ns.namespace, { key: entry.key, value: entry.json_value, is_default: false, json_value: entry.json_value })}
+                                  disabled={savingKey === editKey}
+                                  className="btn-primary text-xs py-1 px-3 flex items-center gap-1 whitespace-nowrap"
+                                  title={t('apply_json_tooltip', 'Reemplazar el valor de la BD con el valor JSON corregido')}
+                                >
+                                  {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <ArrowLeft size={12} />}
+                                  {t('apply_json', 'Aplicar JSON')}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleEdit(ns.namespace, entry.key, entry.json_value)
+                                    setEditingSuggested(editKey)
+                                  }}
+                                  className="btn-secondary text-xs py-1 px-3 flex items-center gap-1 whitespace-nowrap"
+                                  title={t('edit_before_apply', 'Editar el valor JSON antes de aplicarlo')}
+                                >
+                                  <Pencil size={12} />
+                                  {t('edit_btn', 'Editar')}
+                                </button>
+                              </div>
+                              {isEditingSug && (
+                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-start pt-1">
                                   <textarea
                                     className="input text-sm py-1"
-                                    value={editingValues[editKey] ?? entry.value}
+                                    value={editingValues[editKey] ?? entry.json_value}
                                     onChange={(e) => handleEdit(ns.namespace, entry.key, e.target.value)}
                                     rows={2}
                                   />
@@ -719,29 +812,6 @@ export default function TranslationEditor() {
                                       className="btn-secondary text-xs py-1 px-2"
                                     >
                                       <X size={12} />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-center">
-                                  <p className="text-sm text-gray-700 bg-gray-50 rounded px-2 py-1">{entry.value}</p>
-                                  <div className="flex gap-1">
-                                    <button
-                                      onClick={() => handleApplySuggested(ns.namespace, entry)}
-                                      disabled={savingKey === editKey}
-                                      className="btn-primary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
-                                      title={t('apply_tooltip', 'Aplicar este texto a la base de datos tal cual')}
-                                    >
-                                      {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}
-                                      {t('apply_btn', 'Aplicar')}
-                                    </button>
-                                    <button
-                                      onClick={() => setEditingSuggested(editKey)}
-                                      className="btn-secondary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
-                                      title={t('edit_tooltip', 'Editar antes de guardar en la base de datos')}
-                                    >
-                                      <Pencil size={12} />
-                                      {t('edit_btn', 'Editar')}
                                     </button>
                                   </div>
                                 </div>

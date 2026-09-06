@@ -875,6 +875,7 @@ func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request)
 		Key       string `json:"key"`
 		Value     string `json:"value"`
 		IsDefault bool   `json:"is_default"`
+		JSONValue string `json:"json_value"`
 	}
 
 	type NSResult struct {
@@ -927,6 +928,7 @@ func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request)
 				Key:       k,
 				Value:     val,
 				IsDefault: isDefault,
+				JSONValue: defaults[k],
 			})
 		}
 		// Ordenar claves alfabeticamente
