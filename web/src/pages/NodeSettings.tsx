@@ -23,7 +23,7 @@ const LEVEL_LABELS: Record<number, string> = {
 
 export default function NodeSettings() {
   const { hasPermission } = usePermissions()
-  const { t } = useTranslation(['settings', 'common'])
+  const { t } = useTranslation(['settings', 'common', 'assembly'])
   const canManage = hasPermission('config.manage')
   const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
 
@@ -458,6 +458,26 @@ export default function NodeSettings() {
   // Verificar permisos de Asamblea para cada tipo de cambio
   const [permChecks, setPermChecks] = useState<Record<string, { can_direct: boolean, method: string, reason: string }>>({})
 
+  const getPermissionReason = (perm: { can_direct: boolean, method: string, reason: string }): string => {
+    if (perm.can_direct) {
+      switch (perm.method) {
+        case 'super_admin': return t('assembly:reason_super_admin')
+        case 'legacy': return t('assembly:reason_no_config')
+        case 'person': return t('assembly:reason_authorized_person')
+        case 'authorized_any': return t('assembly:reason_authorized_any')
+        default: return ''
+      }
+    } else {
+      switch (perm.method) {
+        case 'person': return t('assembly:reason_requires_authorized')
+        case 'authorized_any': return t('assembly:reason_requires_any_authorized')
+        case 'assembly': case 'board': case 'council': case 'multisig': case 'organization':
+          return t('assembly:reason_requires_approval', { method: perm.method })
+        default: return t('assembly:reason_unknown_method')
+      }
+    }
+  }
+
   const checkPermission = async (proposalType: string) => {
     try {
       const res: any = await api.get(`/assembly/check-permission/${proposalType}`)
@@ -769,7 +789,7 @@ export default function NodeSettings() {
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 flex items-start gap-2 mb-3">
                   <VoteIcon size={16} className="mt-0.5 flex-shrink-0" />
                   <div>
-                    <strong>{t('settings_requires_assembly', 'Requiere aprobacion de Asamblea.')}</strong> {permChecks['node_config'].reason}
+                    <strong>{t('settings_requires_assembly', 'Requiere aprobacion de Asamblea.')}</strong> {getPermissionReason(permChecks['node_config'])}
                     {t('settings_requires_assembly_desc', 'Al guardar se creara una propuesta para que la Asamblea decida.')}
                   </div>
                 </div>
@@ -778,7 +798,7 @@ export default function NodeSettings() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700 flex items-start gap-2 mb-3">
                   <CheckCircle size={16} className="mt-0.5 flex-shrink-0" />
                   <div>
-                    <strong>{t('settings_direct_change_authorized', 'Cambio directo autorizado.')}</strong> {permChecks['node_config'].reason}
+                    <strong>{t('settings_direct_change_authorized', 'Cambio directo autorizado.')}</strong> {getPermissionReason(permChecks['node_config'])}
                   </div>
                 </div>
               )}
@@ -1170,7 +1190,7 @@ export default function NodeSettings() {
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 flex items-start gap-2 mb-3">
                   <VoteIcon size={16} className="mt-0.5 flex-shrink-0" />
                   <div>
-                    <strong>{t('settings_requires_assembly', 'Requiere aprobacion de Asamblea.')}</strong> {permChecks['energy_rate_change'].reason}
+                    <strong>{t('settings_requires_assembly', 'Requiere aprobacion de Asamblea.')}</strong> {getPermissionReason(permChecks['energy_rate_change'])}
                     {t('settings_requires_assembly_short_desc', 'Al guardar se creara una propuesta.')}
                   </div>
                 </div>
@@ -3342,7 +3362,7 @@ export default function NodeSettings() {
 
 // ===== Componente: Actualizar nodo =====
 function NodeUpdateSection({ canManage }: { canManage: boolean }) {
-  const { t } = useTranslation(['settings', 'common'])
+  const { t } = useTranslation(['settings', 'common', 'assembly'])
   const [checking, setChecking] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updateInfo, setUpdateInfo] = useState<any>(null)

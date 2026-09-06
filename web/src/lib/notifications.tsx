@@ -3,6 +3,7 @@ import {
   Network, Package, Bell, AlertTriangle, type LucideIcon,
 } from 'lucide-react'
 import { fmtDate } from './format'
+import i18next from 'i18next'
 
 // Mapea el tipo de notificacion a un icono y color
 export const NOTIF_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
@@ -37,10 +38,10 @@ export function relativeTime(dateStr: string): string {
   const diffHour = Math.floor(diffMin / 60)
   const diffDay = Math.floor(diffHour / 24)
 
-  if (diffSec < 60) return 'hace un momento'
-  if (diffMin < 60) return `hace ${diffMin} ${diffMin === 1 ? 'minuto' : 'minutos'}`
-  if (diffHour < 24) return `hace ${diffHour} ${diffHour === 1 ? 'hora' : 'horas'}`
-  if (diffDay < 7) return `hace ${diffDay} ${diffDay === 1 ? 'dia' : 'dias'}`
+  if (diffSec < 60) return i18next.t('common:time_just_now', 'just now')
+  if (diffMin < 60) return i18next.t('common:time_minutes_ago', { count: diffMin, defaultValue: `${diffMin} min ago` })
+  if (diffHour < 24) return i18next.t('common:time_hours_ago', { count: diffHour, defaultValue: `${diffHour}h ago` })
+  if (diffDay < 7) return i18next.t('common:time_days_ago', { count: diffDay, defaultValue: `${diffDay}d ago` })
   // Para mas de una semana, mostrar fecha
   return fmtDate(date)
 }

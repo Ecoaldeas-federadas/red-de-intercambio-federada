@@ -48,6 +48,7 @@ export default function TranslationEditor() {
   const [editingSuggested, setEditingSuggested] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(true)
   const [applyingAll, setApplyingAll] = useState(false)
+  const [showApplyAllModal, setShowApplyAllModal] = useState(false)
 
   useEffect(() => {
     loadLanguages()
@@ -238,9 +239,7 @@ export default function TranslationEditor() {
   }
 
   const handleApplyAllDiffs = async () => {
-    if (!confirm(t('apply_all_confirm', `Esto sobrescribira ${diffCount} claves en la base de datos con los valores corregidos de los archivos JSON. Continuar?`))) {
-      return
-    }
+    setShowApplyAllModal(false)
     setApplyingAll(true)
     setSaveMsg('')
     setSaveError(false)
@@ -643,7 +642,7 @@ export default function TranslationEditor() {
                   {diffCount} {t('diff_count_label', 'claves con diferencias encontradas. Puedes aplicarlas todas a la vez o una por una.')}
                 </span>
                 <button
-                  onClick={handleApplyAllDiffs}
+                  onClick={() => setShowApplyAllModal(true)}
                   disabled={applyingAll}
                   className="btn-primary text-sm py-1.5 px-3 flex items-center gap-2 whitespace-nowrap"
                 >
@@ -1006,6 +1005,38 @@ export default function TranslationEditor() {
           </div>
         )}
       </div>
+
+      {/* Modal interno: confirmar aplicar todas las diferencias */}
+      {showApplyAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowApplyAllModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <AlertCircle size={24} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('apply_all_title', 'Aplicar todas las diferencias')}</h3>
+                <p className="text-sm text-gray-600">
+                  {t('apply_all_confirm', `Esto sobrescribira ${diffCount} claves en la base de datos con los valores corregidos de los archivos JSON. Continuar?`)}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowApplyAllModal(false)}
+                className="btn-secondary text-sm py-2 px-4"
+              >
+                {t('common:cancel', 'Cancelar')}
+              </button>
+              <button
+                onClick={handleApplyAllDiffs}
+                className="btn-primary text-sm py-2 px-4 flex items-center gap-2"
+              >
+                <CheckSquare size={16} />
+                {t('apply_all_confirm_btn', 'Si, aplicar')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

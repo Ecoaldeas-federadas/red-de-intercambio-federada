@@ -772,5 +772,9 @@
   "fund_votes_against": "En contra:",
   "fund_vote_for": "A favor",
   "fund_vote_against": "En contra",
-  "fund_execute": "Ejecutar"
+  "fund_execute": "Ejecutar",
+  "time_just_now": "hace un momento",
+  "time_minutes_ago": "hace {{count}} minutos",
+  "time_hours_ago": "hace {{count}} horas",
+  "time_days_ago": "hace {{count}} dias"
 }

@@ -407,7 +407,7 @@ export default function NFCTerminals() {
 
   const formatAmount = (cents: number) => `${(cents / 100).toFixed(2)}`
   const formatTime = (ts: string | null) => {
-    if (!ts) return 'Nunca'
+    if (!ts) return tt('never', 'Never')
     return fmtDateTime(ts)
   }
 

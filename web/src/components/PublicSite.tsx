@@ -3,6 +3,7 @@ import { Link, useParams, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 import { assetUrl } from '../utils/assetUrl'
 import {
   Home,
@@ -83,33 +84,34 @@ interface PublicSettings {
 
 // Helper to provide concise, clean labels in navigation bars so menus never overflow
 function getShortLabel(p: { slug: string; title: string }): string {
+  const t = i18next.t.bind(i18next)
   switch (p.slug) {
     case 'inicio':
-      return 'Inicio'
+      return t('public:label_inicio', 'Home')
     case 'filosofia':
-      return 'Historia'
+      return t('public:label_filosofia', 'History')
     case 'productos':
-      return 'Productos'
+      return t('public:label_productos', 'Products')
     case 'comunidad':
-      return 'Comunidad'
+      return t('public:label_comunidad', 'Community')
     case 'como-funciona':
-      return 'Cómo Funciona'
+      return t('public:label_como_funciona', 'How It Works')
     case 'gobernanza':
-      return 'Gobernanza'
+      return t('public:label_gobernanza', 'Governance')
     case 'campo-soberano':
-      return 'Ecoaldea'
+      return t('public:label_campo_soberano', 'Eco-village')
     case 'faq':
       return 'FAQ'
     case 'contacto':
-      return 'Contacto'
+      return t('public:label_contacto', 'Contact')
     case 'semillas':
-      return 'Semillas'
+      return t('public:label_semillas', 'Seeds')
     case 'saberes-ancestrales':
-      return 'Saberes'
+      return t('public:label_saberes', 'Wisdom')
     case 'filosofia-conuquera':
-      return 'Filosofía'
+      return t('public:label_filosofia_conuquera', 'Philosophy')
     case 'ecoaldeas-mundo':
-      return 'Ecoaldeas'
+      return t('public:label_ecoaldeas', 'Eco-villages')
     default:
       return p.title || p.slug
   }
@@ -380,16 +382,16 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 {settings?.show_join_form && !isAuthenticated && (
                   <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-2 rounded-lg text-xs font-bold text-white shadow transition hover:opacity-90 items-center gap-1" style={{ backgroundColor: secondaryColor }}>
                     <Sparkles size={12} />
-                    Ingreso
+                    {tpub('join', 'Join')}
                   </Link>
                 )}
                 {isAuthenticated ? (
                   <Link to="/app/dashboard" className="px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: primaryColor }}>
-                    Escritorio
+                    {tpub('dashboard', 'Dashboard')}
                   </Link>
                 ) : (
                   <button onClick={() => setShowLoginModal(true)} className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50" style={{ color: primaryColor, borderColor: primaryColor }}>
-                    Acceso
+                    {tpub('login', 'Log in')}
                   </button>
                 )}
                 <button className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
@@ -425,7 +427,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               {overflowPages.length > 0 && (
                 <div className="relative" ref={moreMenuRef}>
                   <button onClick={() => setMoreMenuOpen(!moreMenuOpen)} className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border-2 border-transparent hover:shadow-sm" style={{ color: (settings as any)?.text_color || '#1a1a1a', backgroundColor: (settings as any)?.module_bg_color || '#ffffff' }}>
-                    <span>Más</span><ChevronDown size={13} />
+                    <span>{tpub('more', 'More')}</span><ChevronDown size={13} />
                   </button>
                   {moreMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-48 rounded-xl shadow-xl border p-1.5 space-y-0.5 z-50" style={{ backgroundColor: (settings as any)?.module_bg_color || '#ffffff', borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -516,7 +518,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                       onClick={() => setMoreMenuOpen(!moreMenuOpen)}
                       className="px-2 py-1 rounded hover:bg-white/10 text-gray-200 hover:text-white flex items-center gap-1"
                     >
-                      <span>Más</span>
+                      <span>{tpub('more', 'More')}</span>
                       <ChevronDown size={12} />
                     </button>
                     {moreMenuOpen && (
@@ -541,7 +543,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 to="/p/unirse"
                 className="hidden sm:inline-flex text-xs font-bold text-amber-300 hover:text-white items-center gap-1 ml-auto"
               >
-                Solicitar Admisión →
+                {tpub('request_admission', 'Request Admission')} →
               </Link>
             </div>
           </div>
@@ -754,7 +756,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                       onClick={() => setMoreMenuOpen(!moreMenuOpen)}
                       className="px-3 py-1.5 rounded-md hover:bg-white/15 flex items-center gap-1 whitespace-nowrap"
                     >
-                      <span>Más</span>
+                      <span>{tpub('more', 'More')}</span>
                       <ChevronDown size={12} />
                     </button>
                     {moreMenuOpen && (
@@ -858,7 +860,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     style={{ backgroundColor: secondaryColor }}
                   >
                     <Sparkles size={12} />
-                    Unirse
+                    {tpub('join', 'Join')}
                   </Link>
                 )}
                 {isAuthenticated ? (
@@ -867,14 +869,14 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     className="px-3 py-2 rounded-lg text-xs font-bold text-white shadow-lg"
                     style={{ backgroundColor: secondaryColor }}
                   >
-                    Escritorio
+                    {tpub('dashboard', 'Dashboard')}
                   </Link>
                 ) : (
                   <Link
                     to="/login"
                     className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-medium text-white border border-white/40 hover:bg-white/10 transition"
                   >
-                    Acceso
+                    {tpub('login', 'Log in')}
                   </Link>
                 )}
                 <button
@@ -911,7 +913,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                       onClick={() => setMoreMenuOpen(!moreMenuOpen)}
                       className="px-3 py-1.5 rounded-md hover:bg-white/15 flex items-center gap-1 whitespace-nowrap"
                     >
-                      <span>Más</span>
+                      <span>{tpub('more', 'More')}</span>
                       <ChevronDown size={12} />
                     </button>
                     {moreMenuOpen && (
@@ -1039,7 +1041,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               })}
               {settings?.show_join_form && !isAuthenticated && (
                 <Link to="/p/unirse" className="ml-2 px-3 py-1.5 rounded-md text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
-                  Unirse
+                  {tpub('join', 'Join')}
                 </Link>
               )}
             </nav>
@@ -1091,7 +1093,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 flex-shrink-0">
               {settings?.show_join_form && !isAuthenticated && (
                 <Link to="/p/unirse" className="hidden sm:inline-block px-4 py-1.5 rounded-full text-xs font-bold text-white transition hover:opacity-90" style={{ backgroundColor: primaryColor }}>
-                  Unirse
+                  {tpub('join', 'Join')}
                 </Link>
               )}
               <button className="lg:hidden p-1.5" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
@@ -1132,7 +1134,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               {overflowPages.length > 0 && (
                 <div className="relative" ref={moreMenuRef}>
                   <button onClick={() => setMoreMenuOpen(!moreMenuOpen)} className="px-3 py-1.5 rounded-md hover:bg-white/15 flex items-center gap-1 whitespace-nowrap">
-                    <span>Más</span><ChevronDown size={12} />
+                    <span>{tpub('more', 'More')}</span><ChevronDown size={12} />
                   </button>
                   {moreMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border border-white/20 p-1.5 space-y-0.5 z-50" style={{ backgroundColor: primaryColor }}>
@@ -1150,7 +1152,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 flex-shrink-0">
               {settings?.show_join_form && !isAuthenticated && (
                 <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-1.5 rounded-full text-xs font-bold text-white shadow transition hover:opacity-90" style={{ backgroundColor: secondaryColor }}>
-                  Unirse
+                  {tpub('join', 'Join')}
                 </Link>
               )}
               <button className="lg:hidden text-white p-1.5" onClick={() => setMenuOpen(!menuOpen)}>
@@ -1195,7 +1197,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               {overflowPages.length > 0 && (
                 <div className="relative" ref={moreMenuRef}>
                   <button onClick={() => setMoreMenuOpen(!moreMenuOpen)} className="px-3 py-1.5 rounded-full hover:bg-gray-100 flex items-center gap-1 whitespace-nowrap">
-                    <span>Más</span><ChevronDown size={12} />
+                    <span>{tpub('more', 'More')}</span><ChevronDown size={12} />
                   </button>
                   {moreMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-2xl shadow-xl border border-gray-200 p-1.5 space-y-0.5 z-50">
@@ -1213,7 +1215,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 flex-shrink-0">
               {settings?.show_join_form && !isAuthenticated && (
                 <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-1.5 rounded-full text-xs font-bold text-white shadow transition hover:opacity-90" style={{ backgroundColor: secondaryColor }}>
-                  Unirse
+                  {tpub('join', 'Join')}
                 </Link>
               )}
               <button className="lg:hidden p-1.5 rounded-full hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
@@ -1290,7 +1292,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     onClick={() => setMoreMenuOpen(!moreMenuOpen)}
                     className="px-2 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 text-white/85 hover:text-white hover:bg-white/10 whitespace-nowrap"
                   >
-                    <span>Más</span>
+                    <span>{tpub('more', 'More')}</span>
                     <ChevronDown size={13} />
                   </button>
                   {moreMenuOpen && (
@@ -1320,7 +1322,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   style={{ backgroundColor: secondaryColor }}
                 >
                   <Sparkles size={12} />
-                  Unirse
+                  {tpub('join', 'Join')}
                 </Link>
               )}
 
@@ -1329,10 +1331,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Link
                     to="/app/website"
                     className="px-2 py-1 rounded text-[11px] sm:text-xs font-semibold text-white hover:bg-white/20 transition flex items-center gap-1"
-                    title="Editor modular"
+                    title={tpub('modular_editor', 'Modular Editor')}
                   >
                     <Edit size={12} />
-                    <span className="hidden md:inline">Editor</span>
+                    <span className="hidden md:inline">{tpub('editor', 'Editor')}</span>
                   </Link>
                   <Link
                     to="/app/dashboard"
@@ -1340,7 +1342,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     style={{ backgroundColor: secondaryColor }}
                   >
                     <LayoutDashboard size={12} />
-                    <span className="hidden md:inline">Escritorio</span>
+                    <span className="hidden md:inline">{tpub('dashboard', 'Dashboard')}</span>
                   </Link>
                   <button
                     onClick={() => {
@@ -1349,7 +1351,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                       // App.tsx mostrara el sitio publico cuando isAuthenticated sea false.
                     }}
                     className="p-1 rounded text-xs text-white/80 hover:text-white hover:bg-white/10 transition"
-                    title="Cerrar sesión"
+                    title={tpub('logout', 'Log out')}
                   >
                     <LogOut size={12} />
                   </button>
@@ -1359,7 +1361,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   to="/login"
                   className="hidden sm:inline-block px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition"
                 >
-                  Entrar
+                  {tpub('login', 'Log in')}
                 </Link>
               )}
 
@@ -1367,7 +1369,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <button
                 className="lg:hidden text-white p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition"
                 onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Abrir menú"
+                aria-label={tpub('open_menu', 'Open menu')}
               >
                 {menuOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
@@ -1408,12 +1410,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="pt-2 border-t border-white/10 space-y-1.5">
             {settings?.show_join_form && !isAuthenticated && (
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
-                Solicitar Unirse a la Red
+                {tpub('request_admission', 'Request Admission')}
               </Link>
             )}
             {!isAuthenticated && (
               <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
-                Iniciar sesión miembros
+                {tpub('member_login', 'Member login')}
               </button>
             )}
           </div>
@@ -1444,12 +1446,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="pt-2 border-t border-gray-200 space-y-1.5">
             {settings?.show_join_form && !isAuthenticated && (
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: primaryColor }}>
-                Solicitar Ingreso
+                {tpub('request_join', 'Request to Join')}
               </Link>
             )}
             {!isAuthenticated && (
               <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
-                Acceso Miembros
+                {tpub('member_access', 'Member Access')}
               </button>
             )}
           </div>
@@ -1459,7 +1461,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {menuOpen && headerStyle === 'editorial_latam' && (
         /* === MOBILE: EDITORIAL — fondo oscuro, serif, mayúsculas === */
         <div className="lg:hidden text-white p-4 space-y-1 z-40 w-full" style={{ backgroundColor: '#1f301d' }}>
-          <p className="text-[10px] uppercase tracking-widest text-amber-400 font-serif font-bold mb-2">Secciones</p>
+          <p className="text-[10px] uppercase tracking-widest text-amber-400 font-serif font-bold mb-2">{tpub('sections', 'Sections')}</p>
           {menuPages.map((p) => {
             const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
             return (
@@ -1478,12 +1480,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="pt-2 border-t border-white/10 space-y-1.5">
             {settings?.show_join_form && !isAuthenticated && (
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white bg-amber-700">
-                Solicitar Admisión →
+                {tpub('request_admission', 'Request Admission')} →
               </Link>
             )}
             {!isAuthenticated && (
               <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-amber-300 hover:bg-white/10">
-                Iniciar sesión miembros
+                {tpub('member_login', 'Member login')}
               </button>
             )}
           </div>
@@ -1494,7 +1496,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         /* === MOBILE: MEGA MENU — agrupado por categorías === */
         <div className="lg:hidden text-white p-4 space-y-3 z-40 w-full" style={{ backgroundColor: primaryColor }}>
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">Sobre la Red</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">{tpub('about_network', 'About the Network')}</p>
             <div className="space-y-0.5">
               {aboutPages.map((p) => (
                 <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-sm hover:bg-white/10">
@@ -1504,7 +1506,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">Economía & Cosecha</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">{tpub('economy_harvest', 'Economy & Harvest')}</p>
             <div className="space-y-0.5">
               {economyPages.map((p) => (
                 <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-sm hover:bg-white/10">
@@ -1514,7 +1516,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">Comunidad & Saberes</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">{tpub('community_knowledge', 'Community & Wisdom')}</p>
             <div className="space-y-0.5">
               {communityPages.map((p) => (
                 <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-sm hover:bg-white/10">
@@ -1538,12 +1540,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="pt-2 border-t border-white/10 space-y-1.5">
             {settings?.show_join_form && !isAuthenticated && (
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
-                Unirse a la Red
+                {tpub('join_network', 'Join the Network')}
               </Link>
             )}
             {!isAuthenticated && (
               <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
-                Iniciar sesión miembros
+                {tpub('member_login', 'Member login')}
               </button>
             )}
           </div>
@@ -1572,12 +1574,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="pt-2 border-t space-y-1.5" style={{ borderColor: ((settings as any)?.module_bg_color || '#e5e7eb') }}>
             {settings?.show_join_form && !isAuthenticated && (
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
-                Unirse a la Red
+                {tpub('join_network', 'Join the Network')}
               </Link>
             )}
             {!isAuthenticated && (
               <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
-                Acceso Miembros
+                {tpub('member_access', 'Member Access')}
               </button>
             )}
           </div>
@@ -1613,12 +1615,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="pt-2 border-t border-white/20 space-y-1.5">
             {settings?.show_join_form && !isAuthenticated && (
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
-                Unirse a la Red
+                {tpub('join_network', 'Join the Network')}
               </Link>
             )}
             {!isAuthenticated && (
               <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10 border border-white/30">
-                Acceso Miembros
+                {tpub('member_access', 'Member Access')}
               </button>
             )}
           </div>

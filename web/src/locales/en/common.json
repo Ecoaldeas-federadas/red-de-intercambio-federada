@@ -772,5 +772,9 @@
   "username": "Username",
   "view": "View",
   "warning": "Warning",
-  "yes": "Yes"
+  "yes": "Yes",
+  "time_just_now": "just now",
+  "time_minutes_ago": "{{count}} min ago",
+  "time_hours_ago": "{{count}}h ago",
+  "time_days_ago": "{{count}}d ago"
 }

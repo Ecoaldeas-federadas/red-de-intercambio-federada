@@ -185,13 +185,13 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 
 	// La fecha es obligatoria - no se puede crear una asamblea para "ahora mismo"
 	if req.StartTimeStr == "" {
-		writeError(w, 400, "debes especificar la fecha y hora de la asamblea. No se puede crear una asamblea para 'ahora mismo'.")
+		writeError(w, 400, "date and time are required. Cannot create an assembly for 'right now'.")
 		return
 	}
 
 	startTime, err := time.Parse(time.RFC3339, req.StartTimeStr)
 	if err != nil {
-		writeError(w, 400, "formato de fecha invalido. Usa ISO 8601 (ej: 2024-03-15T15:00:00Z)")
+		writeError(w, 400, "invalid date format. Use ISO 8601 (e.g: 2024-03-15T15:00:00Z)")
 		return
 	}
 
@@ -517,11 +517,11 @@ func (h *AssemblyHandler) deleteProposal(w http.ResponseWriter, r *http.Request)
 		decisionID).Scan(&status, &actorID)
 
 	if status == "" {
-		writeError(w, 404, "propuesta no encontrada")
+		writeError(w, 404, "proposal not found")
 		return
 	}
 	if status != "proposed" {
-		writeError(w, 400, "no se puede eliminar una propuesta que ya fue aprobada o esta en votacion")
+		writeError(w, 400, "cannot delete a proposal that has already been approved or is in voting")
 		return
 	}
 
@@ -539,7 +539,7 @@ func (h *AssemblyHandler) deleteProposal(w http.ResponseWriter, r *http.Request)
 		canManage = hasPerm
 	}
 	if !isOwner && !canManage {
-		writeError(w, 403, "solo el autor o un administrador puede eliminar esta propuesta")
+		writeError(w, 403, "only the author or an admin can delete this proposal")
 		return
 	}
 
@@ -591,24 +591,24 @@ func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 		FROM assembly_decisions WHERE id = $1`, decisionID).
 		Scan(&status, &decisionType, &description, &assemblyID)
 	if status == "" {
-		writeError(w, 404, "propuesta no encontrada")
+		writeError(w, 404, "proposal not found")
 		return
 	}
 
 	if status == "pending" {
-		writeError(w, 400, "esta propuesta ya fue aprobada para votacion y esta en curso")
+		writeError(w, 400, "this proposal has already been approved for voting and is in progress")
 		return
 	}
 	if status == "approved" || status == "executed" {
-		writeError(w, 400, "esta propuesta ya fue aprobada y ejecutada")
+		writeError(w, 400, "this proposal has already been approved and executed")
 		return
 	}
 	if status == "rejected" || status == "expired" {
-		writeError(w, 400, "esta propuesta fue rechazada o expirada")
+		writeError(w, 400, "this proposal was rejected or expired")
 		return
 	}
 	if status != "proposed" {
-		writeError(w, 400, "esta propuesta no esta pendiente de revision (estado: "+status+")")
+		writeError(w, 400, "this proposal is not pending review (status: "+status+")")
 		return
 	}
 
@@ -695,13 +695,13 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 	var assemblyID uuid.UUID
 	h.Pool.QueryRow(r.Context(), `SELECT status, voting_deadline, assembly_id FROM assembly_decisions WHERE id = $1`, decisionID).Scan(&status, &votingDeadline, &assemblyID)
 	if status != "pending" {
-		writeError(w, 400, "esta propuesta ya no acepta votos (estado: "+status+")")
+		writeError(w, 400, "this proposal no longer accepts votes (status: "+status+")")
 		return
 	}
 	if votingDeadline != nil && votingDeadline.Before(time.Now()) {
 		// Marcar como expirada
 		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'expired' WHERE id = $1`, decisionID)
-		writeError(w, 400, "el tiempo de votacion ha expirado")
+		writeError(w, 400, "voting time has expired")
 		return
 	}
 
@@ -714,7 +714,7 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 		var isPresent int
 		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_attendance WHERE session_id = $1 AND user_id = $2`, assemblyID, userID).Scan(&isPresent)
 		if isPresent == 0 {
-			writeError(w, 403, "esta votacion es presencial. Solo pueden votar los miembros presentes. No estas en la lista de asistencia.")
+			writeError(w, 403, "this voting is in-person. Only members present can vote. You are not on the attendance list.")
 			return
 		}
 	}
@@ -724,7 +724,7 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 		var isBoardMember int
 		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM board_members WHERE user_id = $1 AND is_active = true`, userID).Scan(&isBoardMember)
 		if isBoardMember == 0 {
-			writeError(w, 403, "esta votacion es de junta directiva. Solo pueden votar los miembros de la junta.")
+			writeError(w, 403, "this voting is for the board of directors. Only board members can vote.")
 			return
 		}
 	}
@@ -805,7 +805,7 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 	// Auto-expirar si el deadline ya paso
 	if status == "pending" && votingDeadline != nil && votingDeadline.Before(time.Now()) {
 		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'expired' WHERE id = $1`, decisionID)
-		writeError(w, 400, "el tiempo de votacion ha expirado. Para revotar, crea una nueva propuesta.")
+		writeError(w, 400, "voting time has expired. To revote, create a new proposal.")
 		return
 	}
 	if status != "approved" && status != "pending" {
@@ -1074,7 +1074,7 @@ func (h *AssemblyHandler) directApproveProposal(w http.ResponseWriter, r *http.R
 			FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2 AND is_active = true`,
 			nodeDomain, decisionType).Scan(&approvalMethod, &authorizedPersonID)
 		if err != nil {
-			writeError(w, 403, "no tienes permiso para aprobar directamente esta propuesta")
+			writeError(w, 403, "you do not have permission to directly approve this proposal")
 			return
 		}
 
@@ -1097,7 +1097,7 @@ func (h *AssemblyHandler) directApproveProposal(w http.ResponseWriter, r *http.R
 		}
 
 		if !canDirect {
-			writeError(w, 403, "no tienes permiso para aprobar directamente esta propuesta. Se requiere votacion.")
+			writeError(w, 403, "you do not have permission to directly approve this proposal. Voting is required.")
 			return
 		}
 	}
@@ -1117,11 +1117,11 @@ func (h *AssemblyHandler) directApproveProposal(w http.ResponseWriter, r *http.R
 	}
 
 	if status == "executed" {
-		writeError(w, 400, "la propuesta ya fue ejecutada")
+		writeError(w, 400, "this proposal has already been executed")
 		return
 	}
 	if status == "rejected" || status == "expired" {
-		writeError(w, 400, "la propuesta no puede ser aprobada (estado: "+status+")")
+		writeError(w, 400, "this proposal cannot be approved (status: "+status+")")
 		return
 	}
 
@@ -1323,19 +1323,19 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		reason, _ := params["razon"].(string)
 
 		if toAccountStr == "" || amount <= 0 {
-			return fmt.Errorf("cuenta destino y monto son obligatorios")
+			return fmt.Errorf("destination account and amount are required")
 		}
 
 		toAccountID, err := uuid.Parse(toAccountStr)
 		if err != nil {
-			return fmt.Errorf("cuenta destino invalida")
+			return fmt.Errorf("invalid destination account")
 		}
 
 		// Validar que la cuenta destino NO sea una persona
 		var accountType string
 		h.Pool.QueryRow(r.Context(), `SELECT account_type FROM users WHERE id = $1`, toAccountID).Scan(&accountType)
 		if accountType == "individual" {
-			return fmt.Errorf("la asamblea del nodo no puede transferir dinero directamente a personas. Transfiere a un departamento u organizacion, y ellos deciden como distribuirlo")
+			return fmt.Errorf("the assembly cannot transfer money directly to individuals. Transfer to a department or organization, and they decide how to distribute it")
 		}
 
 		// Obtener la cuenta de la Asamblea General (que es el Fondo Comunitario)
@@ -1344,7 +1344,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		var fromAccountID uuid.UUID
 		h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, nodeDomain).Scan(&fromAccountID)
 		if fromAccountID == uuid.Nil {
-			return fmt.Errorf("no hay cuenta de Asamblea General configurada")
+			return fmt.Errorf("no General Assembly account configured")
 		}
 
 		// Realizar la transferencia
@@ -1352,13 +1352,13 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			UPDATE users SET balance = balance - $1 WHERE id = $2`,
 			int64(amount), fromAccountID)
 		if err != nil {
-			return fmt.Errorf("error al debitar: %w", err)
+			return fmt.Errorf("error debiting: %w", err)
 		}
 		_, err = h.Pool.Exec(r.Context(), `
 			UPDATE users SET balance = balance + $1 WHERE id = $2`,
 			int64(amount), toAccountID)
 		if err != nil {
-			return fmt.Errorf("error al acreditar: %w", err)
+			return fmt.Errorf("error crediting: %w", err)
 		}
 
 		// Registrar la transferencia
@@ -1514,7 +1514,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		// Activar usuario preliminar con nivel 'new'
 		admissionReqID, _ := params["admission_request_id"].(string)
 		if admissionReqID == "" {
-			return fmt.Errorf("admission_request_id no encontrado en parametros")
+			return fmt.Errorf("admission_request_id not found in parameters")
 		}
 
 		// Buscar la solicitud y el usuario creado
@@ -1524,10 +1524,10 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			SELECT created_user_id, proposed_username FROM admission_requests WHERE id = $1::uuid`,
 			admissionReqID).Scan(&createdUserID, &proposedUsername)
 		if err != nil {
-			return fmt.Errorf("solicitud de admision no encontrada: %w", err)
+			return fmt.Errorf("admission request not found: %w", err)
 		}
 		if createdUserID == nil {
-			return fmt.Errorf("la solicitud no tiene usuario preliminar asociado")
+			return fmt.Errorf("the request has no associated preliminary user")
 		}
 
 		// Obtener limites del nivel 'new'
@@ -1545,7 +1545,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			WHERE id = $4`,
 			levelID, creditLimit, debitLimit, *createdUserID)
 		if err != nil {
-			return fmt.Errorf("error activando usuario: %w", err)
+			return fmt.Errorf("error activating user: %w", err)
 		}
 
 		// Marcar solicitud como aprobada y borrar password preliminar
@@ -1555,7 +1555,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			WHERE id = $1::uuid`,
 			admissionReqID)
 		if err != nil {
-			return fmt.Errorf("error actualizando solicitud: %w", err)
+			return fmt.Errorf("error updating request: %w", err)
 		}
 
 		// Notificar al nuevo miembro
@@ -1980,7 +1980,7 @@ func (h *AssemblyHandler) checkDirectPermission(w http.ResponseWriter, r *http.R
 		writeJSON(w, 200, map[string]interface{}{
 			"can_direct": true,
 			"method":     "super_admin",
-			"reason":     "Eres Super Admin habilitado: puedes aprobar y ejecutar directamente.",
+			"reason":     "You are Super Admin enabled: you can approve and execute directly.",
 		})
 		return
 	}
@@ -1997,7 +1997,7 @@ func (h *AssemblyHandler) checkDirectPermission(w http.ResponseWriter, r *http.R
 		writeJSON(w, 200, map[string]interface{}{
 			"can_direct": true,
 			"method":     "legacy",
-			"reason":     "No hay configuracion de Asamblea para este tipo de cambio. Se permite cambio directo.",
+			"reason":     "No Assembly configuration for this type of change. Direct change allowed.",
 		})
 		return
 	}
@@ -2009,9 +2009,9 @@ func (h *AssemblyHandler) checkDirectPermission(w http.ResponseWriter, r *http.R
 	case "person":
 		if authorizedPersonID != nil && *authorizedPersonID == userID {
 			canDirect = true
-			reason = "Eres la persona autorizada para este cambio."
+			reason = "You are the authorized person for this change."
 		} else {
-			reason = "Este cambio requiere la persona autorizada. Crea una propuesta."
+			reason = "This change requires the authorized person. Create a proposal."
 		}
 	case "authorized_any":
 		// Cualquiera de las personas autorizadas en signers puede hacer el cambio
@@ -2023,14 +2023,14 @@ func (h *AssemblyHandler) checkDirectPermission(w http.ResponseWriter, r *http.R
 			nodeDomain, proposalType, userID).Scan(&signerUserID)
 		if err == nil {
 			canDirect = true
-			reason = "Eres una de las personas autorizadas para este cambio."
+			reason = "You are one of the authorized people for this change."
 		} else {
-			reason = "Este cambio requiere una de las personas autorizadas. Crea una propuesta."
+			reason = "This change requires one of the authorized people. Create a proposal."
 		}
 	case "assembly", "board", "council", "multisig", "organization":
-		reason = "Este cambio requiere aprobacion por " + approvalMethod + ". Crea una propuesta."
+		reason = "This change requires approval by " + approvalMethod + ". Create a proposal."
 	default:
-		reason = "Metodo de aprobacion desconocido."
+		reason = "Unknown approval method."
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
@@ -2103,7 +2103,7 @@ func (h *AssemblyHandler) getProposalReport(w http.ResponseWriter, r *http.Reque
 		FROM assembly_decisions WHERE id = $1`, decisionID).
 		Scan(&assemblyID, &decisionType, &description, &status, &createdAt, &executedAt, &votingDeadline, &votingDurationMinutes)
 	if err != nil {
-		writeError(w, 404, "propuesta no encontrada")
+		writeError(w, 404, "proposal not found")
 		return
 	}
 

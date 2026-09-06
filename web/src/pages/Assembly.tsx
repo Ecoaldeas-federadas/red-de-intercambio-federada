@@ -96,42 +96,42 @@ interface ProposalField {
   entityModes?: EntityMode[]
 }
 
-const APPROVAL_MODE_OPTIONS = [
-  { value: 'assembly', label: 'Asamblea - Decision por votacion de todos los miembros con voto' },
-  { value: 'council', label: 'Consejo - Decision por la junta directiva' },
-  { value: 'multi_sig', label: 'Multi-firma - Requiere N firmas de miembros autorizados' },
+const APPROVAL_MODE_OPTIONS = (t: any) => [
+  { value: 'assembly', label: t('assembly:opt_assembly') },
+  { value: 'council', label: t('assembly:opt_council') },
+  { value: 'multi_sig', label: t('assembly:opt_multi_sig') },
 ]
 
-const ACCOUNT_TYPE_OPTIONS = [
-  { value: 'asset', label: 'Activo - Recursos y bienes disponibles (efectivo, inventario, equipos)' },
-  { value: 'liability', label: 'Pasivo - Deudas y obligaciones con terceros (prestamos, cuentas por pagar)' },
-  { value: 'equity', label: 'Patrimonio - Fondos propios de la comunidad (capital inicial, reservas)' },
-  { value: 'income', label: 'Ingreso - Entradas de dinero (ventas, donaciones, cuotas, aportes)' },
-  { value: 'expense', label: 'Egreso - Salidas de dinero (compras, gastos operativos, pagos)' },
+const ACCOUNT_TYPE_OPTIONS = (t: any) => [
+  { value: 'asset', label: t('assembly:opt_asset') },
+  { value: 'liability', label: t('assembly:opt_liability') },
+  { value: 'equity', label: t('assembly:opt_equity') },
+  { value: 'income', label: t('assembly:opt_income') },
+  { value: 'expense', label: t('assembly:opt_expense') },
 ]
 
-const ENERGY_PARAM_OPTIONS = [
-  { value: 'kwh_price', label: 'Precio por kWh - Tarifa por unidad de energia consumida' },
-  { value: 'base_fee', label: 'Cargo fijo - Costo fijo mensual de conexion' },
-  { value: 'connection_fee', label: 'Costo de conexion - Tarifa por nueva conexion' },
-  { value: 'minimum_charge', label: 'Consumo minimo - Cargo minimo mensual' },
+const ENERGY_PARAM_OPTIONS = (t: any) => [
+  { value: 'kwh_price', label: t('assembly:opt_kwh_price') },
+  { value: 'base_fee', label: t('assembly:opt_base_fee') },
+  { value: 'connection_fee', label: t('assembly:opt_connection_fee') },
+  { value: 'minimum_charge', label: t('assembly:opt_minimum_charge') },
 ]
 
-const FREE_CATEGORY_OPTIONS = [
-  { value: 'social', label: 'Social - Temas comunitarios y bienestar' },
-  { value: 'economic', label: 'Economico - Temas financieros y comerciales' },
-  { value: 'governance', label: 'Gobernanza - Reglas y organizacion interna' },
-  { value: 'technical', label: 'Tecnico - Infraestructura y sistemas' },
-  { value: 'other', label: 'Otro - Cualquier otro tema' },
+const FREE_CATEGORY_OPTIONS = (t: any) => [
+  { value: 'social', label: t('assembly:opt_social') },
+  { value: 'economic', label: t('assembly:opt_economic') },
+  { value: 'governance', label: t('assembly:opt_governance') },
+  { value: 'technical', label: t('assembly:opt_technical') },
+  { value: 'other', label: t('assembly:opt_other') },
 ]
 
-const TAX_APPLIES_OPTIONS = [
-  { value: 'all', label: 'Todos los niveles - Aplica a todas las transacciones' },
-  { value: 'member_level', label: 'Nivel de miembro - Aplica a un nivel de miembro especifico' },
-  { value: 'org_level', label: 'Nivel de organizacion - Aplica a un nivel de organizacion especifico' },
+const TAX_APPLIES_OPTIONS = (t: any) => [
+  { value: 'all', label: t('assembly:opt_tax_all') },
+  { value: 'member_level', label: t('assembly:opt_tax_member') },
+  { value: 'org_level', label: t('assembly:opt_tax_org') },
 ]
 
-const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]> => ({
+const PROPOSAL_FIELDS = (currency: string, t: any): Record<ProposalType, ProposalField[]> => ({
   limit_change: [
     {
       key: 'usuario_organizacion',
@@ -224,7 +224,7 @@ const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]
       label: 'Modo de aprobacion',
       help: 'Define como se aprueban las recuperaciones de cuenta. Asamblea = votacion de todos. Consejo = junta directiva. Multi-firma = N firmas autorizadas.',
       type: 'select',
-      options: APPROVAL_MODE_OPTIONS,
+      options: APPROVAL_MODE_OPTIONS(t),
     },
     { key: 'aprobaciones', label: 'Numero de aprobaciones', help: 'Cantidad de firmas/aprobaciones necesarias (solo para multi_sig). Ej: 3.', placeholder: '3', type: 'number' },
   ],
@@ -234,7 +234,7 @@ const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]
       label: 'Aplica a',
       help: 'Selecciona a quien se le aplica el impuesto: todos, un nivel de miembro o un nivel de organizacion.',
       type: 'select',
-      options: TAX_APPLIES_OPTIONS,
+      options: TAX_APPLIES_OPTIONS(t),
     },
     {
       key: 'nivel',
@@ -277,7 +277,7 @@ const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]
       label: 'Tipo de cuenta contable',
       help: 'Define la naturaleza contable de la cuenta:\n• Activo: Recursos y bienes que el nodo posee (efectivo en caja, inventario de productos, equipos, terrenos).\n• Pasivo: Deudas y obligaciones con terceros (prestamos pendientes, cuentas por pagar a proveedores).\n• Patrimonio: Fondos propios de la comunidad (capital inicial, reservas, acumulacion de excedentes).\n• Ingreso: Entradas de dinero al nodo (ventas, donaciones recibidas, cuotas de miembros, aportes).\n• Egreso: Salidas de dinero del nodo (compras, gastos operativos, pagos a proveedores, mantenimiento).\nLa cuenta se creara con saldo 0. Para asignarle saldo, se debe hacer una transferencia desde otra cuenta o un deposito inicial aprobado por la Asamblea.',
       type: 'select',
-      options: ACCOUNT_TYPE_OPTIONS,
+      options: ACCOUNT_TYPE_OPTIONS(t),
     },
     { key: 'descripcion', label: 'Descripcion de la cuenta', help: 'Describe para que sirve esta cuenta y como se usara. Ej: "Fondo para actividades sociales de la comunidad - se recarga con el 10% de los excedentes mensuales".', placeholder: 'Descripcion de la cuenta contable', type: 'textarea' },
     {
@@ -313,7 +313,7 @@ const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]
       label: 'Parametro a cambiar',
       help: 'Selecciona el parametro de la tarifa energetica que se modificara. Ej: precio por kWh.',
       type: 'select',
-      options: ENERGY_PARAM_OPTIONS,
+      options: ENERGY_PARAM_OPTIONS(t),
     },
     { key: 'nuevo_valor', label: 'Nuevo valor', help: 'Nuevo valor del parametro seleccionado. Ej: 0.15 para el precio por kWh.', placeholder: '0.15', type: 'number' },
   ],
@@ -341,7 +341,7 @@ const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]
       label: 'Categoria',
       help: 'Clasifica la propuesta en una categoria. Ej: Social, Economico, Gobernanza.',
       type: 'select',
-      options: FREE_CATEGORY_OPTIONS,
+      options: FREE_CATEGORY_OPTIONS(t),
     },
     { key: 'subcategoria', label: 'Subcategoria', help: 'Subcategoria opcional para mayor detalle. Ej: "bienestar_comunitario".', placeholder: 'ej: bienestar_comunitario', type: 'text' },
   ],
@@ -1540,7 +1540,7 @@ export default function Assembly() {
                 <p className="text-xs text-gray-400 mt-1">{t(PROPOSAL_HELP_KEYS[proposalType] || '')}</p>
               </div>
 
-              {PROPOSAL_FIELDS(currency)[proposalType]?.map((field) => renderProposalField(field))}
+              {PROPOSAL_FIELDS(currency, t)[proposalType]?.map((field) => renderProposalField(field))}
 
               <div>
                 <label className="label">{t('assembly_proposal_desc', 'Descripcion de la propuesta')}</label>
