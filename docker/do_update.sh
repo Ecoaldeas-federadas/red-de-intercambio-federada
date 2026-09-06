@@ -229,6 +229,12 @@ log "--- git clean -fd ---"
 git -C "$PROJECT_DIR" clean -fd >> "$LOG_FILE" 2>&1 || true
 log "Cambios del repositorio aplicados"
 
+# CRITICO: git reset/clean puede recrear los .sh sin bit ejecutable
+# (en montajes Windows el modo del index no siempre se preserva).
+# Sin +x, socat falla con "Permission denied" y el updater muere.
+chmod +x "$PROJECT_DIR"/docker/*.sh 2>/dev/null || true
+log "Permisos +x reaplicados a docker/*.sh"
+
 NEW_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "")
 log "Nuevo commit: $NEW_COMMIT"
 
