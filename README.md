@@ -1,35 +1,36 @@
 # Red de Intercambio Federada
 
-Sistema de moneda comunitaria federada para redes de trueque y bancos comunitarios.
-Cada nodo opera de forma independiente y se federa con otros nodos via protocolo mTLS.
+Sistema de contabilidad descentralizada y crédito mutuo de suma cero para redes de trueque federadas.
+Cada nodo opera de forma independiente y gestiona su propio libro contable de "Mano Vuelta" (saldo cero), federándose con otros nodos vía protocolo mTLS para el intercambio multilateral.
 
-## Caracteristicas
+## Características
 
-- **Moneda digital local**: cada nodo emite y gestiona su propia moneda comunitaria (TQ)
-- **TQ no es dinero**: registra energia, contribuciones y compromisos. No es bancario, no genera intereses
-- **Modelo energetico**: precios basados en energia incorporada por kg de material (estandar ICE Database)
-- **Federacion entre nodos**: transferencias cross-node con piscina global multilateral y piscinas bilaterales
-- **Piscina global**: saldo compartido entre todos los nodos — un saldo ganado con el nodo B se gasta con el nodo C
-- **Piscinas bilaterales**: acuerdos especificos entre dos nodos, independientes de la piscina global
-- **Integridad distribuida**: firma dual (ambos nodos firman) + hash encadenado + reconciliacion al reconectar
-- **Niveles de nodo federado**: Nodo Nuevo (nivel 1, sin voto), Nodo Aceptado (nivel 2, con voto), Nodo Pleno (nivel 3)
-- **Sistema de padrino**: un nodo nivel 2+ ingresa nodos nuevos y es responsable de su deuda
-- **Verificacion de 4 opciones**: emparejamiento POS y federacion usan 4 codigos para verificar comunicacion fuera de banda
-- **Federacion de productos**: productos aprobados por un nodo se distribuyen a otros para aprobacion individual
-- **Productos compuestos**: cualquier usuario crea productos combinando materias primas aprobadas, precio automatico
-- **Calculo por rendimiento**: especificas cuanto compraste y cuantos productos salen, el sistema calcula el costo por unidad
-- **Grupos de productos**: items del mismo precio se agrupan en un contenedor padre (ej: Frutas de Temporada contiene Mango, Naranja, etc.)
-- **Categorias jerarquicas**: 3 niveles controlados (padre > categoria > subcategoria), los vendedores no crean categorias
-- **Buscador de componentes**: modal con busqueda de texto y filtro por categoria
-- **Tienda comunitaria**: tipo Mercado Libre por nodo, cada usuario tiene su tienda personal
-- **Pagos QR**: generar y escanear codigos QR con monto fijo o libre (como pago movil)
-- **Terminales NFC ESP32**: pagos con tarjetas NFC, claves efimeras por transaccion (forward secrecy)
-- **NFC federado**: tarjetas de otros nodos funcionan via consulta directa al nodo origen (BIN-style)
-- **Gobernanza**: asambleas, organizaciones, departamentos con permisos granulares
-- **Paridad**: calculo de paridad entre monedas de diferentes nodos
-- **Comercio externo**: puente con moneda fiat externa
-- **Recuperacion de cuentas**: via claves de recuperacion
-- **Sitio web publico**: cada nodo tiene su pagina web publica configurable
+- **Registro contable de saldo cero**: El sistema no emite ni crea tokens virtuales del vacío. Cada nodo gestiona un libro de crédito mutuo simétrico (TQ) que registra compromisos y derechos de esfuerzo, donde la suma global siempre da exactamente cero.
+- **TQ no es dinero**: No es un depósito de valor ni un commodity financiero; es una métrica contable que mide energía, contribuciones y compromisos reales de sustento. No es bancario, no genera intereses y es inacumulable.
+- **Modelo energético**: Valoración y precios basados en la energía incorporada por kg de material (estándar ICE Database).
+- **Federación entre nodos**: Transferencias cross-node con piscina global multilateral y piscinas bilaterales para compensación de balances.
+- **Piscina global**: Balance compartido entre todos los nodos — un saldo de esfuerzo ganado con el nodo B se puede redimir con el nodo C.
+- **Piscinas bilaterales**: Acuerdos específicos de intercambio directo entre dos nodos, independientes de la piscina global.
+- **Integridad distribuida**: Firma dual (ambos usuarios firman la transacción) + hash encadenado por cuenta + reconciliación de balances al reconectar.
+- **Niveles de nodo federado**: Nodo Nuevo (nivel 1, sin voto), Nodo Aceptado (nivel 2, con voto), Nodo Pleno (nivel 3, confianza total).
+- **Sistema de padrino**: Un nodo nivel 2+ ingresa nodos nuevos y actúa como garante y responsable de su balance de deuda.
+- **Verificación de 4 opciones**: Emparejamiento POS y federación usan 4 códigos visuales/auditivos para verificar la comunicación segura fuera de banda.
+- **Federación de productos**: Los catálogos de productos aprobados por un nodo se distribuyen a otros para su validación e incorporación individual.
+- **Productos compuestos**: Cualquier usuario crea productos combinando materias primas aprobadas, con cálculo automático del costo energético.
+- **Cálculo por rendimiento**: Especificas cuánto compraste y cuántos productos resultaron de la receta; el sistema calcula automáticamente el costo de esfuerzo por unidad.
+- **Grupos de productos**: Ítems del mismo valor se agrupan en un contenedor padre (ej: "Frutas de Temporada" contiene Mango, Naranja, etc.) para simplificar el inventario.
+- **Categorías jerárquicas**: 3 niveles de categorías controladas por la asamblea (Padre > Categoría > Subcategoría). Los vendedores no pueden inventar categorías al azar.
+- **Buscador de componentes**: Modal interactivo con búsqueda de texto y filtro avanzado por categoría.
+- **Tienda comunitaria**: Interfaz tipo mercado libre local por nodo; cada usuario tiene su vitrina o tienda personal de ofertas.
+- **Pagos QR**: Generación y escaneo de códigos QR dinámicos con monto fijo o libre para transacciones rápidas.
+- **Terminales NFC ESP32**: Pagos físicos offline mediante tarjetas o llaveros NFC de bajo costo, utilizando claves efímeras por transacción (forward secrecy).
+- **NFC federado**: Las tarjetas de un nodo funcionan de forma segura en terminales de otros nodos vía consulta directa al nodo de origen (estilo BIN bancario).
+- **Gobernanza local**: Módulos para gestión de asambleas, registro de organizaciones comunitarias y departamentos con permisos granulares.
+- **Paridad de métrica**: Cálculo de paridad y equivalencia de esfuerzo entre los límites de diferentes nodos federados.
+- **Comercio externo**: Puertas de enlace (gateways) de bienes físicos para transaccionar con el exterior de forma regulada.
+- **Recuperación de cuentas**: Recuperación segura de billeteras mediante criptografía de claves compartidas.
+- **Sitio web público**: Cada nodo autogestiona su página web pública informativa y configurable de forma nativa.
+
 
 ## Requisitos
 
