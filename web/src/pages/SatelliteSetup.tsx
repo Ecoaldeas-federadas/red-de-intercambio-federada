@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Satellite, Download, Upload, RefreshCw, Users, CreditCard, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Satellite, Download, Upload, RefreshCw, Users, CreditCard, AlertTriangle, CheckCircle, HelpCircle } from 'lucide-react'
 import { api } from '../api'
 import { fmtDateTime } from '../lib/format'
 
 export default function SatelliteSetup() {
   const { t } = useTranslation(['satellite', 'common'])
+  const [showHelp, setShowHelp] = useState(false)
   const [status, setStatus] = useState<any>(null)
   const [cachedUsers, setCachedUsers] = useState<any[]>([])
   const [pendingTx, setPendingTx] = useState<any[]>([])
@@ -95,7 +96,19 @@ export default function SatelliteSetup() {
       <div className="flex items-center gap-2 mb-2">
         <Satellite size={24} className="text-purple-600" />
         <h2 className="text-xl font-bold">{t('title')}</h2>
+        <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700 ml-auto"><HelpCircle size={20} /></button>
       </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+          <p><strong>{t('sat_help_title', '', { ns: 'federation' })}</strong></p>
+          <p><strong>{t('sat_help_what_label', '', { ns: 'federation' })}</strong> {t('sat_help_what', '', { ns: 'federation' })}</p>
+          <p><strong>{t('sat_help_purpose_label', '', { ns: 'federation' })}</strong> {t('sat_help_purpose', '', { ns: 'federation' })}</p>
+          <p><strong>{t('sat_help_sync_label', '', { ns: 'federation' })}</strong> {t('sat_help_sync', '', { ns: 'federation' })}</p>
+          <p><strong>{t('sat_help_activate_label', '', { ns: 'federation' })}</strong> {t('sat_help_activate', '', { ns: 'federation' })}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', { ns: 'common' })}</button>
+        </div>
+      )}
 
       {!isSatellite && (
         <div className="card bg-amber-50 border-amber-200 text-sm text-amber-800">

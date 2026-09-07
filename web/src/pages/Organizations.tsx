@@ -103,8 +103,8 @@ export default function Organizations() {
 
   const loadTypes = async () => {
     try {
-      const data = await api.get<any>('/organizations/types')
-      const types = Array.isArray(data) ? data : data?.types
+      const data: any = await api.get<any>('/organizations/types')
+      const types = Array.isArray(data) ? data : (data as any)?.types
       if (Array.isArray(types) && types.length > 0) {
         setOrgTypes(types)
       } else {

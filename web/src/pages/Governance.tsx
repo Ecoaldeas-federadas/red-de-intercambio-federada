@@ -283,7 +283,7 @@ export default function Governance() {
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               {/* Tipo de regla - campo principal */}
               <div>
-                <label className="block text-sm font-medium mb-1">Tipo de regla</label>
+                <label className="block text-sm font-medium mb-1">{t('governance.rule_type_label')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {RULE_TYPES.map(rt => {
                     const Icon = rt.icon
@@ -306,7 +306,7 @@ export default function Governance() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Categoria</label>
+                <label className="block text-sm font-medium mb-1">{t('governance.category_label')}</label>
                 <select
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
@@ -318,7 +318,7 @@ export default function Governance() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Titulo</label>
+                <label className="block text-sm font-medium mb-1">{t('governance.title_label')}</label>
                 <input
                   type="text"
                   value={formData.title}
@@ -328,7 +328,7 @@ export default function Governance() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Descripcion</label>
+                <label className="block text-sm font-medium mb-1">{t('governance.description_label')}</label>
                 <textarea
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -338,7 +338,7 @@ export default function Governance() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Severidad</label>
+                  <label className="block text-sm font-medium mb-1">{t('governance.severity_label')}</label>
                   <select
                     value={formData.severity}
                     onChange={e => setFormData({ ...formData, severity: e.target.value })}
@@ -350,7 +350,7 @@ export default function Governance() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Icono</label>
+                  <label className="block text-sm font-medium mb-1">{t('governance.icon_label')}</label>
                   <input
                     type="text"
                     value={formData.icon}
@@ -360,7 +360,7 @@ export default function Governance() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Orden</label>
+                  <label className="block text-sm font-medium mb-1">{t('governance.order_label')}</label>
                   <input
                     type="number"
                     value={formData.sort_order}
@@ -371,10 +371,10 @@ export default function Governance() {
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => { setShowCreate(false); setEditingRule(null) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                  Cancelar
+                  {t('governance.cancel')}
                 </button>
                 <button type="submit" className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">
-                  {editingRule ? t('common:save') : 'Crear'}
+                  {editingRule ? t('common:save') : t('governance.create')}
                 </button>
               </div>
             </form>

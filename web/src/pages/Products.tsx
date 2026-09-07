@@ -49,6 +49,7 @@ type MyNodeSubTab = 'allowed' | 'disallowed'
 
 export default function Products() {
   const { t } = useTranslation(['products', 'common'])
+  const tc = (name: string) => t(`category.${name}`, { ns: 'products', defaultValue: name })
   const { hasPermission } = usePermissions()
   const { currency } = useConfig()
   const canManage = hasPermission('products.manage')
@@ -530,7 +531,7 @@ export default function Products() {
           >
             <option value="">{t('form_select_placeholder', 'Seleccionar...')}</option>
             {Object.keys(PARENT_CATEGORIES).map((pc) => (
-              <option key={pc} value={pc}>{pc}</option>
+              <option key={pc} value={pc}>{tc(pc)}</option>
             ))}
           </select>
         </div>
@@ -544,10 +545,10 @@ export default function Products() {
           >
             <option value="">{t('form_select_placeholder', 'Seleccionar...')}</option>
             {form.parent_category && PARENT_CATEGORIES[form.parent_category]?.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>{tc(c)}</option>
             ))}
             {form.parent_category && !PARENT_CATEGORIES[form.parent_category]?.includes(form.category) && form.category && (
-              <option value={form.category}>{form.category}</option>
+              <option value={form.category}>{tc(form.category)}</option>
             )}
           </select>
         </div>
@@ -652,7 +653,7 @@ export default function Products() {
                     </div>
                     <p className="text-xs text-gray-600 mt-1">{p.description}</p>
                     <p className="text-[10px] text-gray-400 mt-1">
-                      {p.parent_category} › {p.category} {p.subcategory ? `› ${p.subcategory}` : ''}
+                      {tc(p.parent_category)} › {tc(p.category)} {p.subcategory ? `› ${tc(p.subcategory)}` : ''}
                       {p.is_composite && <span className="ml-2 text-emerald-600 font-medium">{t('composite_badge', 'Compuesto')}</span>}
                     </p>
                   </div>
@@ -691,7 +692,7 @@ export default function Products() {
                     </div>
                     <p className="text-xs text-gray-600 mt-1">{p.description}</p>
                     <p className="text-[10px] text-gray-400 mt-1">
-                      {p.parent_category} › {p.category} {p.subcategory ? `› ${p.subcategory}` : ''}
+                      {tc(p.parent_category)} › {tc(p.category)} {p.subcategory ? `› ${tc(p.subcategory)}` : ''}
                     </p>
                   </div>
                   {canManage && (
@@ -863,7 +864,7 @@ export default function Products() {
                         filterParentCategory === pc ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                       }`}
                     >
-                      {pc} ({count})
+                      {tc(pc)} ({count})
                     </button>
                   )
                 })}
@@ -889,7 +890,7 @@ export default function Products() {
                           filterCategory === cat ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                         }`}
                       >
-                        {cat} ({count})
+                        {tc(cat)} ({count})
                       </button>
                     )
                   })}
@@ -904,7 +905,7 @@ export default function Products() {
                       filterSubcategory === '' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200'
                     }`}
                   >
-                    Todas ({products.filter((p) => p.parent_category === filterParentCategory && p.category === filterCategory).length})
+                    {t('all', 'Todas')} ({products.filter((p) => p.parent_category === filterParentCategory && p.category === filterCategory).length})
                   </button>
                   {subcategories.map((sub) => {
                     const count = products.filter((p) => p.parent_category === filterParentCategory && p.category === filterCategory && p.subcategory === sub).length
@@ -916,7 +917,7 @@ export default function Products() {
                           filterSubcategory === sub ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200'
                         }`}
                       >
-                        {sub} ({count})
+                        {tc(sub)} ({count})
                       </button>
                     )
                   })}
@@ -1052,9 +1053,9 @@ export default function Products() {
                           <p className="text-[10px] text-gray-400">{p.price_calculation}</p>
                         )}
                         <p className="text-xs text-gray-400">
-                          {p.parent_category && <span className="text-gray-600 font-medium">{p.parent_category}</span>}
-                          {p.category && <span> › <span className="text-gray-600 font-medium">{p.category}</span></span>}
-                          {p.subcategory && <span> › <span className="text-gray-600 font-medium">{p.subcategory}</span></span>}
+                          {p.parent_category && <span className="text-gray-600 font-medium">{tc(p.parent_category)}</span>}
+                          {p.category && <span> › <span className="text-gray-600 font-medium">{tc(p.category)}</span></span>}
+                          {p.subcategory && <span> › <span className="text-gray-600 font-medium">{tc(p.subcategory)}</span></span>}
                         </p>
                         {p.product_code && <p className="text-xs text-gray-400">{t('code_label', 'Código:')} {p.product_code}</p>}
                         {activeTab === 'federated' && p.node_domain && (

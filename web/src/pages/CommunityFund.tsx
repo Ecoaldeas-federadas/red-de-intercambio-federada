@@ -45,7 +45,7 @@ export default function CommunityFund() {
     try {
       await api.post('/assembly/proposals', {
         proposal_type: 'budget_increase',
-        description: `Distribucion del fondo: ${newProposal.reason}`,
+        description: t('fund.proposal_description', { reason: newProposal.reason }),
         parameters: {
           organizacion: newProposal.recipient,
           monto: newProposal.amount,
@@ -179,7 +179,7 @@ export default function CommunityFund() {
                     p.status === 'executed' ? 'bg-green-100 text-green-700' :
                     p.status === 'rejected' ? 'bg-red-100 text-red-700' :
                     'bg-yellow-100 text-yellow-700'
-                  }`}>{p.status}</span>
+                  }`}>{String(t(`fund_status_${p.status}`, p.status))}</span>
                 </div>
                 <div className="flex items-center gap-4 mt-2 text-sm">
                   <span className="text-green-600">{t('fund_votes_for', 'A favor:')} {p.votes_for || 0}</span>

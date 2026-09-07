@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
-import { Server, Globe, Wifi, Download, Plus, Trash2, RefreshCw, Network as NetworkIcon, AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react'
+import { Server, Globe, Wifi, Download, Plus, Trash2, RefreshCw, Network as NetworkIcon, AlertTriangle, CheckCircle, XCircle, Info, HelpCircle } from 'lucide-react'
 
 interface NetworkStatus {
   mode: string
@@ -49,6 +49,7 @@ export default function NetworkConfig() {
   const [peers, setPeers] = useState<IntranetPeer[]>([])
   const [services, setServices] = useState<NetworkService[]>([])
   const [myInfo, setMyInfo] = useState<any>(null)
+  const [showHelp, setShowHelp] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
@@ -104,14 +105,14 @@ export default function NetworkConfig() {
   const loadStatus = async () => {
     try {
       const res = await api.get<NetworkStatus>('/network/status')
-      setStatus(res)
+      setStatus(res as NetworkStatus)
     } catch (e) { console.error(e) }
   }
 
   const loadConfig = async () => {
     try {
       const res = await api.get<NetworkConfigData>('/network/config')
-      setConfig(res)
+      setConfig(res as NetworkConfigData)
     } catch (e) { console.error(e) }
   }
 
@@ -262,12 +263,28 @@ export default function NetworkConfig() {
 
   return (
     <div className="space-y-4">
-      {/* Estado */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold flex items-center gap-2"><NetworkIcon size={18} /> {t('net_title', 'Red Privada Federada')}</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2"><NetworkIcon size={18} /> {t('net_title', 'Red Privada Federada')}</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700"><HelpCircle size={18} /></button>
           <button onClick={loadAll} className="text-gray-500 hover:text-gray-700"><RefreshCw size={16} /></button>
         </div>
+      </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+          <p><strong>{t('net_help_title', '', { ns: 'federation' })}</strong></p>
+          <p><strong>{t('net_help_what_label', '', { ns: 'federation' })}</strong> {t('net_help_what', '', { ns: 'federation' })}</p>
+          <p><strong>{t('net_help_purpose_label', '', { ns: 'federation' })}</strong> {t('net_help_purpose', '', { ns: 'federation' })}</p>
+          <p><strong>{t('net_help_mode_label', '', { ns: 'federation' })}</strong> {t('net_help_mode', '', { ns: 'federation' })}</p>
+          <p><strong>{t('net_help_wireguard_label', '', { ns: 'federation' })}</strong> {t('net_help_wireguard', '', { ns: 'federation' })}</p>
+          <p><strong>{t('net_help_services_label', '', { ns: 'federation' })}</strong> {t('net_help_services', '', { ns: 'federation' })}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', { ns: 'common' })}</button>
+        </div>
+      )}
+
+      {/* Estado */}
+      <div className="card p-4">
         {status && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div className="bg-gray-50 p-3 rounded-lg">

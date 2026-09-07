@@ -410,6 +410,7 @@ const BLOCK_DEFINITIONS: {
 
 export default function WebsiteAdmin() {
   const { t } = useTranslation(['website', 'common'])
+  const tt = (key: string) => t(key, { defaultValue: key })
   const { hasPermission } = usePermissions()
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -447,8 +448,8 @@ export default function WebsiteAdmin() {
 
   // Dynamic Admission Form Builder State
   const [formConfig, setFormConfig] = useState({
-    title: 'Solicitud de Ingreso a la Red',
-    subtitle: 'Completa tus datos para postularte como productor comunitario, artesano o miembro.',
+    title: '',
+    subtitle: '',
     schema: DEFAULT_ADMISSION_FIELDS as FormFieldSchema[],
   })
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null)
@@ -506,11 +507,11 @@ export default function WebsiteAdmin() {
     link_color: '#15803d',
     link_visited_color: '#6b21a8',
     footer_col1_title: '',
-    footer_col2_title: 'Páginas del Nodo',
-    footer_col3_title: 'Lugar de Encuentro',
-    footer_col4_title: 'Comunidad & Redes',
-    footer_slogan: '100% Autogestión & Suelo Vivo',
-    footer_admission_text: 'Llenar Solicitud de Ingreso',
+    footer_col2_title: '',
+    footer_col3_title: '',
+    footer_col4_title: '',
+    footer_slogan: '',
+    footer_admission_text: '',
   })
 
   const load = () => {
@@ -520,8 +521,8 @@ export default function WebsiteAdmin() {
     api.get('/public/admission-form').then((d: any) => {
       if (d) {
         setFormConfig({
-          title: d.title || 'Solicitud de Ingreso a la Red',
-          subtitle: d.subtitle || 'Completa tus datos para postularte como productor comunitario, artesano o miembro.',
+          title: d.title || t('form_title_default', 'Solicitud de Ingreso a la Red'),
+          subtitle: d.subtitle || t('form_subtitle_default', 'Completa tus datos para postularte como productor comunitario, artesano o miembro.'),
           schema: Array.isArray(d.schema) && d.schema.length > 0 ? d.schema : DEFAULT_ADMISSION_FIELDS,
         })
       }
@@ -587,11 +588,11 @@ export default function WebsiteAdmin() {
         link_color: settings.link_color || '#15803d',
         link_visited_color: settings.link_visited_color || '#6b21a8',
         footer_col1_title: settings.footer_col1_title || '',
-        footer_col2_title: settings.footer_col2_title || 'Páginas del Nodo',
-        footer_col3_title: settings.footer_col3_title || 'Lugar de Encuentro',
-        footer_col4_title: settings.footer_col4_title || 'Comunidad & Redes',
-        footer_slogan: settings.footer_slogan || '100% Autogestión & Suelo Vivo',
-        footer_admission_text: settings.footer_admission_text || 'Llenar Solicitud de Ingreso',
+        footer_col2_title: settings.footer_col2_title || '',
+        footer_col3_title: settings.footer_col3_title || '',
+        footer_col4_title: settings.footer_col4_title || '',
+        footer_slogan: settings.footer_slogan || '',
+        footer_admission_text: settings.footer_admission_text || '',
       })
     }
   }, [settings])
@@ -817,12 +818,12 @@ export default function WebsiteAdmin() {
   const addFormField = (type: FormFieldType = 'text') => {
     const newField: FormFieldSchema = {
       id: `field_${Date.now()}`,
-      label: 'Nueva Pregunta / Campo',
+      label: t('untitled_field'),
       type,
-      placeholder: 'Escribe tu respuesta aquí...',
-      help_text: 'Explicación de apoyo para el solicitante.',
+      placeholder: '',
+      help_text: '',
       required: false,
-      options: type === 'select' || type === 'radio' || type === 'checkbox' ? ['Opción 1', 'Opción 2'] : undefined,
+      options: type === 'select' || type === 'radio' || type === 'checkbox' ? [t('option_default_1', 'Opción 1'), t('option_default_2', 'Opción 2')] : undefined,
     }
     const updated = [...formConfig.schema, newField]
     setFormConfig({ ...formConfig, schema: updated })
@@ -865,9 +866,9 @@ export default function WebsiteAdmin() {
 
   // Reject admission request with reason
   const rejectAdmission = async (id: string) => {
-    const reason = prompt('Motivo del rechazo (mínimo 10 caracteres):')
+    const reason = prompt(t('rejection_reason_prompt', 'Motivo del rechazo (mínimo 10 caracteres):'))
     if (!reason || reason.length < 10) {
-      if (reason !== null) alert('El motivo debe tener al menos 10 caracteres')
+      if (reason !== null) alert(t('rejection_reason_min', 'El motivo debe tener al menos 10 caracteres'))
       return
     }
     try {
@@ -881,7 +882,7 @@ export default function WebsiteAdmin() {
   // Review defense (accept or reject)
   const reviewDefense = async (id: string, action: 'accept' | 'reject') => {
     const notes = action === 'reject'
-      ? prompt('Notas sobre el rechazo de la defensa:') || ''
+      ? prompt(t('defense_reject_prompt', 'Notas sobre el rechazo de la defensa:')) || ''
       : ''
     try {
       await api.post(`/admission-requests/${id}/review-defense`, { action, notes })
@@ -924,6 +925,17 @@ export default function WebsiteAdmin() {
           </button>
         </div>
       </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
+          <p><strong>{t('help_title')}</strong></p>
+          <p><strong>{t('help_what_label')}</strong> {t('help_what')}</p>
+          <p><strong>{t('help_pages_label')}</strong> {t('help_pages')}</p>
+          <p><strong>{t('help_styles_label')}</strong> {t('help_styles')}</p>
+          <p><strong>{t('help_admission_label')}</strong> {t('help_admission')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('help_close')}</button>
+        </div>
+      )}
 
       {/* Notifications */}
       {error && (
@@ -1504,12 +1516,12 @@ export default function WebsiteAdmin() {
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <b className="text-xs sm:text-sm text-gray-900">{st.name}</b>
+                      <b className="text-xs sm:text-sm text-gray-900">{tt(st.name)}</b>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-gray-200 text-emerald-800">
-                        {st.tag}
+                        {tt(st.tag)}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">{st.description}</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">{tt(st.description)}</p>
                   </div>
                   <div className="pt-3 mt-2 border-t border-gray-200/60 flex items-center gap-2 text-xs font-bold text-emerald-800">
                     <input
@@ -1519,7 +1531,7 @@ export default function WebsiteAdmin() {
                       onChange={() => setSettingsForm({ ...settingsForm, header_style: st.id })}
                       className="accent-emerald-700"
                     />
-                    <span>{settingsForm.header_style === st.id ? 'Estilo Activo' : 'Activar este estilo'}</span>
+                    <span>{settingsForm.header_style === st.id ? t('style_active') : t('style_activate')}</span>
                   </div>
                 </div>
               ))}
@@ -1935,7 +1947,7 @@ export default function WebsiteAdmin() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => {
-                        if (confirm('¿Restablecer al formulario predeterminado agroecológico?')) {
+                        if (confirm(t('restore_confirm'))) {
                           setFormConfig({
                             ...formConfig,
                             schema: DEFAULT_ADMISSION_FIELDS,
@@ -1943,7 +1955,7 @@ export default function WebsiteAdmin() {
                         }
                       }}
                       className="btn-secondary text-xs flex items-center gap-1"
-                      title="Cargar formulario predeterminado"
+                      title={t('restore_questions')}
                     >
                       <RotateCcw size={13} />
                       {t('restore_questions')}
@@ -2014,7 +2026,7 @@ export default function WebsiteAdmin() {
                               </span>
                               <div className="min-w-0">
                                 <b className="text-xs sm:text-sm text-gray-900 block truncate">
-                                  {f.label || t('untitled_field')}
+                                  {tt(f.label) || t('untitled_field')}
                                 </b>
                                 <span className="text-[11px] text-gray-500 font-mono">
                                   {t('field_type_label', { type: f.type })} {f.required && t('required_marker')}
@@ -2573,7 +2585,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
               onClick={() => {
                 const newItems = [
                   ...(block as any).items,
-                  { question: 'Nueva pregunta', answer: 'Respuesta a la pregunta' },
+                  { question: t('faq_new_question'), answer: t('faq_new_answer') },
                 ]
                 updateField('items', newItems)
               }}

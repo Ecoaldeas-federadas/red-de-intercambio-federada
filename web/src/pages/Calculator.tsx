@@ -247,7 +247,7 @@ export default function Calculator() {
   const calculateAdvanced = async () => {
     setError('')
     try {
-      const res = await api.post<any>('/pricing/calculate', advForm)
+      const res: any = await api.post<any>('/pricing/calculate', advForm)
       setResult({
         workKWh: advForm.e_human,
         inputsKWh: advForm.e_inputs + advForm.e_direct,

@@ -1457,6 +1457,32 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			WHERE node_domain = $4`,
 			int(intervalHours), int(retentionDays), enabled, nodeDomain)
 
+	case "recovery_config":
+		// Cambiar configuracion de recuperacion de cuenta (aprobado por asamblea)
+		approvalMode, _ := params["approval_mode"].(string)
+		requiredApprovals, _ := params["required_approvals"].(float64)
+		autoExpireHours, _ := params["auto_expire_hours"].(float64)
+		requiresIdentityVerification, _ := params["requires_identity_verification"].(bool)
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+		if approvalMode == "" {
+			approvalMode = "multi_sig"
+		}
+		if requiredApprovals < 2 {
+			requiredApprovals = 3
+		}
+		if autoExpireHours < 1 {
+			autoExpireHours = 72
+		}
+		h.Pool.Exec(r.Context(), `
+			UPDATE recovery_config
+			SET approval_mode = $1, required_approvals = $2,
+				auto_expire_hours = $3, requires_identity_verification = $4,
+				updated_at = NOW()
+			WHERE node_domain = $5`,
+			approvalMode, int(requiredApprovals), int(autoExpireHours),
+			requiresIdentityVerification, nodeDomain)
+
 	case "cluster_config":
 		// Cambiar configuracion del cluster de base de datos
 		// Por seguridad, solo se guarda la configuracion - el reinicio requiere accion manual

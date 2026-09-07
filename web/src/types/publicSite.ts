@@ -358,6 +358,7 @@ export type FormFieldType =
   | 'email'
   | 'tel'
   | 'number'
+  | 'password'
 
 export interface FormFieldSchema {
   id: string

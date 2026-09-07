@@ -96,7 +96,7 @@ export const embeddedResources = {
 }
 
 i18n.use(initReactI18next).init({
-  resources: embeddedResources,
+  resources: embeddedResources as any,
   lng: getInitialLanguage(),
   fallbackLng: 'es',
   defaultNS: 'common',

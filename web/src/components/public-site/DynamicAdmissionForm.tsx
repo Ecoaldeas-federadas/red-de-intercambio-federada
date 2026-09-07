@@ -20,124 +20,125 @@ import { FormFieldSchema, FormFieldType } from '../../types/publicSite'
 export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
   {
     id: 'full_name',
-    label: 'Nombre Completo o Colectivo Productor *',
+    label: 'admission_field_full_name',
     type: 'text',
-    placeholder: 'Ej: María Rodríguez / Colectivo Agroecológico El Conuco',
-    help_text: 'Indica tu nombre completo o el nombre de tu colectivo/unidad productiva.',
+    placeholder: 'admission_field_full_name_ph',
+    help_text: 'admission_field_full_name_help',
     required: true,
   },
   {
     id: 'proposed_username',
-    label: 'Nombre de Usuario *',
+    label: 'admission_field_username',
     type: 'text',
-    placeholder: 'Ej: maria_rodriguez, colectivo_conuco, juanperez',
-    help_text: 'Así quieres que te identifiquen en la red. Solo letras, números, guiones y guiones bajos. Sin espacios.',
+    placeholder: 'admission_field_username_ph',
+    help_text: 'admission_field_username_help',
     required: true,
   },
   {
     id: 'proposed_password',
-    label: 'Contraseña *',
+    label: 'admission_field_password',
     type: 'password',
-    placeholder: 'Mínimo 6 caracteres',
-    help_text: 'Con esta contraseña podrás iniciar sesión para ver el estado de tu solicitud.',
+    placeholder: 'admission_field_password_ph',
+    help_text: 'admission_field_password_help',
     required: true,
   },
   {
     id: 'proposed_password_confirm',
-    label: 'Confirmar Contraseña *',
+    label: 'admission_field_password_confirm',
     type: 'password',
-    placeholder: 'Repite tu contraseña',
-    help_text: 'Verifica que escribiste bien tu contraseña.',
+    placeholder: 'admission_field_password_confirm_ph',
+    help_text: 'admission_field_password_confirm_help',
     required: true,
   },
   {
     id: 'email',
-    label: 'Correo Electrónico',
+    label: 'admission_field_email',
     type: 'email',
-    placeholder: 'maria@ejemplo.com',
-    help_text: 'Te enviaremos la confirmación y convocatorias de asambleas.',
+    placeholder: 'admission_field_email_ph',
+    help_text: 'admission_field_email_help',
     required: false,
   },
   {
     id: 'phone',
-    label: 'Teléfono / WhatsApp de Contacto *',
+    label: 'admission_field_phone',
     type: 'tel',
-    placeholder: '+58 412 0000000',
-    help_text: 'Canal principal para coordinar visitas formativas o contacto directo.',
+    placeholder: 'admission_field_phone_ph',
+    help_text: 'admission_field_phone_help',
     required: true,
   },
   {
     id: 'participation_type',
-    label: 'Tipo de Participación / Perfil en la Red',
+    label: 'admission_field_participation_type',
     type: 'select',
-    help_text: 'Selecciona cómo deseas participar en la comunidad.',
+    help_text: 'admission_field_participation_type_help',
     required: true,
     options: [
-      'Productor Agrícola',
-      'Artesano Gastronómico / Alimentos Procesados',
-      'Medicina Botánica & Cosmética Natural',
-      'Consumidor Consciente / Miembro de Trueque',
-      'Tallerista / Educador Popular',
-      'Colectivo Comunitario / Comuna',
+      'admission_opt_agricultural_producer',
+      'admission_opt_gastronomic_artisan',
+      'admission_opt_botanical_medicine',
+      'admission_opt_conscious_consumer',
+      'admission_opt_popular_educator',
+      'admission_opt_community_collective',
     ],
   },
   {
     id: 'location',
-    label: 'Ubicación / Sector donde resides o produces',
+    label: 'admission_field_location',
     type: 'text',
-    placeholder: 'Ej: El Junquito Km 18 / La Pastora / Valles del Tuy / Baruta',
-    help_text: 'Nos ayuda a geolocalizar las unidades productivas.',
+    placeholder: 'admission_field_location_ph',
+    help_text: 'admission_field_location_help',
     required: false,
   },
   {
     id: 'skills',
-    label: '¿Qué rubros, productos o saberes deseas aportar a la comunidad?',
+    label: 'admission_field_skills',
     type: 'textarea',
-    placeholder: 'Ej: Hortalizas de hoja, semillas criollas de maíz, panadería sin gluten, tinturas de propóleo, talleres de lombricultura...',
-    help_text: 'Detalla lo que produces o los conocimientos que puedes compartir en los talleres de la feria.',
+    placeholder: 'admission_field_skills_ph',
+    help_text: 'admission_field_skills_help',
     required: false,
   },
   {
     id: 'agro_practices',
-    label: '¿Qué prácticas agroecológicas implementas en tu producción?',
+    label: 'admission_field_agro_practices',
     type: 'checkbox',
-    help_text: 'Marca todas las que apliquen a tu trabajo.',
+    help_text: 'admission_field_agro_practices_help',
     required: false,
     options: [
-      '100% libre de agrotóxicos, pesticidas y venenos químicos',
-      'Compostaje, biol y abonos orgánicos propios',
-      'Uso y custodia de semillas criollas y nativas libres de transgénicos',
-      'Policultivo biodiverso y respeto a los ciclos de la tierra',
-      'Cuidado de fuentes de agua y reciclaje de biomasa',
-      'Empaques ecológicos y reducción de bolsas plásticas',
+      'admission_opt_pesticide_free',
+      'admission_opt_compost',
+      'admission_opt_native_seeds',
+      'admission_opt_polyculture',
+      'admission_opt_water_care',
+      'admission_opt_eco_packaging',
     ],
   },
   {
     id: 'reason',
-    label: '¿Por qué deseas sumarte a la red de trueque y economía solidaria?',
+    label: 'admission_field_reason',
     type: 'textarea',
-    placeholder: 'Explícanos tu motivación para participar en la soberanía alimentaria y el intercambio solidario...',
-    help_text: 'Esta respuesta será evaluada por la asamblea de productores.',
+    placeholder: 'admission_field_reason_ph',
+    help_text: 'admission_field_reason_help',
     required: false,
   },
   {
     id: 'how_heard',
-    label: '¿Cómo te enteraste de nosotros?',
+    label: 'admission_field_how_heard',
     type: 'select',
-    help_text: 'Para conocer cómo se expande nuestra red popular.',
+    help_text: 'admission_field_how_heard_help',
     required: false,
     options: [
-      'Visité la comunidad',
-      'Redes Sociales (Instagram / Facebook)',
-      'Recomendación de un miembro de la comunidad',
-      'Asamblea popular o taller comunitario',
-      'Prensa comunitaria o radio',
+      'admission_opt_visited_community',
+      'admission_opt_social_media',
+      'admission_opt_member_referral',
+      'admission_opt_assembly_workshop',
+      'admission_opt_community_press',
     ],
   },
 ]
 
 export function DynamicAdmissionForm() {
-  const { t } = useTranslation(['public', 'common'])
+  const { t } = useTranslation(['public', 'common', 'website'])
+  const tt = (key: string) => t(key, { ns: 'website', defaultValue: key })
   const [fields, setFields] = useState<FormFieldSchema[]>(DEFAULT_ADMISSION_FIELDS)
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
@@ -305,7 +306,7 @@ export function DynamicAdmissionForm() {
           return (
             <div key={field.id} className="space-y-1">
               <label className="label font-bold text-xs text-gray-800 block">
-                {field.label}
+                {tt(field.label)}
               </label>
 
               {/* 1. TEXT INPUT */}
@@ -313,7 +314,7 @@ export function DynamicAdmissionForm() {
                 <input
                   type="text"
                   className="input text-xs sm:text-sm"
-                  placeholder={field.placeholder || ''}
+                  placeholder={tt(field.placeholder || '')}
                   value={val}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 />
@@ -324,7 +325,7 @@ export function DynamicAdmissionForm() {
                 <input
                   type="password"
                   className="input text-xs sm:text-sm"
-                  placeholder={field.placeholder || ''}
+                  placeholder={tt(field.placeholder || '')}
                   value={val}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
                   autoComplete="new-password"
@@ -336,7 +337,7 @@ export function DynamicAdmissionForm() {
                 <input
                   type="email"
                   className="input text-xs sm:text-sm"
-                  placeholder={field.placeholder || 'correo@ejemplo.com'}
+                  placeholder={tt(field.placeholder || 'correo@ejemplo.com')}
                   value={val}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 />
@@ -347,7 +348,7 @@ export function DynamicAdmissionForm() {
                 <input
                   type="tel"
                   className="input text-xs sm:text-sm"
-                  placeholder={field.placeholder || '+58 412 0000000'}
+                  placeholder={tt(field.placeholder || '+58 412 0000000')}
                   value={val}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 />
@@ -369,7 +370,7 @@ export function DynamicAdmissionForm() {
                 <textarea
                   rows={3}
                   className="input text-xs sm:text-sm"
-                  placeholder={field.placeholder || ''}
+                  placeholder={tt(field.placeholder || '')}
                   value={val}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 />
@@ -385,7 +386,7 @@ export function DynamicAdmissionForm() {
                   <option value="">{t('admission_select_option')}</option>
                   {(field.options || []).map((opt, i) => (
                     <option key={i} value={opt}>
-                      {opt}
+                      {tt(opt)}
                     </option>
                   ))}
                 </select>
@@ -407,7 +408,7 @@ export function DynamicAdmissionForm() {
                         onChange={() => handleFieldChange(field.id, opt)}
                         className="accent-emerald-700"
                       />
-                      <span>{opt}</span>
+                      <span>{tt(opt)}</span>
                     </label>
                   ))}
                 </div>
@@ -433,7 +434,7 @@ export function DynamicAdmissionForm() {
                           onChange={() => handleCheckboxToggle(field.id, opt)}
                           className="accent-emerald-700 rounded"
                         />
-                        <span>{opt}</span>
+                        <span>{tt(opt)}</span>
                       </label>
                     )
                   })}
@@ -441,7 +442,7 @@ export function DynamicAdmissionForm() {
               )}
 
               {field.help_text && (
-                <p className="text-[11px] text-gray-500 leading-relaxed pt-0.5">{field.help_text}</p>
+                <p className="text-[11px] text-gray-500 leading-relaxed pt-0.5">{tt(field.help_text)}</p>
               )}
             </div>
           )

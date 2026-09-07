@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi, Compass, Satellite } from 'lucide-react'
+import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi, Compass, Satellite, HelpCircle } from 'lucide-react'
 import { fmtDateTime } from '../lib/format'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
@@ -77,7 +77,7 @@ export default function Federation() {
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'satellite' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
         >
           <Satellite size={14} />
-          Satelite
+          {t('tab_satellite', 'Satelite')}
         </button>
       </div>
 
@@ -106,6 +106,7 @@ export default function Federation() {
 // Esta info se sincroniza automaticamente cuando un nodo cambia su config.
 function PeersNetInfo() {
   const { t } = useTranslation(['federation', 'common'])
+  const [showHelp, setShowHelp] = useState(false)
   const [peers, setPeers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -151,9 +152,23 @@ function PeersNetInfo() {
     <div className="space-y-4">
       {/* Explicacion */}
       <div className="card p-4 bg-blue-50 border-blue-200">
-        <h3 className="font-semibold flex items-center gap-2 mb-2">
-          <Server size={18} className="text-blue-600" /> {t('federation_nodes_title', 'Nodos Federados')}
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Server size={18} className="text-blue-600" /> {t('federation_nodes_title', 'Nodos Federados')}
+          </h3>
+          <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700"><HelpCircle size={18} /></button>
+        </div>
+
+        {showHelp && (
+          <div className="text-sm text-gray-700 space-y-2 mb-3 pb-3 border-b border-blue-200">
+            <p><strong>{t('nodes_help_title')}</strong></p>
+            <p><strong>{t('nodes_help_what_label')}</strong> {t('nodes_help_what')}</p>
+            <p><strong>{t('nodes_help_sync_label')}</strong> {t('nodes_help_sync')}</p>
+            <p><strong>{t('nodes_help_refresh_label')}</strong> {t('nodes_help_refresh')}</p>
+            <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', { ns: 'common' })}</button>
+          </div>
+        )}
+
         <p className="text-sm text-gray-600">
           {t('federation_sync_desc', 'Esta informacion se')} <strong>{t('federation_sync_auto', 'sincroniza automaticamente')}</strong> {t('federation_sync_desc2', 'entre nodos federados. Cuando un nodo cambia su dominio, IP, WireGuard o servicios, todos los demas lo reciben automaticamente. No necesitas compartir nada manualmente.')}
         </p>

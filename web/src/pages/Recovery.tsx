@@ -73,14 +73,33 @@ export default function Recovery() {
   }
 
   const [cfgForm, setCfgForm] = useState({ approval_mode: 'multi_sig', required_approvals: 3, auto_expire_hours: 72, requires_identity_verification: true })
+  const [submittingProposal, setSubmittingProposal] = useState(false)
   const saveConfig = async () => {
     setError('')
+    setSubmittingProposal(true)
     try {
-      await api.put('/recovery/config', cfgForm)
+      await api.post('/assembly/proposals', {
+        proposal_type: 'recovery_config',
+        title: t('recovery_page.proposal_title', 'Cambio de configuracion de recuperacion'),
+        description: t('recovery_page.proposal_desc', {
+          mode: modeLabels[cfgForm.approval_mode] || cfgForm.approval_mode,
+          approvals: cfgForm.required_approvals,
+          hours: cfgForm.auto_expire_hours,
+          id_verify: cfgForm.requires_identity_verification ? t('common:yes', 'Si') : t('common:no', 'No'),
+        }),
+        parameters: {
+          approval_mode: cfgForm.approval_mode,
+          required_approvals: cfgForm.required_approvals,
+          auto_expire_hours: cfgForm.auto_expire_hours,
+          requires_identity_verification: cfgForm.requires_identity_verification,
+        },
+      })
       setShowConfig(false)
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setSubmittingProposal(false)
     }
   }
 
@@ -141,6 +160,9 @@ export default function Recovery() {
         <div className="card space-y-3">
           <h2 className="font-semibold">{t('recovery_page.config_form_title', 'Configurar Aprobacion de Recuperacion')}</h2>
           <p className="text-sm text-gray-600">{t('recovery_page.config_form_desc', 'Ninguna persona sola puede restaurar el acceso. Minimo 2 aprobaciones requeridas.')}</p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            {t('recovery_page.proposal_info', 'Los cambios se enviaran como propuesta a la asamblea. Se aplicaran solo cuando sean aprobados por votacion.')}
+          </div>
           <select className="input" value={cfgForm.approval_mode} onChange={(e) => setCfgForm({ ...cfgForm, approval_mode: e.target.value })}>
             <option value="multi_sig">{t('recovery_page.config_mode_multisig', 'Multi-firma (N firmas de cualquier miembro)')}</option>
             <option value="council">{t('recovery_page.config_mode_council', 'Consejo (grupo designado)')}</option>
@@ -155,7 +177,9 @@ export default function Recovery() {
             <input type="checkbox" checked={cfgForm.requires_identity_verification} onChange={(e) => setCfgForm({ ...cfgForm, requires_identity_verification: e.target.checked })} />
             {t('recovery_page.config_identity_label', 'Requiere verificacion de identidad')}
           </label>
-          <button onClick={saveConfig} className="btn-primary">{t('recovery_page.config_save', 'Guardar Configuracion')}</button>
+          <button onClick={saveConfig} disabled={submittingProposal} className="btn-primary">
+            {submittingProposal ? t('recovery_page.proposal_submitting', 'Enviando propuesta...') : t('recovery_page.proposal_submit', 'Crear propuesta de asamblea')}
+          </button>
           <button onClick={() => setShowConfig(false)} className="btn-secondary ml-2">{t('recovery_page.config_cancel', t('common:cancel'))}</button>
         </div>
       )}
@@ -195,7 +219,7 @@ export default function Recovery() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-1 rounded ${req.status === 'approved' ? 'bg-trueque-100 text-trueque-700' : req.status === 'rejected' ? 'bg-red-100 text-red-700' : req.status === 'completed' ? 'bg-blue-100 text-blue-700' : req.status === 'expired' ? 'bg-gray-100 text-gray-600' : 'bg-yellow-100 text-yellow-700'}`}>{req.status}</span>
+                <span className={`text-xs px-2 py-1 rounded ${req.status === 'approved' ? 'bg-trueque-100 text-trueque-700' : req.status === 'rejected' ? 'bg-red-100 text-red-700' : req.status === 'completed' ? 'bg-blue-100 text-blue-700' : req.status === 'expired' ? 'bg-gray-100 text-gray-600' : 'bg-yellow-100 text-yellow-700'}`}>{String(t(`recovery_page.status_${req.status}`, req.status))}</span>
                 {req.status === 'pending' && (
                   <>
                     <button onClick={() => approve(req.id)} className="btn-secondary flex items-center gap-1 text-sm"><Check size={14} />{t('recovery_page.approve', 'Aprobar')}</button>
@@ -224,8 +248,8 @@ export default function Recovery() {
               {approvals.map((a, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm border-b border-gray-100 py-1">
                   <Check size={14} className="text-trueque-600" />
-                  <span>Usuario: {a.approver_id?.slice(0, 8)}...</span>
-                  <span className="text-gray-500">{a.approval_type}</span>
+                  <span>{t('recovery_page.detail_user', 'Usuario:')} {a.approver_id?.slice(0, 8)}...</span>
+                  <span className="text-gray-500">{String(t(`recovery_page.approval_type_${a.approval_type}`, a.approval_type))}</span>
                   {a.notes && <span className="text-gray-400">| {a.notes}</span>}
                   <span className="text-gray-400 ml-auto">{fmtDateTime(a.created_at)}</span>
                 </div>

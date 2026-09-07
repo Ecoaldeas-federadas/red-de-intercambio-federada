@@ -9,6 +9,8 @@ import { fmtNumber } from '../lib/format'
 
 export default function CalculatorParams() {
   const { t } = useTranslation('common')
+  const tc = (name: string) => t(`calc_category.${name}`, { defaultValue: name })
+  const tp = (name: string) => t(`calc_param.${name}`, { defaultValue: name })
   const { hasPermission } = usePermissions()
   const { currency } = useConfig()
   const canManage = hasPermission('calculator.manage_params')
@@ -214,7 +216,7 @@ export default function CalculatorParams() {
           <label className="label">{t('calculator_params.filter_cat', 'Filtrar por categoria')}</label>
           <select className="input" value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
             <option value="">{t('calculator_params.all_cats', 'Todas las categorias')}</option>
-            {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
+            {categories.map((c, i) => <option key={i} value={c.name}>{tc(c.name)}</option>)}
           </select>
           <p className="text-xs text-gray-400 mt-1">{t('calc_params_filter_hint', 'Selecciona una categoria para ver solo sus parametros. Ej: "Construccion" para ver albañileria, plomeria, etc.')}</p>
         </div>
@@ -250,7 +252,7 @@ export default function CalculatorParams() {
             <label className="label">{t('calculator_params.category', 'Categoria')}</label>
             <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               <option value="">{t('calculator_params.select_cat', 'Seleccionar categoria...')}</option>
-              {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
+              {categories.map((c, i) => <option key={i} value={c.name}>{tc(c.name)}</option>)}
             </select>
             <p className="text-xs text-gray-400 mt-1">{t('calc_params_param_cat_hint', 'A que categoria pertenece este parametro. Ej: "Construccion" para albañileria, "Alimentos" para harina. Si necesitas una categoria nueva, creala primero con el boton "Nueva Categoria".')}</p>
           </div>
@@ -335,7 +337,7 @@ export default function CalculatorParams() {
             <div key={cat} className="card">
               <h3 className="font-semibold text-trueque-700 mb-3 flex items-center gap-2">
                 {tab === 'work' ? <Zap size={16} /> : <Package size={16} />}
-                {cat}
+                {tc(cat)}
                 <span className="text-xs text-gray-400">({items.length})</span>
               </h3>
               <div className="space-y-2">
@@ -343,12 +345,12 @@ export default function CalculatorParams() {
                   <div key={p.id} className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <b className="text-sm">{p.name}</b>
-                        {p.subcategory && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{p.subcategory}</span>}
+                        <b className="text-sm">{tp(p.name)}</b>
+                        {p.subcategory && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{tp(p.subcategory)}</span>}
                         {!p.approved && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">{t('calculator_params.pending', 'Pendiente')}</span>}
                         {!p.is_active && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{t('calculator_params.inactive', 'Inactivo')}</span>}
                       </div>
-                      {p.description && <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>}
+                      {p.description && <p className="text-xs text-gray-500 mt-0.5">{tp(p.description)}</p>}
                       <p className="text-xs text-gray-400 mt-0.5">
                         {tab === 'work' && p.tariff_category ? (
                           <>
