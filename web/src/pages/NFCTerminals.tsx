@@ -1093,11 +1093,11 @@ export default function NFCTerminals() {
       {tab === 'pairing' && (
         <div className="space-y-4">
           <div className="card bg-blue-50 border-blue-200">
-            <h3 className="font-bold text-blue-900">{tt('pending_pairings', 'Emparejamientos Pendientes')}</h3>
+            <h3 className="font-bold text-blue-900">{tt('pairing_title', 'Emparejamientos Pendientes')}</h3>
             <p className="text-sm text-blue-700 mt-1">
-              Cuando un POS Android inicia un emparejamiento, muestra un codigo de 6 digitos en pantalla.
-              Aqui puedes ver los codigos pendientes y aprobarlos con un clic. Los datos del terminal se copian
-              automaticamente desde el POS — solo necesitas confirmar la etiqueta y ubicacion (opcional).
+              {tt('pairing_desc', 'Cuando un POS Android inicia un emparejamiento, muestra un codigo de 6 digitos en pantalla. Aqui puedes ver los codigos pendientes y aprobarlos con un clic.')}
+              {' '}
+              {tt('pairing_desc_2', 'Los datos del terminal se copian automaticamente desde el POS — solo necesitas confirmar la etiqueta y ubicacion (opcional).')}
             </p>
           </div>
 

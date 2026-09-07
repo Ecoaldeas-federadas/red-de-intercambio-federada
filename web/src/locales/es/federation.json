@@ -584,5 +584,14 @@
   "sat_help_sync_label": "Sincronizacion:",
   "sat_help_sync": "El nodo satelite descarga un snapshot del nodo principal (usuarios y saldos). Las transacciones offline se acumulan y se envian al nodo principal cuando hay conexion.",
   "sat_help_activate_label": "Como activarlo:",
-  "sat_help_activate": "Para activar el modo satelite, configura la variable de entorno NODE_TYPE=satellite en tu nodo."
+  "sat_help_activate": "Para activar el modo satelite, configura la variable de entorno NODE_TYPE=satellite en tu nodo.",
+  "conflicts_help_title": "Conflictos de Fusion - Ayuda",
+  "conflicts_help_what_label": "Que son:",
+  "conflicts_help_what": "Cuando dos nodos que tienen los mismos usuarios (mismo UUID) quieren federarse, pueden surgir conflictos si los saldos difieren. Esta pagina detecta y resuelve esos conflictos.",
+  "conflicts_help_scan_label": "Como escanear:",
+  "conflicts_help_scan": "Ingresa el dominio del otro nodo y haz clic en Escanear. El sistema comparara los usuarios y saldos entre ambos nodos y detectara duplicados.",
+  "conflicts_help_resolve_label": "Como resolver:",
+  "conflicts_help_resolve": "Para cada conflicto, puedes proponer una resolucion: mantener saldo A, mantener saldo B, o combinar ambos. Agrega notas explicando tu decision.",
+  "conflicts_help_vote_label": "Votacion:",
+  "conflicts_help_vote": "Las resoluciones propuestas deben ser votadas por la asamblea. Puedes votar aprobar o rechazar cada propuesta."
 }

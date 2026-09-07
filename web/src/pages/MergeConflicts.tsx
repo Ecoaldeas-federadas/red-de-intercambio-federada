@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { AlertTriangle, Users, ArrowRight, Check, X, Search, Vote } from 'lucide-react'
+import { AlertTriangle, Users, ArrowRight, Check, X, Search, Vote, HelpCircle } from 'lucide-react'
 import { fmtTQ } from '../lib/format'
 
 export default function MergeConflicts() {
@@ -18,6 +18,7 @@ export default function MergeConflicts() {
   const [selectedConflict, setSelectedConflict] = useState<any>(null)
   const [resolution, setResolution] = useState({ proposed_resolution: 'a', balance_action: 'combine', notes: '' })
   const [vote, setVote] = useState('')
+  const [showHelp, setShowHelp] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -119,7 +120,21 @@ export default function MergeConflicts() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <AlertTriangle size={24} /> {t('merge_title')}
         </h1>
+        <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+          <HelpCircle size={20} />
+        </button>
       </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+          <p><strong>{t('conflicts_help_title', '', { ns: 'federation' })}</strong></p>
+          <p><strong>{t('conflicts_help_what_label', '', { ns: 'federation' })}</strong> {t('conflicts_help_what', '', { ns: 'federation' })}</p>
+          <p><strong>{t('conflicts_help_scan_label', '', { ns: 'federation' })}</strong> {t('conflicts_help_scan', '', { ns: 'federation' })}</p>
+          <p><strong>{t('conflicts_help_resolve_label', '', { ns: 'federation' })}</strong> {t('conflicts_help_resolve', '', { ns: 'federation' })}</p>
+          <p><strong>{t('conflicts_help_vote_label', '', { ns: 'federation' })}</strong> {t('conflicts_help_vote', '', { ns: 'federation' })}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', { ns: 'common' })}</button>
+        </div>
+      )}
 
       <div className="card bg-amber-50 border-amber-200">
         <h2 className="font-semibold text-amber-800 mb-2">{t('merge_how_works')}</h2>

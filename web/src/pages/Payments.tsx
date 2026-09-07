@@ -326,17 +326,17 @@ export default function Payments() {
             <div className="space-y-3">
               <div>
                 <label className="label">{t('payments.display_name_label', 'Nombre para mostrar (opcional)')}</label>
-                <input className="input" placeholder="Ej: Juan Perez" value={genDisplayName} onChange={(e) => setGenDisplayName(e.target.value)} />
+                <input className="input" placeholder={t('payments.display_name_ph', 'Ej: Juan Perez')} value={genDisplayName} onChange={(e) => setGenDisplayName(e.target.value)} />
                 <p className="text-xs text-gray-400 mt-1">{t('payments.display_name_hint', 'Como quieres que te vea quien te paga. Aparece junto al QR. Ej: "Juan Perez" o "Ferreteria Don Jose".')}</p>
               </div>
               <div>
                 <label className="label">{t('payments.amount_fixed_label', 'Monto (dejar vacio = monto libre)')}</label>
-                <input className="input" placeholder="Ej: 500" value={genAmount} onChange={(e) => setGenAmount(e.target.value)} type="number" />
+                <input className="input" placeholder={t('payments.amount_fixed_ph', 'Ej: 500')} value={genAmount} onChange={(e) => setGenAmount(e.target.value)} type="number" />
                 <p className="text-xs text-gray-400 mt-1">{t('payments.amount_fixed_hint', 'Cuanto debe pagarte. Si lo dejas vacio, el que paga decide el monto al escanear. Ej: 500 para un pago fijo de 500.')}</p>
               </div>
               <div>
                 <label className="label">{t('payments.label_label', 'Etiqueta / descripcion (opcional)')}</label>
-                <input className="input" placeholder="Ej: Pago de productos" value={genLabel} onChange={(e) => setGenLabel(e.target.value)} />
+                <input className="input" placeholder={t('payments.label_ph', 'Ej: Pago de productos')} value={genLabel} onChange={(e) => setGenLabel(e.target.value)} />
                 <p className="text-xs text-gray-400 mt-1">{t('payments.label_hint', 'Un texto corto que describe el motivo del pago. Aparece en el historial de ambos. Ej: "Pago de productos" o "Cuota enero".')}</p>
               </div>
               <button onClick={generateQR} className="btn-primary">{t('payments.generate_qr', 'Generar QR')}</button>
@@ -413,7 +413,7 @@ export default function Payments() {
                 {scanResult.payment_req.amount === null && (
                   <div>
                     <label className="label">{t('payments.enter_amount', 'Ingrese monto a pagar')}</label>
-                    <input className="input" type="number" placeholder="Ej: 500" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                    <input className="input" type="number" placeholder={t('payments.enter_amount_ph', 'Ej: 500')} value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
                     <p className="text-xs text-gray-400 mt-1">{t('payments.enter_amount_hint', 'Cuanto saldo quieres enviar al destinatario. Debe ser mayor que 0. Ej: 500 para pagar 500 unidades.')}</p>
                   </div>
                 )}
@@ -431,7 +431,7 @@ export default function Payments() {
           <p className="text-xs text-gray-500">{t('payments.nfc_desc', 'Ingresa el UID de la tarjeta NFC del usuario. En produccion, este campo se llena automaticamente al acercar la tarjeta al lector NFC conectado al terminal ESP32.')}</p>
           <div>
             <label className="label">{t('payments.nfc_uid_label', 'UID de tarjeta NFC')}</label>
-            <input className="input" placeholder="Ej: 04A3B2C1" value={nfcUID} onChange={(e) => setNfcUID(e.target.value)} />
+            <input className="input" placeholder={t('payments.nfc_uid_ph', 'Ej: 04A3B2C1')} value={nfcUID} onChange={(e) => setNfcUID(e.target.value)} />
             <p className="text-xs text-gray-400 mt-1">{t('payments.nfc_uid_hint', 'El identificador unico de la tarjeta NFC del cliente. En produccion se lee automaticamente al acercar la tarjeta al lector. Ej: 04A3B2C1.')}</p>
           </div>
           <button onClick={lookupNFC} className="btn-primary" disabled={!nfcUID}>{t('payments.lookup_card', 'Buscar tarjeta')}</button>
@@ -454,17 +454,17 @@ export default function Payments() {
           <p className="text-xs text-gray-500">{t('payments.manual_desc', 'Transferencia directa a otro usuario. Necesitas su ID (UUID). El remitente eres tu (se obtiene de tu sesion).')}</p>
           <div>
             <label className="label">{t('payments.manual_id_label', 'ID del destinatario (UUID)')}</label>
-            <input className="input" placeholder="Ej: a14dd44f-8da1-4bf7-8ad6-762a9d10d562" value={manual.receiver_id} onChange={(e) => setManual({ ...manual, receiver_id: e.target.value })} />
+            <input className="input" placeholder={t('payments.manual_id_ph', 'Ej: a14dd44f-8da1-4bf7-8ad6-762a9d10d562')} value={manual.receiver_id} onChange={(e) => setManual({ ...manual, receiver_id: e.target.value })} />
             <p className="text-xs text-gray-400 mt-1">{t('payments.manual_id_hint', 'El identificador unico (UUID) de la cuenta que recibira el pago. Puedes pedirselo al destinatario. Ej: a14dd44f-8da1-4bf7-8ad6-762a9d10d562.')}</p>
           </div>
           <div>
             <label className="label">{t('payments.manual_amount_label', 'Monto')}</label>
-            <input type="number" className="input" placeholder="Ej: 500" value={manual.amount || ''} onChange={(e) => setManual({ ...manual, amount: toCents(e.target.value) })} />
+            <input type="number" className="input" placeholder={t('payments.manual_amount_ph', 'Ej: 500')} value={manual.amount || ''} onChange={(e) => setManual({ ...manual, amount: toCents(e.target.value) })} />
             <p className="text-xs text-gray-400 mt-1">{t('payments.manual_amount_hint', 'Cuanto saldo quieres enviar. Debe ser mayor que 0 y no superar tu limite de credito. Ej: 500 para enviar 500 unidades.')}</p>
           </div>
           <div>
             <label className="label">{t('payments.manual_ref_label', 'Referencia (opcional)')}</label>
-            <input className="input" placeholder="Ej: Pago de productos" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} />
+            <input className="input" placeholder={t('payments.manual_ref_ph', 'Ej: Pago de productos')} value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} />
             <p className="text-xs text-gray-400 mt-1">{t('payments.manual_ref_hint', 'Una nota breve que describe el motivo del pago. Aparece en el historial de ambos. Ej: "Pago de productos" o "Deuda semana 3".')}</p>
           </div>
           <button onClick={sendManual} className="btn-primary">{t('payments.send', 'Enviar')}</button>

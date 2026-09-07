@@ -584,5 +584,14 @@
   "sat_help_sync_label": "Synchronization:",
   "sat_help_sync": "The satellite node downloads a snapshot from the main node (users and balances). Offline transactions accumulate and are sent to the main node when there is a connection.",
   "sat_help_activate_label": "How to activate it:",
-  "sat_help_activate": "To activate satellite mode, configure the environment variable NODE_TYPE=satellite on your node."
+  "sat_help_activate": "To activate satellite mode, configure the environment variable NODE_TYPE=satellite on your node.",
+  "conflicts_help_title": "Merge Conflicts - Help",
+  "conflicts_help_what_label": "What they are:",
+  "conflicts_help_what": "When two nodes that have the same users (same UUID) want to federate, conflicts may arise if balances differ. This page detects and resolves those conflicts.",
+  "conflicts_help_scan_label": "How to scan:",
+  "conflicts_help_scan": "Enter the domain of the other node and click Scan. The system will compare users and balances between both nodes and detect duplicates.",
+  "conflicts_help_resolve_label": "How to resolve:",
+  "conflicts_help_resolve": "For each conflict, you can propose a resolution: keep balance A, keep balance B, or combine both. Add notes explaining your decision.",
+  "conflicts_help_vote_label": "Voting:",
+  "conflicts_help_vote": "Proposed resolutions must be voted on by the assembly. You can vote approve or reject each proposal."
 }

@@ -104,7 +104,7 @@ export default function Parity() {
       <div className="card">
         {reports.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
-            No hay reportes de paridad.
+            {t('parity_no_reports')}
             <br />
             <span className="text-sm">{t('parity_no_reports_hint')}</span>
           </div>
