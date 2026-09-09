@@ -1,4 +1,4 @@
-﻿import { SiteBlock } from '../../types/publicSite'
+import { SiteBlock } from '../../types/publicSite'
 
 export interface PreconfiguredPageTemplate {
   slug: string
@@ -181,6 +181,18 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         secondary_text: 'Preguntas Frecuentes',
         secondary_link: '/p/faq',
         theme: 'forest',
+      },
+      {
+        type: 'cta_banner',
+        badge: '🖥️ Prueba el Sistema',
+        title: '¿Quieres ver cómo funciona un nodo por dentro?',
+        subtitle:
+          'Inicia un nodo demo y explora la plataforma completa: catálogo, calculadora, asambleas, gobernanza, tarjetas NFC y más. Sin registro, sin compromiso.',
+        button_text: 'Ir al Nodo de Prueba',
+        button_link: '/p/federacion',
+        secondary_text: 'Ver Página de Federación',
+        secondary_link: '/p/federacion',
+        theme: 'primary',
       },
     ],
   },
@@ -2929,3 +2941,195 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
     ],
   },
 ]
+
+export const FERIA_CONUQUERA_TEMPLATES_EN: PreconfiguredPageTemplate[] = [
+  {
+    slug: 'inicio',
+    title: 'Home',
+    subtitle: 'Open-Air Market and Food Sovereignty Network',
+    icon: 'home',
+    menu_order: 1,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🌱 Open-Air Market',
+        title: 'Our Community',
+        subtitle: 'Fresh harvest, healthy food and peasant knowledge for the entire community.',
+        description:
+          'We open our open-air market to the general public in local currency. A self-managed space where you buy directly from the producer without intermediaries or agrochemicals, and where network members also trade in barter and mutual credit.',
+        image_url: '/placeholder.svg',
+        primary_cta: {
+          text: 'View Products Catalog',
+          link: '/p/productos',
+        },
+        secondary_cta: {
+          text: 'Hours and Location',
+          link: '/p/contacto',
+        },
+        style: 'split',
+      },
+      {
+        type: 'event_schedule',
+        badge: '📍 Market Open to the General Public',
+        title: 'Monthly Gathering',
+        date_text: '',
+        time_text: '',
+        location_name: '',
+        address: '',
+        guidelines: [
+          'Open sale to the general public in local currency (no membership required to purchase).',
+          'No single-use plastic bags allowed: bring your backpack, cloth bag or basket.',
+          'Open barter of native and heritage seeds among farmers and neighbors.',
+          'Donate and adopt a book area for free reading exchange.',
+          'Live learning workshops (vermicomposting, bio-inputs, botanical health).',
+          'Folk music, cultural activities and games for children.',
+          'Barter and mutual credit system available for registered members.',
+        ],
+        cta_text: 'Apply for Membership as Producer or Member',
+        cta_link: '/p/unirse',
+      },
+      {
+        type: 'stats',
+        title: 'Building Popular Sovereignty',
+        subtitle: 'Real figures of an autonomous community movement.',
+        bg_theme: 'primary',
+        items: [
+          {
+            value: '+10 Years',
+            label: 'Continuous Gathering',
+            description: 'Monthly open-air market since our beginnings',
+          },
+          {
+            value: '+45 Collectives',
+            label: 'Producer Families',
+            description: 'Diverse producing communities',
+          },
+          {
+            value: '0% Agrochemicals',
+            label: '100% Clean Production',
+            description: 'Living soils, organic fertilizers and ancestral seeds',
+          },
+          {
+            value: 'Open Sales',
+            label: 'Local Currency & Barter',
+            description: 'Open to everyone with barter option for network members',
+          },
+        ],
+      },
+      {
+        type: 'carousel',
+        title: 'Living Gallery of Our Gatherings',
+        subtitle: 'Moments from our market days, workshops, culture and solidarity barter in every edition.',
+        autoplay: true,
+        items: [
+          {
+            image_url: '/placeholder.svg',
+            title: 'Fresh Vegetables and Ancestral Crops',
+            caption: 'Harvested at dawn for direct sale in local currency.',
+            tag: 'Daily Harvest',
+          },
+          {
+            image_url: '/placeholder.svg',
+            title: 'Community Apothecary and Traditional Medicine',
+            caption: 'Propolis tinctures, botanical ointments, essential oils and medicinal herbs.',
+            tag: 'Botanical Health',
+          },
+          {
+            image_url: '/placeholder.svg',
+            title: 'Artisanal and Ancestral Gastronomy',
+            caption: 'Traditional Cafunga, gluten-free flours, pure cocoa and mountain coffee.',
+            tag: 'Sovereign Flavors',
+          },
+          {
+            image_url: '/placeholder.svg',
+            title: 'Live Workshops & Seed Barter',
+            caption: 'Solidarity exchange of knowledge, native seeds and books for the whole community.',
+            tag: 'Popular Education',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Network Dynamics and Organization',
+        subtitle: 'How our community works both at the monthly market and in its internal democratic life.',
+        columns: 3,
+        items: [
+          {
+            icon: 'shopping-cart',
+            title: 'Monthly Open-Air Market',
+            description:
+              'Direct sale to the general public in local currency at every monthly meeting. No middlemen or usury.',
+            badge: 'Public Sales',
+          },
+          {
+            icon: 'scale',
+            title: 'Barter & Mutual Credit',
+            description:
+              'Network members can exchange products and labor through the zero-sum accounting system (1 TQ = 1 kWh).',
+            badge: 'For Members',
+          },
+          {
+            icon: 'users',
+            title: 'Quarterly Assemblies',
+            description:
+              'Governance meetings every 3 months where members decide on admissions, taxes, fund distribution, and policies.',
+            badge: 'Governance',
+          },
+          {
+            icon: 'leaf',
+            title: 'Workshops & Popular Education',
+            description:
+              'Open educational spaces during the fair and field visits to conucos on vermiculture, bio-inputs, and agroecology.',
+            badge: 'Education',
+          },
+          {
+            icon: 'heart',
+            title: 'Culture, Music & Community',
+            description:
+              'Musical performances, folk poetry, children activities, and community meals at each edition.',
+            badge: 'Living Culture',
+          },
+          {
+            icon: 'home',
+            title: 'Work Commissions & Field Cayapas',
+            description:
+              'Collective labor outside the park: thematic working groups, technical conuco visits, and ecovillage networking.',
+            badge: 'Community',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🤝 Join the Network',
+        title: 'Are you an agroecological producer or looking to join?',
+        subtitle:
+          'Anyone can buy at the fair. If you wish to join as a producer or take part in assemblies and barter, submit your application to the assembly.',
+        button_text: 'Complete Admission Application',
+        button_link: '/p/unirse',
+        secondary_text: 'Frequently Asked Questions',
+        secondary_link: '/p/faq',
+        theme: 'forest',
+      },
+      {
+        type: 'cta_banner',
+        badge: '🖥️ Try the System',
+        title: 'Want to see how a node works from the inside?',
+        subtitle:
+          'Start a demo node and explore the full platform: catalog, calculator, assemblies, governance, NFC cards and more. No registration, no commitment.',
+        button_text: 'Go to Demo Node',
+        button_link: '/p/federacion',
+        secondary_text: 'View Federation Page',
+        secondary_link: '/p/federacion',
+        theme: 'primary',
+      },
+    ],
+  },
+]
+
+export function getPreconfiguredTemplate(slug: string, lang = 'es'): PreconfiguredPageTemplate | undefined {
+  if (lang && lang.toLowerCase().startsWith('en')) {
+    const enTmpl = FERIA_CONUQUERA_TEMPLATES_EN.find((t) => t.slug === slug)
+    if (enTmpl) return enTmpl
+  }
+  return FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === slug)
+}

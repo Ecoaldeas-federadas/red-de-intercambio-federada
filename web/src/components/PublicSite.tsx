@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Link, useParams, useLocation } from 'react-router-dom'
+import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
+import { changeLanguage } from '../i18n/TranslationProvider'
 import { assetUrl } from '../utils/assetUrl'
 import {
   Home,
@@ -38,12 +39,11 @@ import { LivePageEditor } from './public-site/LivePageEditor'
 import { DynamicAdmissionForm } from './public-site/DynamicAdmissionForm'
 import { LoginModal } from './LoginModal'
 import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCustomizer'
-import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
+import { FERIA_CONUQUERA_TEMPLATES, FERIA_CONUQUERA_TEMPLATES_EN, getPreconfiguredTemplate } from './public-site/defaultSiteData'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
 import { PublicGovernancePage } from './public-site/PublicGovernancePage'
-// PublicFederationPage ya no se importa: la pagina de federacion ahora usa bloques editables.
-// El componente se mantiene en el repositorio para referencia pero no se usa en el enrutado.
+import { PublicFederationPage } from './public-site/PublicFederationPage'
 const ICONS: Record<string, any> = {
   home: Home,
   heart: Heart,
@@ -121,6 +121,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, username, logout } = useAuth()
   const { t: tpub, i18n: publicI18n } = useTranslation(['public', 'common'])
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [pages, setPages] = useState<PublicPageData[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -133,20 +134,32 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const [showAdminMenu, setShowAdminMenu] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
 
+  const urlLang = searchParams.get('lang')?.toLowerCase()
+  const currentEffectiveLang = (urlLang === 'en' || urlLang === 'es') ? urlLang : (publicI18n.language || 'es')
+
   useEffect(() => {
-    api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
-    api.get(`/public/pages?lang=${publicI18n.language || 'es'}`).then((d: any) => {
+    if (urlLang && (urlLang === 'en' || urlLang === 'es') && urlLang !== publicI18n.language) {
+      changeLanguage(urlLang)
+    }
+  }, [urlLang, publicI18n.language])
+
+  useEffect(() => {
+    api.get(`/public/settings?lang=${currentEffectiveLang}`).then((s: any) => setSettings(s)).catch(() => {
+      api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
+    })
+    api.get(`/public/pages?lang=${currentEffectiveLang}`).then((d: any) => {
+      const activeTemplates = currentEffectiveLang === 'en' ? FERIA_CONUQUERA_TEMPLATES_EN : FERIA_CONUQUERA_TEMPLATES
       if (Array.isArray(d) && d.length > 0) {
         // Merge: keep DB pages, but add any template pages whose slug
         // doesn't exist in the DB yet (so new template pages appear
         // automatically without needing a re-seed or migration).
         const dbSlugs = new Set(d.map((p: any) => p.slug))
-        const templateOnly = FERIA_CONUQUERA_TEMPLATES
+        const templateOnly = activeTemplates
           .filter((t) => !dbSlugs.has(t.slug))
           .map((t) => ({
             slug: t.slug,
-            title: tpub(`page_${t.slug}_title`, t.title),
-            subtitle: tpub(`page_${t.slug}_subtitle`, t.subtitle),
+            title: t.title,
+            subtitle: t.subtitle,
             icon: t.icon,
             menu_order: t.menu_order,
             is_published: true,
@@ -157,8 +170,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         // renderiza las reglas desde /api/public/governance (no bloques editables)
         const governancePage = dbSlugs.has('gobernanza') ? null : {
           slug: 'gobernanza',
-          title: tpub('page_gobernanza_title', 'Gobernanza'),
-          subtitle: tpub('page_gobernanza_subtitle', 'Ley de la Aldea - Reglas de convivencia'),
+          title: currentEffectiveLang === 'en' ? 'Governance' : 'Gobernanza',
+          subtitle: currentEffectiveLang === 'en' ? 'Village Law - Cohabitation rules' : 'Ley de la Aldea - Reglas de convivencia',
           icon: 'scale',
           menu_order: 90,
           is_published: true,
@@ -168,8 +181,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         // Pagina virtual de federacion: invita a ecoaldeas a sumarse
         const federationPage = dbSlugs.has('federacion') ? null : {
           slug: 'federacion',
-          title: tpub('page_federacion_title', 'Federacion'),
-          subtitle: tpub('page_federacion_subtitle', 'Suma tu ecoaldea a la red'),
+          title: currentEffectiveLang === 'en' ? 'Federation' : 'Federacion',
+          subtitle: currentEffectiveLang === 'en' ? 'Join your eco-village to the network' : 'Suma tu ecoaldea a la red',
           icon: 'globe',
           menu_order: 95,
           is_published: true,
@@ -181,7 +194,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         if (federationPage) allPages.push(federationPage)
         setPages(allPages)
       } else {
-        const tmplPages = FERIA_CONUQUERA_TEMPLATES.map((t) => ({
+        const tmplPages = activeTemplates.map((t) => ({
           slug: t.slug,
           title: t.title,
           subtitle: t.subtitle,
@@ -195,8 +208,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         if (!tmplPages.find((p) => p.slug === 'gobernanza')) {
           tmplPages.push({
             slug: 'gobernanza',
-            title: 'Gobernanza',
-            subtitle: 'Ley de la Aldea - Reglas de convivencia',
+            title: currentEffectiveLang === 'en' ? 'Governance' : 'Gobernanza',
+            subtitle: currentEffectiveLang === 'en' ? 'Village Law - Cohabitation rules' : 'Ley de la Aldea - Reglas de convivencia',
             icon: 'scale',
             menu_order: 90,
             is_published: true,
@@ -208,8 +221,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         if (!tmplPages.find((p) => p.slug === 'federacion')) {
           tmplPages.push({
             slug: 'federacion',
-            title: 'Federacion',
-            subtitle: 'Suma tu ecoaldea a la red',
+            title: currentEffectiveLang === 'en' ? 'Federation' : 'Federacion',
+            subtitle: currentEffectiveLang === 'en' ? 'Join your eco-village to the network' : 'Suma tu ecoaldea a la red',
             icon: 'globe',
             menu_order: 95,
             is_published: true,
@@ -220,7 +233,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         setPages(tmplPages)
       }
     }).catch(() => {})
-  }, [publicI18n.language])
+  }, [currentEffectiveLang])
 
   // Close "More" dropdown when clicking outside
   useEffect(() => {
@@ -1315,6 +1328,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <LanguageSwitcher variant="dark" compact={true} />
               {settings?.show_join_form && !isAuthenticated && (
                 <Link
                   to="/p/unirse"
@@ -2080,15 +2094,25 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 export function PublicPageView() {
   const { isAuthenticated } = useAuth()
   const { slug } = useParams<{ slug?: string }>()
+  const [searchParams] = useSearchParams()
   const targetSlug = slug || 'inicio'
   const [page, setPage] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isLiveEditing, setIsLiveEditing] = useState(false)
   const { i18n: pageI18n } = useTranslation(['public', 'common'])
 
+  const urlLang = searchParams.get('lang')?.toLowerCase()
+  const activeLang = (urlLang === 'en' || urlLang === 'es') ? urlLang : (pageI18n.language || 'es')
+
+  useEffect(() => {
+    if (urlLang && (urlLang === 'en' || urlLang === 'es') && urlLang !== pageI18n.language) {
+      changeLanguage(urlLang)
+    }
+  }, [urlLang, pageI18n.language])
+
   const loadPageData = () => {
     setLoading(true)
-    const lang = pageI18n.language || 'es'
+    const lang = activeLang
     api
       .get(`/public/pages/${targetSlug}?lang=${lang}`)
       .then((d: any) => {
@@ -2104,10 +2128,15 @@ export function PublicPageView() {
           isValidJson = false
         }
 
-        if (!isValidJson) {
-          const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === targetSlug)
+        // Si no es JSON válido o es un fallback de BD para un idioma traducible
+        if (!isValidJson || (d.is_fallback && lang !== 'es')) {
+          const tmpl = getPreconfiguredTemplate(targetSlug, lang)
           if (tmpl) {
             contentToUse = JSON.stringify(tmpl.blocks)
+            if (d.is_fallback) {
+              d.title = tmpl.title
+              d.subtitle = tmpl.subtitle
+            }
           }
         }
 
@@ -2115,7 +2144,7 @@ export function PublicPageView() {
         setLoading(false)
       })
       .catch(() => {
-        const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === targetSlug)
+        const tmpl = getPreconfiguredTemplate(targetSlug, lang)
         if (tmpl) {
           setPage({
             slug: tmpl.slug,
@@ -2131,7 +2160,7 @@ export function PublicPageView() {
   useEffect(() => {
     loadPageData()
     setIsLiveEditing(false)
-  }, [targetSlug, pageI18n.language])
+  }, [targetSlug, activeLang])
 
   // Listen for "start live edit" event from the consolidated admin button in PublicLayout
   useEffect(() => {
@@ -2173,9 +2202,11 @@ export function PublicPageView() {
     )
   }
 
-  // La pagina de federacion ahora es editable con bloques (como las demas paginas).
-  // Si no existe en la BD, se usa el template de fallback con bloques por defecto.
-  // El editor en vivo funciona normalmente en esta pagina.
+  // Pagina especial: federacion muestra la pagina de invitacion a ecoaldeas
+  // con el boton para iniciar el nodo demo y ver como funciona por dentro.
+  if (targetSlug === 'federacion') {
+    return <PublicFederationPage />
+  }
 
   if (!page) {
     return (
