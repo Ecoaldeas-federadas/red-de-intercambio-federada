@@ -607,6 +607,18 @@ func serveFrontendFile(w http.ResponseWriter, r *http.Request, frontendDir strin
 		return
 	}
 
+	// Si es un asset (JS/CSS con hash) que ya no existe tras una actualizacion,
+	// devolver 404 en lugar de index.html. El navegador interpretara que el
+	// archivo ya no es valido y recargara la pagina para obtener el index.html
+	// actualizado con los hashes correctos. Si devolvemos index.html (HTML)
+	// cuando el navegador espera JavaScript, se produce un error MIME y la
+	// pagina queda en blanco.
+	if strings.HasPrefix(urlPath, "/assets/") {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		http.NotFound(w, r)
+		return
+	}
+
 	// No es archivo: servir index.html (SPA routing)
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
