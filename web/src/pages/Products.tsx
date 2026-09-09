@@ -60,6 +60,10 @@ export default function Products() {
   const [success, setSuccess] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
+  const [formLang, setFormLang] = useState('es')
+  const [defaultLang, setDefaultLang] = useState('es')
+  const [languages, setLanguages] = useState<any[]>([])
+  const [formTranslations, setFormTranslations] = useState<Record<string, Record<string, string>>>({})
   const [filterParentCategory, setFilterParentCategory] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterSubcategory, setFilterSubcategory] = useState('')
@@ -84,6 +88,18 @@ export default function Products() {
   const [mynodeSubTab, setMynodeSubTab] = useState<MyNodeSubTab>('allowed')
 
   const PAGE_SIZE = 24
+
+  useEffect(() => {
+    api.get<any[]>('/languages').then((result) => {
+      const enabled = (result || []).filter((lang: any) => lang.enabled)
+      const source = enabled.find((lang: any) => lang.is_default)?.code || 'es'
+      setLanguages(enabled)
+      setDefaultLang(source)
+      setFormLang(source)
+    }).catch(() => {
+      setLanguages([{ code: 'es', native_name: 'Español', is_default: true }, { code: 'en', native_name: 'English' }])
+    })
+  }, [])
 
   const load = useCallback((reset = false) => {
     setLoading(true)
@@ -420,6 +436,25 @@ export default function Products() {
     setFilterSubcategory('')
   }
 
+  const setTranslatedField = (field: string, value: string) => {
+    setFormTranslations((prev) => ({ ...prev, [formLang]: { ...(prev[formLang] || {}), [field]: value } }))
+  }
+
+  const changeFormLanguage = async (lang: string) => {
+    setFormLang(lang)
+    if (!editingId || lang === defaultLang || formTranslations[lang]) return
+    try {
+      const translations = await api.get<any[]>(`/products/${editingId}/translations`)
+      const current = (translations || []).find((item: any) => item.language === lang)
+      setFormTranslations((prev) => ({
+        ...prev,
+        [lang]: { name: current?.name || '', description: current?.description || '', badge: '', unit: '' },
+      }))
+    } catch {
+      setFormTranslations((prev) => ({ ...prev, [lang]: { name: '', description: '', badge: '', unit: '' } }))
+    }
+  }
+
   const startEdit = (p: any) => {
     setEditingId(p.id)
     setForm({
@@ -436,12 +471,16 @@ export default function Products() {
       origin: p.origin || 'internal',
       is_hidden: p.is_hidden || false,
     })
+    setFormTranslations({})
+    setFormLang(defaultLang)
     setShowForm(false)
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setForm(emptyForm)
+    setFormTranslations({})
+    setFormLang(defaultLang)
   }
 
   const save = async () => {
@@ -451,12 +490,15 @@ export default function Products() {
       return
     }
     try {
+      const payload = { ...form, translations: formTranslations }
       if (editingId) {
-        await api.put(`/products/${editingId}`, form)
+        await api.put(`/products/${editingId}`, payload)
       } else {
-        await api.post('/products', form)
+        await api.post('/products', payload)
       }
       setForm(emptyForm)
+      setFormTranslations({})
+      setFormLang(defaultLang)
       setEditingId(null)
       setShowForm(false)
       if (activeTab === 'mynode') load(true)
@@ -485,19 +527,32 @@ export default function Products() {
 
   const ProductFormFields = () => (
     <div className="space-y-4">
+      {languages.length > 1 && (
+        <div>
+          <label className="label flex items-center gap-2"><Globe size={15} />{t('form_language_label', 'Idioma del contenido')}</label>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {languages.map((lang) => (
+              <button key={lang.code} type="button" onClick={() => changeFormLanguage(lang.code)} className={`px-3 py-1 rounded-lg text-xs font-medium border ${formLang === lang.code ? 'bg-trueque-600 text-white border-trueque-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                {lang.code.toUpperCase()}{lang.code === defaultLang ? ` (${t('common:default', 'principal')})` : ''}
+              </button>
+            ))}
+          </div>
+          {formLang !== defaultLang && <p className="text-xs text-blue-600 mt-1">{t('form_optional_translation_hint', 'Traducción opcional. Si queda vacía se mostrará el idioma principal.')}</p>}
+        </div>
+      )}
       <div>
         <label className="label">{t('form_name_label', 'Nombre del producto')}</label>
-        <input className="input" placeholder={t('form_name_placeholder', 'Ej: Pan integral 500g')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input className="input" placeholder={t('form_name_placeholder', 'Ej: Pan integral 500g')} value={formLang === defaultLang ? form.name : formTranslations[formLang]?.name || ''} onChange={(e) => formLang === defaultLang ? setForm({ ...form, name: e.target.value }) : setTranslatedField('name', e.target.value)} />
       </div>
 
       <div>
         <label className="label">{t('form_description_label', 'Descripción')}</label>
-        <textarea className="input" rows={2} placeholder={t('form_description_placeholder', 'Descripción del producto...')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <textarea className="input" rows={2} placeholder={t('form_description_placeholder', 'Descripción del producto...')} value={formLang === defaultLang ? form.description : formTranslations[formLang]?.description || ''} onChange={(e) => formLang === defaultLang ? setForm({ ...form, description: e.target.value }) : setTranslatedField('description', e.target.value)} />
       </div>
 
       <div>
         <label className="label">{t('form_badge_label', 'Etiqueta destacada (badge)')}</label>
-        <input className="input" placeholder={t('form_badge_placeholder', 'Ej: Fresco del Día, Plato Estrella, 100% Puro')} value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} />
+        <input className="input" placeholder={t('form_badge_placeholder', 'Ej: Fresco del Día, Plato Estrella, 100% Puro')} value={formLang === defaultLang ? form.badge : formTranslations[formLang]?.badge || ''} onChange={(e) => formLang === defaultLang ? setForm({ ...form, badge: e.target.value }) : setTranslatedField('badge', e.target.value)} />
         <p className="text-xs text-gray-400 mt-1">{t('form_badge_hint', 'Etiqueta que aparece destacada en la tarjeta del producto en la página pública.')}</p>
       </div>
 
@@ -561,7 +616,7 @@ export default function Products() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">{t('form_unit_label', 'Unidad de medida')}</label>
-          <input className="input" placeholder={t('form_unit_placeholder', 'Ej: kg, litro, unidad, hora')} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+          <input className="input" placeholder={t('form_unit_placeholder', 'Ej: kg, litro, unidad, hora')} value={formLang === defaultLang ? form.unit : formTranslations[formLang]?.unit || ''} onChange={(e) => formLang === defaultLang ? setForm({ ...form, unit: e.target.value }) : setTranslatedField('unit', e.target.value)} />
         </div>
         <div>
           <label className="label">{t('form_price_label', 'Precio')} ({currency})</label>
@@ -629,7 +684,7 @@ export default function Products() {
             </button>
           )}
           {canManage && activeTab === 'mynode' && (
-            <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(emptyForm) }} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('new_button', 'Nuevo')}</button>
+            <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(emptyForm); setFormTranslations({}); setFormLang(defaultLang) }} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('new_button', 'Nuevo')}</button>
           )}
         </div>
       </div>

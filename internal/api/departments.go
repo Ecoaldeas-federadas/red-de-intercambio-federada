@@ -57,20 +57,23 @@ func (dh *DepartmentsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 }
 
 func (dh *DepartmentsHandler) listDepartments(w http.ResponseWriter, r *http.Request) {
-	depts, err := dh.Departments.ListDepartments(r.Context(), db.LOCAL_NODE_DOMAIN)
+	nodeDomain := db.ResolveNodeDomain(r.Context(), dh.Pool, r.Header.Get("X-Node-Domain"), dh.NodeDomain)
+	depts, err := dh.Departments.ListDepartments(r.Context(), nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
+	dh.localizeDepartments(r, depts)
 	writeJSON(w, 200, depts)
 }
 
 type CreateDepartmentRequest struct {
-	Name                 string     `json:"name"`
-	Description          string     `json:"description"`
-	GroupType            string     `json:"group_type"`
-	HeadUserID           *uuid.UUID `json:"head_user_id"`
-	ParentOrganizationID *uuid.UUID `json:"parent_organization_id"`
+	Name                 string                       `json:"name"`
+	Description          string                       `json:"description"`
+	GroupType            string                       `json:"group_type"`
+	HeadUserID           *uuid.UUID                   `json:"head_user_id"`
+	ParentOrganizationID *uuid.UUID                   `json:"parent_organization_id"`
+	Translations         map[string]map[string]string `json:"translations,omitempty"`
 }
 
 func (dh *DepartmentsHandler) createDepartment(w http.ResponseWriter, r *http.Request) {
@@ -102,10 +105,17 @@ func (dh *DepartmentsHandler) createDepartment(w http.ResponseWriter, r *http.Re
 	}
 	// Si parent_organization_id es NULL, el departamento pertenece al nodo/asamblea directamente
 
-	dept, err := dh.Departments.CreateDepartment(r.Context(), db.LOCAL_NODE_DOMAIN, req.Name, req.Description, req.GroupType, req.HeadUserID, req.ParentOrganizationID)
+	nodeDomain := db.ResolveNodeDomain(r.Context(), dh.Pool, r.Header.Get("X-Node-Domain"), dh.NodeDomain)
+	dept, err := dh.Departments.CreateDepartment(r.Context(), nodeDomain, req.Name, req.Description, req.GroupType, req.HeadUserID, req.ParentOrganizationID)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
+	}
+	deptFields := map[string]string{"name": req.Name, "description": req.Description}
+	registerEntityFields(r.Context(), dh.Pool, nodeDomain, "department", dept.ID.String(), deptFields, map[string]interface{}{"label": req.Name})
+	if len(req.Translations) > 0 {
+		userID, _ := dh.Auth.GetUserID(r)
+		saveSubmittedTranslations(r.Context(), dh.Pool, nodeDomain, "department", dept.ID.String(), deptFields, req.Translations, userID)
 	}
 	writeJSON(w, 201, dept)
 }
@@ -123,14 +133,16 @@ func (dh *DepartmentsHandler) getDepartment(w http.ResponseWriter, r *http.Reque
 		writeError(w, 404, err.Error())
 		return
 	}
+	dh.localizeDepartment(r, dept)
 	writeJSON(w, 200, dept)
 }
 
 type UpdateDepartmentRequest struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	HeadUserID  *uuid.UUID `json:"head_user_id"`
-	IsActive    *bool      `json:"is_active"`
+	Name         string                       `json:"name"`
+	Description  string                       `json:"description"`
+	HeadUserID   *uuid.UUID                   `json:"head_user_id"`
+	IsActive     *bool                        `json:"is_active"`
+	Translations map[string]map[string]string `json:"translations,omitempty"`
 }
 
 func (dh *DepartmentsHandler) updateDepartment(w http.ResponseWriter, r *http.Request) {
@@ -156,6 +168,12 @@ func (dh *DepartmentsHandler) updateDepartment(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
+	}
+	deptFields := map[string]string{"name": req.Name, "description": req.Description}
+	registerEntityFields(r.Context(), dh.Pool, dept.NodeDomain, "department", id.String(), deptFields, map[string]interface{}{"label": req.Name})
+	if len(req.Translations) > 0 {
+		userID, _ := dh.Auth.GetUserID(r)
+		saveSubmittedTranslations(r.Context(), dh.Pool, dept.NodeDomain, "department", id.String(), deptFields, req.Translations, userID)
 	}
 	writeJSON(w, 200, dept)
 }
@@ -256,12 +274,14 @@ func (dh *DepartmentsHandler) listRoles(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 500, err.Error())
 		return
 	}
+	dh.localizeRoles(r, roles)
 	writeJSON(w, 200, roles)
 }
 
 type CreateRoleRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name         string                       `json:"name"`
+	Description  string                       `json:"description"`
+	Translations map[string]map[string]string `json:"translations,omitempty"`
 }
 
 func (dh *DepartmentsHandler) createRole(w http.ResponseWriter, r *http.Request) {
@@ -287,7 +307,92 @@ func (dh *DepartmentsHandler) createRole(w http.ResponseWriter, r *http.Request)
 		writeError(w, 400, err.Error())
 		return
 	}
+	var nodeDomain string
+	_ = dh.Pool.QueryRow(r.Context(), `SELECT node_domain FROM departments WHERE id = $1`, deptID).Scan(&nodeDomain)
+	if nodeDomain == "" {
+		nodeDomain = dh.NodeDomain
+	}
+	roleFields := map[string]string{"name": req.Name, "description": req.Description}
+	registerEntityFields(r.Context(), dh.Pool, nodeDomain, "department_role", role.ID.String(), roleFields, map[string]interface{}{"label": req.Name})
+	if len(req.Translations) > 0 {
+		userID, _ := dh.Auth.GetUserID(r)
+		saveSubmittedTranslations(r.Context(), dh.Pool, nodeDomain, "department_role", role.ID.String(), roleFields, req.Translations, userID)
+	}
 	writeJSON(w, 201, role)
+}
+
+func (dh *DepartmentsHandler) localizeDepartment(r *http.Request, dept *accounts.Department) {
+	if dept == nil {
+		return
+	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), dh.Pool, r.Header.Get("X-Node-Domain"), dept.NodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, dh.Pool, nodeDomain)
+	if lang == fallbackLang {
+		return
+	}
+	id := dept.ID.String()
+	values := localizedContentValues(r.Context(), dh.Pool, []string{
+		"department:" + id + ":name",
+		"department:" + id + ":description",
+	}, lang)
+	if val := values["department:"+id+":name"]; val != "" {
+		dept.Name = val
+	}
+	if val := values["department:"+id+":description"]; val != "" {
+		dept.Description = val
+	}
+}
+
+func (dh *DepartmentsHandler) localizeDepartments(r *http.Request, depts []accounts.Department) {
+	if len(depts) == 0 {
+		return
+	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), dh.Pool, r.Header.Get("X-Node-Domain"), depts[0].NodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, dh.Pool, nodeDomain)
+	if lang == fallbackLang {
+		return
+	}
+	keys := make([]string, 0, len(depts)*2)
+	for _, d := range depts {
+		id := d.ID.String()
+		keys = append(keys, "department:"+id+":name", "department:"+id+":description")
+	}
+	values := localizedContentValues(r.Context(), dh.Pool, keys, lang)
+	for i := range depts {
+		id := depts[i].ID.String()
+		if val := values["department:"+id+":name"]; val != "" {
+			depts[i].Name = val
+		}
+		if val := values["department:"+id+":description"]; val != "" {
+			depts[i].Description = val
+		}
+	}
+}
+
+func (dh *DepartmentsHandler) localizeRoles(r *http.Request, roles []accounts.DepartmentRole) {
+	if len(roles) == 0 {
+		return
+	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), dh.Pool, r.Header.Get("X-Node-Domain"), dh.NodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, dh.Pool, nodeDomain)
+	if lang == fallbackLang {
+		return
+	}
+	keys := make([]string, 0, len(roles)*2)
+	for _, role := range roles {
+		id := role.ID.String()
+		keys = append(keys, "department_role:"+id+":name", "department_role:"+id+":description")
+	}
+	values := localizedContentValues(r.Context(), dh.Pool, keys, lang)
+	for i := range roles {
+		id := roles[i].ID.String()
+		if val := values["department_role:"+id+":name"]; val != "" {
+			roles[i].Name = val
+		}
+		if val := values["department_role:"+id+":description"]; val != "" {
+			roles[i].Description = val
+		}
+	}
 }
 
 type SetRolePermissionsRequest struct {
@@ -597,6 +702,8 @@ func (dh *DepartmentsHandler) listAllDepartments(w http.ResponseWriter, r *http.
 	if depts == nil {
 		depts = []map[string]interface{}{}
 	}
+	lang, fallbackLang := resolveRequestLanguages(r, dh.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), dh.Pool, depts, "department", lang, fallbackLang, "name", "description")
 	writeJSON(w, 200, depts)
 }
 

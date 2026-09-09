@@ -370,6 +370,7 @@ func (eh *ExternalHandler) listStoreItems(w http.ResponseWriter, r *http.Request
 		writeError(w, 500, err.Error())
 		return
 	}
+	eh.localizeStoreItems(r, items)
 	writeJSON(w, 200, items)
 }
 
@@ -380,6 +381,7 @@ func (eh *ExternalHandler) listAllStores(w http.ResponseWriter, r *http.Request)
 		writeError(w, 500, err.Error())
 		return
 	}
+	eh.localizeStoreItems(r, items)
 	writeJSON(w, 200, items)
 }
 
@@ -392,7 +394,56 @@ func (eh *ExternalHandler) listPublicStoreItems(w http.ResponseWriter, r *http.R
 		writeJSON(w, 200, []interface{}{})
 		return
 	}
+	eh.localizeStoreItems(r, items)
 	writeJSON(w, 200, items)
+}
+
+// localizeStoreItems overlays the active language without changing category
+// keys or monetary data. A linked catalogue product is the preferred source
+// for shared name/description/unit translations; independent store text keeps
+// its own store-item source.
+func (eh *ExternalHandler) localizeStoreItems(r *http.Request, items []external.StoreItem) {
+	nodeDomain := db.ResolveNodeDomain(r.Context(), eh.Pool, r.Header.Get("X-Node-Domain"), eh.NodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, eh.Pool, nodeDomain)
+	if len(items) == 0 || strings.EqualFold(lang, fallbackLang) {
+		return
+	}
+	keys := make([]string, 0, len(items)*6)
+	for _, item := range items {
+		id := item.ID.String()
+		keys = append(keys,
+			"store_item:"+id+":product_name", "store_item:"+id+":description", "store_item:"+id+":extra_description")
+		if item.ProductID != nil {
+			productID := item.ProductID.String()
+			keys = append(keys, "product:"+productID+":name", "product:"+productID+":description", "product:"+productID+":unit")
+		}
+	}
+	translations := localizedContentValues(r.Context(), eh.Pool, keys, lang)
+	for i := range items {
+		item := &items[i]
+		id := item.ID.String()
+		if item.ProductID != nil {
+			productID := item.ProductID.String()
+			if value := translations["product:"+productID+":name"]; value != "" {
+				item.ProductName = value
+			}
+			if value := translations["product:"+productID+":description"]; value != "" {
+				item.Description = value
+			}
+			if value := translations["product:"+productID+":unit"]; value != "" {
+				item.Unit = value
+			}
+		}
+		if value := translations["store_item:"+id+":product_name"]; value != "" {
+			item.ProductName = value
+		}
+		if value := translations["store_item:"+id+":description"]; value != "" {
+			item.Description = value
+		}
+		if value := translations["store_item:"+id+":extra_description"]; value != "" {
+			item.ExtraDescription = value
+		}
+	}
 }
 
 type AddStoreItemRequest struct {
@@ -517,6 +568,9 @@ func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 400, err.Error())
 		return
 	}
+	registerEntityFields(r.Context(), eh.Pool, item.NodeDomain, "store_item", item.ID.String(), map[string]string{
+		"product_name": item.ProductName, "description": item.Description, "extra_description": item.ExtraDescription,
+	}, map[string]interface{}{"label": item.ProductName})
 	writeJSON(w, 201, item)
 }
 
@@ -719,6 +773,9 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 		writeError(w, 400, err.Error())
 		return
 	}
+	registerEntityFields(r.Context(), eh.Pool, item.NodeDomain, "store_item", item.ID.String(), map[string]string{
+		"product_name": item.ProductName, "description": item.Description, "extra_description": item.ExtraDescription,
+	}, map[string]interface{}{"label": item.ProductName})
 
 	// Guardar la composicion
 	for i, c := range req.Components {

@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"context"
@@ -65,11 +65,19 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Traducciones de contenido (multi-idioma)
 	r.With(am.RequireAuth).Get("/api/site/pages/{id}/translations", h.getPageTranslations)
 	r.With(am.RequireAuth).Get("/api/site/pages/{id}/translations/{lang}", h.getPageTranslation)
-	r.With(am.RequirePermission("config.manage")).Put("/api/site/pages/{id}/translations/{lang}", h.updatePageTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/site/pages/{id}/translations/{lang}", h.updatePageTranslation)
 	r.With(am.RequireAuth).Get("/api/site/settings/{lang}", h.getSiteSettingsTranslation)
-	r.With(am.RequirePermission("config.manage")).Put("/api/site/settings/{lang}", h.updateSiteSettingsTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/site/settings/{lang}", h.updateSiteSettingsTranslation)
 	r.With(am.RequireAuth).Get("/api/site/admission-form/{lang}", h.getAdmissionFormTranslation)
-	r.With(am.RequirePermission("config.manage")).Put("/api/site/admission-form/{lang}", h.updateAdmissionFormTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/site/admission-form/{lang}", h.updateAdmissionFormTranslation)
+
+	r.With(am.RequirePermission("translations.edit")).Get("/api/content-translations/sources", h.listContentTranslationSources)
+	r.With(am.RequirePermission("translations.edit")).Get("/api/content-translations/status", h.getContentTranslationStatus)
+	r.With(am.RequirePermission("translations.edit")).Get("/api/content-translations/sources/{key}", h.getContentTranslationSource)
+	r.With(am.RequirePermission("translations.edit")).Get("/api/content-translations/sources/{key}/{lang}", h.getContentTranslationValue)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/content-translations/sources/{key}/{lang}", h.updateContentTranslation)
+	r.With(am.RequirePermission("translations.edit")).Delete("/api/content-translations/sources/{key}/{lang}", h.deleteContentTranslation)
+	r.With(am.RequirePermission("translations.edit")).Post("/api/content-translations/bulk", h.bulkUpdateContentTranslations)
 
 	// Solicitudes de admision (admin)
 	r.With(am.RequireAuth).Get("/api/admission-requests", h.listAdmissionRequests)
@@ -97,7 +105,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Traducciones de niveles de miembro
 	r.With(am.RequireAuth).Get("/api/member-levels/{id}/translations", h.getMemberLevelTranslations)
 	r.With(am.RequireAuth).Get("/api/member-levels/{id}/translations/{lang}", h.getMemberLevelTranslation)
-	r.With(am.RequirePermission("config.manage")).Put("/api/member-levels/{id}/translations/{lang}", h.updateMemberLevelTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/member-levels/{id}/translations/{lang}", h.updateMemberLevelTranslation)
 
 	// Niveles de organizacion (CRUD completo, separados de member_levels)
 	r.With(am.RequireAuth).Get("/api/organization-levels", h.listOrganizationLevels)
@@ -106,7 +114,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Traducciones de niveles de organizacion
 	r.With(am.RequireAuth).Get("/api/organization-levels/{id}/translations", h.getOrgLevelTranslations)
 	r.With(am.RequireAuth).Get("/api/organization-levels/{id}/translations/{lang}", h.getOrgLevelTranslation)
-	r.With(am.RequirePermission("config.manage")).Put("/api/organization-levels/{id}/translations/{lang}", h.updateOrgLevelTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/organization-levels/{id}/translations/{lang}", h.updateOrgLevelTranslation)
 
 	// Tarifa energetica
 	r.With(am.RequireAuth).Get("/api/calculator/tariff", h.getTariff)
@@ -156,27 +164,27 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Traducciones de reglas de gobernanza
 	r.With(am.RequireAuth).Get("/api/governance/rules/{id}/translations", h.getGovernanceRuleTranslations)
-	r.With(am.RequirePermission("governance.manage")).Put("/api/governance/rules/{id}/translations/{lang}", h.updateGovernanceRuleTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/governance/rules/{id}/translations/{lang}", h.updateGovernanceRuleTranslation)
 
 	// Traducciones de parametros de calculadora
 	r.With(am.RequireAuth).Get("/api/calculator/parameters/{id}/translations", h.getCalculatorParameterTranslations)
-	r.With(am.RequirePermission("config.manage")).Put("/api/calculator/parameters/{id}/translations/{lang}", h.updateCalculatorParameterTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/calculator/parameters/{id}/translations/{lang}", h.updateCalculatorParameterTranslation)
 
 	// Traducciones de categorias de calculadora
 	r.With(am.RequireAuth).Get("/api/calculator/categories/{id}/translations", h.getCalculatorCategoryTranslations)
-	r.With(am.RequirePermission("config.manage")).Put("/api/calculator/categories/{id}/translations/{lang}", h.updateCalculatorCategoryTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/calculator/categories/{id}/translations/{lang}", h.updateCalculatorCategoryTranslation)
 
 	// Traducciones de productos
 	r.With(am.RequireAuth).Get("/api/products/{id}/translations", h.getProductTranslations)
-	r.With(am.RequirePermission("config.manage")).Put("/api/products/{id}/translations/{lang}", h.updateProductTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/products/{id}/translations/{lang}", h.updateProductTranslation)
 
 	// Traducciones de configuracion de asamblea
 	r.With(am.RequireAuth).Get("/api/assembly/config/{id}/translations", h.getAssemblyConfigTranslations)
-	r.With(am.RequirePermission("config.manage")).Put("/api/assembly/config/{id}/translations/{lang}", h.updateAssemblyConfigTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/assembly/config/{id}/translations/{lang}", h.updateAssemblyConfigTranslation)
 
 	// Traducciones de constantes federadas
 	r.With(am.RequireAuth).Get("/api/federation/constants/{key}/translations", h.getFederationConstantTranslations)
-	r.With(am.RequirePermission("config.manage")).Put("/api/federation/constants/{key}/translations/{lang}", h.updateFederationConstantTranslation)
+	r.With(am.RequirePermission("translations.edit")).Put("/api/federation/constants/{key}/translations/{lang}", h.updateFederationConstantTranslation)
 
 	// Auto-ascenso de nivel
 	r.With(am.RequireAuth).Post("/api/member-levels/auto-upgrade", h.autoUpgradeLevel)
@@ -461,7 +469,7 @@ func (h *SystemHandler) listMemberLevels(w http.ResponseWriter, r *http.Request)
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Idioma solicitado para traducciones
-	lang := resolveLang(r)
+	lang, _ := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	// Intentar usar el node_domain real del usuario autenticado
 	userID, err := h.Auth.GetUserID(r)
@@ -755,26 +763,28 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 
 	// Idioma solicitado para traducciones
-	lang := resolveLang(r)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	// Mostrar productos del nodo local (aprobados y no aprobados) para que el admin
 	// pueda ver permitidos y no permitidos. is_allowed distingue permitido/no-permitido.
 	query := `
-		SELECT p.id, COALESCE(t.name, p.name) AS name, COALESCE(t.description, p.description) AS description,
+		SELECT p.id, p.name, COALESCE(p.description, '') AS description,
 		       COALESCE(p.parent_category,''), COALESCE(p.category,''), COALESCE(p.subcategory,''),
 		       p.unit, p.price_per_unit, COALESCE(p.price_per_kg,0), COALESCE(p.weight_kg,0),
 		       COALESCE(p.base_unit,'kg'), p.is_approved, p.origin, p.badge, p.image_url,
 		       p.product_code, p.is_system, p.is_hidden, COALESCE(p.image_thumb_url,''),
 		       COALESCE(p.is_allowed, NULL)
 		FROM products p
-		LEFT JOIN product_translations t ON t.product_id = p.id AND t.language = $2
 		WHERE p.node_domain IN ($1, 'localhost', 'default') AND p.is_hidden = false AND COALESCE(p.is_composite, false) = false`
-	args := []interface{}{nodeDomain, lang}
+	args := []interface{}{nodeDomain}
 	if search != "" {
-		query += ` AND LOWER(COALESCE(t.name, p.name)) LIKE LOWER($3)`
-		args = append(args, "%"+search+"%")
+		query += ` AND (LOWER(p.name) LIKE LOWER($2) OR EXISTS (
+			SELECT 1 FROM content_translations ct
+			WHERE ct.translation_key = 'product:' || p.id::text || ':name'
+			  AND LOWER(ct.language) = LOWER($3) AND LOWER(ct.value) LIKE LOWER($2)))`
+		args = append(args, "%"+search+"%", lang)
 	}
-	query += ` ORDER BY COALESCE(p.parent_category,''), COALESCE(p.category,''), COALESCE(p.subcategory,''), COALESCE(t.name, p.name) LIMIT 500`
+	query += ` ORDER BY COALESCE(p.parent_category,''), COALESCE(p.category,''), COALESCE(p.subcategory,''), p.name LIMIT 500`
 	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -782,6 +792,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	products := scanProductRows(rows)
+	localizeEntityMaps(r.Context(), h.Pool, products, "product", lang, fallbackLang, "name", "description", "badge", "unit")
 	if products == nil {
 		products = []map[string]interface{}{}
 	}
@@ -794,6 +805,7 @@ func (h *SystemHandler) listPendingProducts(w http.ResponseWriter, r *http.Reque
 		nodeDomain = h.nodeDomain
 	}
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
 		FROM products WHERE node_domain = $1 AND is_approved = false AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY created_at DESC LIMIT 200`, nodeDomain)
@@ -843,6 +855,7 @@ func (h *SystemHandler) listPendingProducts(w http.ResponseWriter, r *http.Reque
 			"is_hidden":       isHidden,
 		})
 	}
+	localizeEntityMaps(r.Context(), h.Pool, products, "product", lang, fallbackLang, "name", "description", "badge", "unit")
 	if products == nil {
 		products = []map[string]interface{}{}
 	}
@@ -859,6 +872,7 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 		nodeDomain = h.nodeDomain
 	}
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 	search := r.URL.Query().Get("search")
 	query := `
 		SELECT id, name, COALESCE(description,''), COALESCE(parent_category,''),
@@ -880,6 +894,7 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 	}
 	defer rows.Close()
 	products := scanProductRows(rows)
+	localizeEntityMaps(r.Context(), h.Pool, products, "product", lang, fallbackLang, "name", "description", "badge", "unit")
 	if products == nil {
 		products = []map[string]interface{}{}
 	}
@@ -891,6 +906,8 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 // Muestra TODOS los productos (aprobados y no aprobados) para que cada nodo
 // pueda aprobar/desaprobar individualmente. No muestra ocultos ni compuestos.
 func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Request) {
+	requestNodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, requestNodeDomain)
 	search := r.URL.Query().Get("search")
 	orgFilter := r.URL.Query().Get("organization")
 	query := `
@@ -985,6 +1002,7 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 			"is_allowed":        isAllowed,
 		})
 	}
+	localizeEntityMaps(r.Context(), h.Pool, products, "product", lang, fallbackLang, "name", "description", "badge", "unit")
 	if products == nil {
 		products = []map[string]interface{}{}
 	}
@@ -1161,18 +1179,19 @@ func (h *SystemHandler) getProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 type CreateSystemProductRequest struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	ParentCategory string  `json:"parent_category"`
-	Category       string  `json:"category"`
-	Subcategory    string  `json:"subcategory"`
-	Unit           string  `json:"unit"`
-	Price          float64 `json:"price"`
-	Origin         string  `json:"origin"`
-	Badge          string  `json:"badge"`
-	ImageURL       string  `json:"image_url"`
-	ProductCode    string  `json:"product_code"`
-	IsHidden       *bool   `json:"is_hidden"`
+	Name           string                       `json:"name"`
+	Description    string                       `json:"description"`
+	ParentCategory string                       `json:"parent_category"`
+	Category       string                       `json:"category"`
+	Subcategory    string                       `json:"subcategory"`
+	Unit           string                       `json:"unit"`
+	Price          float64                      `json:"price"`
+	Origin         string                       `json:"origin"`
+	Badge          string                       `json:"badge"`
+	ImageURL       string                       `json:"image_url"`
+	ProductCode    string                       `json:"product_code"`
+	IsHidden       *bool                        `json:"is_hidden"`
+	Translations   map[string]map[string]string `json:"translations"`
 }
 
 func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
@@ -1192,22 +1211,40 @@ func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
 		req.Unit = "unidad"
 	}
 
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
 	id := uuid.New()
 	_, err := h.Pool.Exec(r.Context(), `
 		INSERT INTO products (id, node_domain, name, description, parent_category, category, subcategory, unit, price_per_unit, origin, badge, image_url, product_code, is_approved)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, false)`,
-		id, h.nodeDomain, req.Name, req.Description, req.ParentCategory, req.Category, req.Subcategory, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode)
+		id, nodeDomain, req.Name, req.Description, req.ParentCategory, req.Category, req.Subcategory, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
+	productID := id.String()
+	baseFields := map[string]string{"name": req.Name, "description": req.Description, "badge": req.Badge, "unit": req.Unit}
+	ensureProductTaxonomySources(r.Context(), h.Pool, nodeDomain, req.ParentCategory, req.Category, req.Subcategory)
+	for field, value := range baseFields {
+		_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "product", productID, field, value, map[string]interface{}{"label": req.Name})
+	}
+	if len(req.Translations) > 0 {
+		userID, _ := h.Auth.GetUserID(r)
+		baseLang := defaultLanguage(r.Context(), h.Pool, nodeDomain)
+		for lang, fields := range req.Translations {
+			if strings.EqualFold(normalizeLanguageCode(lang), baseLang) || !enabledLanguage(r.Context(), h.Pool, lang) {
+				continue
+			}
+			for field, value := range fields {
+				if _, ok := baseFields[field]; ok {
+					_ = saveContentTranslation(r.Context(), h.Pool, "product:"+productID+":"+field, lang, value, userID)
+				}
+			}
+		}
+	}
 
 	writeJSON(w, 201, map[string]interface{}{
-		"id":          id.String(),
-		"name":        req.Name,
-		"price":       req.Price,
-		"is_approved": false,
-		"message":     "Producto creado. Pendiente de aprobacion de la asamblea.",
+		"id": productID, "name": req.Name, "price": req.Price, "is_approved": false,
+		"message": "Producto creado. Pendiente de aprobacion de la asamblea.",
 	})
 }
 
@@ -1229,13 +1266,38 @@ func (h *SystemHandler) updateProduct(w http.ResponseWriter, r *http.Request) {
 		isHidden = *req.IsHidden
 	}
 
-	_, err = h.Pool.Exec(r.Context(), `
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	result, err := h.Pool.Exec(r.Context(), `
 		UPDATE products SET name = $1, description = $2, parent_category = $3, category = $4, subcategory = $5, unit = $6, price_per_unit = $7, origin = $8, badge = $9, image_url = $10, product_code = $11, is_hidden = $12, updated_at = NOW()
-		WHERE id = $13`,
-		req.Name, req.Description, req.ParentCategory, req.Category, req.Subcategory, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode, isHidden, id)
+		WHERE id = $13 AND node_domain = $14`,
+		req.Name, req.Description, req.ParentCategory, req.Category, req.Subcategory, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode, isHidden, id, nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
+	}
+	if result.RowsAffected() == 0 {
+		writeError(w, 404, "product not found")
+		return
+	}
+	productID := id.String()
+	baseFields := map[string]string{"name": req.Name, "description": req.Description, "badge": req.Badge, "unit": req.Unit}
+	ensureProductTaxonomySources(r.Context(), h.Pool, nodeDomain, req.ParentCategory, req.Category, req.Subcategory)
+	for field, value := range baseFields {
+		_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "product", productID, field, value, map[string]interface{}{"label": req.Name})
+	}
+	if len(req.Translations) > 0 {
+		userID, _ := h.Auth.GetUserID(r)
+		baseLang := defaultLanguage(r.Context(), h.Pool, nodeDomain)
+		for lang, fields := range req.Translations {
+			if strings.EqualFold(normalizeLanguageCode(lang), baseLang) || !enabledLanguage(r.Context(), h.Pool, lang) {
+				continue
+			}
+			for field, value := range fields {
+				if _, ok := baseFields[field]; ok {
+					_ = saveContentTranslation(r.Context(), h.Pool, "product:"+productID+":"+field, lang, value, userID)
+				}
+			}
+		}
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Producto actualizado"})
@@ -1909,7 +1971,7 @@ func (h *SystemHandler) listCalcParams(w http.ResponseWriter, r *http.Request) {
 	approvedOnly := r.URL.Query().Get("approved") == "true"
 
 	// Idioma solicitado para traducciones
-	lang := resolveLang(r)
+	lang, _ := resolveRequestLanguages(r, h.Pool, db.LOCAL_NODE_DOMAIN)
 
 	query := `SELECT cp.id, cp.parameter_type, cp.category, cp.subcategory,
 			COALESCE(t.name, cp.name) AS name, COALESCE(t.description, cp.description) AS description,
@@ -1980,9 +2042,11 @@ func (h *SystemHandler) listCalcCategories(w http.ResponseWriter, r *http.Reques
 	paramType := r.URL.Query().Get("type")
 
 	// Idioma solicitado para traducciones
-	lang := resolveLang(r)
+	lang, _ := resolveRequestLanguages(r, h.Pool, db.LOCAL_NODE_DOMAIN)
 
-	query := `SELECT cc.id, cc.parameter_type, COALESCE(t.name, cc.name) AS name, COALESCE(t.description, cc.description) AS description, cc.is_active
+	query := `SELECT cc.id, cc.parameter_type, cc.name AS source_name,
+			COALESCE(NULLIF(t.name, ''), cc.name) AS name,
+			COALESCE(NULLIF(t.description, ''), cc.description) AS description, cc.is_active
 			FROM calculator_categories cc
 			LEFT JOIN calculator_category_translations t ON t.category_id = cc.id AND t.language = $2
 			WHERE cc.node_domain = $1`
@@ -2003,15 +2067,16 @@ func (h *SystemHandler) listCalcCategories(w http.ResponseWriter, r *http.Reques
 	var cats []map[string]interface{}
 	for rows.Next() {
 		var id uuid.UUID
-		var pType, name string
+		var pType, sourceName, name string
 		var description *string
 		var isActive bool
-		if err := rows.Scan(&id, &pType, &name, &description, &isActive); err != nil {
+		if err := rows.Scan(&id, &pType, &sourceName, &name, &description, &isActive); err != nil {
 			continue
 		}
 		cats = append(cats, map[string]interface{}{
 			"id":          id.String(),
 			"type":        pType,
+			"source_name": sourceName,
 			"name":        name,
 			"description": deref(description),
 			"is_active":   isActive,
@@ -2024,15 +2089,16 @@ func (h *SystemHandler) listCalcCategories(w http.ResponseWriter, r *http.Reques
 }
 
 type CreateCalcParamRequest struct {
-	Type           string  `json:"type"` // 'work' o 'material'
-	Category       string  `json:"category"`
-	Subcategory    string  `json:"subcategory"`
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	Unit           string  `json:"unit"`
-	KwhPerUnit     float64 `json:"kwh_per_unit"`
-	EffortFactor   float64 `json:"effort_factor"`
-	TariffCategory string  `json:"tariff_category"` // 'agricultural', 'technical', 'admin' o ''
+	Type           string                       `json:"type"` // 'work' o 'material'
+	Category       string                       `json:"category"`
+	Subcategory    string                       `json:"subcategory"`
+	Name           string                       `json:"name"`
+	Description    string                       `json:"description"`
+	Unit           string                       `json:"unit"`
+	KwhPerUnit     float64                      `json:"kwh_per_unit"`
+	EffortFactor   float64                      `json:"effort_factor"`
+	TariffCategory string                       `json:"tariff_category"` // 'agricultural', 'technical', 'admin' o ''
+	Translations   map[string]map[string]string `json:"translations"`
 }
 
 func (h *SystemHandler) createCalcParam(w http.ResponseWriter, r *http.Request) {
@@ -2087,15 +2153,15 @@ func (h *SystemHandler) createCalcParam(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 500, err.Error())
 		return
 	}
+	paramID := id.String()
+	fields := map[string]string{"name": req.Name, "description": req.Description, "subcategory": req.Subcategory, "unit": req.Unit}
+	registerEntityFields(r.Context(), h.Pool, db.LOCAL_NODE_DOMAIN, "calculator_parameter", paramID, fields, map[string]interface{}{"label": req.Name})
+	saveSubmittedTranslations(r.Context(), h.Pool, db.LOCAL_NODE_DOMAIN, "calculator_parameter", paramID, fields, req.Translations, userID)
 
 	writeJSON(w, 201, map[string]interface{}{
-		"id":           id.String(),
-		"type":         req.Type,
-		"category":     req.Category,
-		"name":         req.Name,
-		"kwh_per_unit": req.KwhPerUnit,
-		"approved":     false,
-		"message":      "Parametro creado. Pendiente de aprobacion de asamblea.",
+		"id": paramID, "type": req.Type, "category": req.Category, "name": req.Name,
+		"kwh_per_unit": req.KwhPerUnit, "approved": false,
+		"message": "Parametro creado. Pendiente de aprobacion de asamblea.",
 	})
 }
 
@@ -2124,17 +2190,26 @@ func (h *SystemHandler) updateCalcParam(w http.ResponseWriter, r *http.Request) 
 		tariffCategory = &req.TariffCategory
 	}
 
-	_, err = h.Pool.Exec(r.Context(), `
+	result, err := h.Pool.Exec(r.Context(), `
 		UPDATE calculator_parameters SET
 			category = $1, subcategory = $2, name = $3, description = $4,
 			unit = $5, kwh_per_unit = $6, effort_factor = $7, tariff_category = $8,
 			approved = false, updated_at = NOW()
-		WHERE id = $9`,
-		req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, tariffCategory, id)
+		WHERE id = $9 AND node_domain = $10`,
+		req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, tariffCategory, id, db.LOCAL_NODE_DOMAIN)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
+	if result.RowsAffected() == 0 {
+		writeError(w, 404, "parameter not found")
+		return
+	}
+	paramID := id.String()
+	fields := map[string]string{"name": req.Name, "description": req.Description, "subcategory": req.Subcategory, "unit": req.Unit}
+	registerEntityFields(r.Context(), h.Pool, db.LOCAL_NODE_DOMAIN, "calculator_parameter", paramID, fields, map[string]interface{}{"label": req.Name})
+	userID, _ := h.Auth.GetUserID(r)
+	saveSubmittedTranslations(r.Context(), h.Pool, db.LOCAL_NODE_DOMAIN, "calculator_parameter", paramID, fields, req.Translations, userID)
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Parametro actualizado. Pendiente de reaprobacion."})
 }
@@ -2178,9 +2253,10 @@ func (h *SystemHandler) approveCalcParam(w http.ResponseWriter, r *http.Request)
 }
 
 type CreateCalcCategoryRequest struct {
-	Type        string `json:"type"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Type         string                       `json:"type"`
+	Name         string                       `json:"name"`
+	Description  string                       `json:"description"`
+	Translations map[string]map[string]string `json:"translations"`
 }
 
 func (h *SystemHandler) createCalcCategory(w http.ResponseWriter, r *http.Request) {
@@ -2204,21 +2280,23 @@ func (h *SystemHandler) createCalcCategory(w http.ResponseWriter, r *http.Reques
 		description = &req.Description
 	}
 
-	_, err := h.Pool.Exec(r.Context(), `
+	var categoryID string
+	err := h.Pool.QueryRow(r.Context(), `
 		INSERT INTO calculator_categories (id, node_domain, parameter_type, name, description)
 		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (node_domain, parameter_type, name) DO NOTHING`,
-		id, db.LOCAL_NODE_DOMAIN, req.Type, req.Name, description)
+		ON CONFLICT (node_domain, parameter_type, name) DO UPDATE SET description = EXCLUDED.description
+		RETURNING id::text`,
+		id, db.LOCAL_NODE_DOMAIN, req.Type, req.Name, description).Scan(&categoryID)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
+	fields := map[string]string{"name": req.Name, "description": req.Description}
+	registerEntityFields(r.Context(), h.Pool, db.LOCAL_NODE_DOMAIN, "calculator_category", categoryID, fields, map[string]interface{}{"label": req.Name})
+	userID, _ := h.Auth.GetUserID(r)
+	saveSubmittedTranslations(r.Context(), h.Pool, db.LOCAL_NODE_DOMAIN, "calculator_category", categoryID, fields, req.Translations, userID)
 
-	writeJSON(w, 201, map[string]interface{}{
-		"id":   id.String(),
-		"type": req.Type,
-		"name": req.Name,
-	})
+	writeJSON(w, 201, map[string]interface{}{"id": categoryID, "type": req.Type, "name": req.Name})
 }
 
 // ===== NIVELES DE ORGANIZACION =====
@@ -2228,7 +2306,7 @@ func (h *SystemHandler) listOrganizationLevels(w http.ResponseWriter, r *http.Re
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Idioma solicitado para traducciones
-	lang := resolveLang(r)
+	lang, _ := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT ol.id::text, COALESCE(t.name, ol.name) AS name, COALESCE(t.description, ol.description) AS description,
@@ -2355,6 +2433,7 @@ func (h *SystemHandler) updateOrganizationLevel(w http.ResponseWriter, r *http.R
 func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	var siteTitle, siteSubtitle, primaryColor, secondaryColor, contactAddress, ig, fb string
 	var logoURL, contactEmail, contactPhone, twitter *string
@@ -2468,26 +2547,41 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		}
 		return fallback
 	}
+	fields := []string{"site_title", "site_subtitle", "announcement_text", "contact_address", "footer_about", "footer_schedule", "footer_col1_title", "footer_col2_title", "footer_col3_title", "footer_col4_title", "footer_slogan", "footer_admission_text"}
+	keys := make([]string, 0, len(fields))
+	for _, field := range fields {
+		keys = append(keys, "public_settings:"+nodeDomain+":"+field)
+	}
+	translations := map[string]string{}
+	if !strings.EqualFold(lang, fallbackLang) {
+		translations = localizedContentValues(r.Context(), h.Pool, keys, lang)
+	}
+	translated := func(field, fallback string) string {
+		if value := translations["public_settings:"+nodeDomain+":"+field]; value != "" {
+			return value
+		}
+		return fallback
+	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"site_title":            siteTitle,
-		"site_subtitle":         siteSubtitle,
+		"site_title":            translated("site_title", siteTitle),
+		"site_subtitle":         translated("site_subtitle", siteSubtitle),
 		"logo_url":              logoURL,
 		"primary_color":         primaryColor,
 		"secondary_color":       secondaryColor,
 		"contact_email":         contactEmail,
 		"contact_phone":         contactPhone,
-		"contact_address":       contactAddress,
+		"contact_address":       translated("contact_address", contactAddress),
 		"social_instagram":      ig,
 		"social_facebook":       fb,
 		"social_twitter":        twitter,
 		"show_join_form":        showJoinForm,
 		"header_style":          hStyle,
-		"announcement_text":     aText,
+		"announcement_text":     translated("announcement_text", aText),
 		"show_announcement":     sAnnounce,
 		"footer_style":          fStyle,
-		"footer_about":          deref(footerAbout, "Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014."),
-		"footer_schedule":       deref(footerSchedule, "Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local."),
+		"footer_about":          translated("footer_about", deref(footerAbout, "Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014.")),
+		"footer_schedule":       translated("footer_schedule", deref(footerSchedule, "Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local.")),
 		"text_color":            deref(textColor, "#1a1a1a"),
 		"button_hover_color":    deref(buttonHoverColor, "#15803d"),
 		"module_bg_color":       deref(moduleBgColor, "#ffffff"),
@@ -2495,12 +2589,12 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		"footer_bg_color":       deref(footerBgColor, "#112211"),
 		"link_color":            deref(linkColor, "#15803d"),
 		"link_visited_color":    deref(linkVisitedColor, "#6b21a8"),
-		"footer_col1_title":     deref(footerCol1Title, ""),
-		"footer_col2_title":     deref(footerCol2Title, "Páginas del Nodo"),
-		"footer_col3_title":     deref(footerCol3Title, "Lugar de Encuentro"),
-		"footer_col4_title":     deref(footerCol4Title, "Comunidad & Redes"),
-		"footer_slogan":         deref(footerSlogan, "100% Autogestión & Suelo Vivo"),
-		"footer_admission_text": deref(footerAdmission, "Llenar Solicitud de Ingreso"),
+		"footer_col1_title":     translated("footer_col1_title", deref(footerCol1Title, "")),
+		"footer_col2_title":     translated("footer_col2_title", deref(footerCol2Title, "Páginas del Nodo")),
+		"footer_col3_title":     translated("footer_col3_title", deref(footerCol3Title, "Lugar de Encuentro")),
+		"footer_col4_title":     translated("footer_col4_title", deref(footerCol4Title, "Comunidad & Redes")),
+		"footer_slogan":         translated("footer_slogan", deref(footerSlogan, "100% Autogestión & Suelo Vivo")),
+		"footer_admission_text": translated("footer_admission_text", deref(footerAdmission, "Llenar Solicitud de Ingreso")),
 		// Header customization
 		"header_sticky":             headerSticky,
 		"header_banner_image":       headerBannerImage,
@@ -2520,6 +2614,9 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		"header_top_text_color":     headerTopTextColor,
 		"header_bottom_bg_color":    headerBottomBgColor,
 		"header_bottom_text_color":  headerBottomTextColor,
+		"language":                  lang,
+		"source_language":           fallbackLang,
+		"is_fallback":               !strings.EqualFold(lang, fallbackLang) && len(translations) < len(fields),
 	})
 }
 
@@ -2568,9 +2665,10 @@ func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) 
 		nodeDomain = h.nodeDomain
 	}
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT slug, title, subtitle, icon, menu_order
+		SELECT id::text, slug, title, subtitle, icon, menu_order
 		FROM public_pages
 		WHERE node_domain = $1 AND is_published = true AND show_in_menu = true
 		ORDER BY menu_order`, nodeDomain)
@@ -2580,24 +2678,42 @@ func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) 
 	}
 	defer rows.Close()
 
-	var pages []map[string]interface{}
+	type publicPageMenu struct {
+		id, slug, title, subtitle, icon string
+		menuOrder                       int
+	}
+	rawPages := []publicPageMenu{}
+	keys := []string{}
 	for rows.Next() {
-		var slug, title string
+		var page publicPageMenu
 		var subtitle, icon *string
-		var menuOrder int
-		if err := rows.Scan(&slug, &title, &subtitle, &icon, &menuOrder); err != nil {
+		if err := rows.Scan(&page.id, &page.slug, &page.title, &subtitle, &icon, &page.menuOrder); err != nil {
 			continue
 		}
-		pages = append(pages, map[string]interface{}{
-			"slug":       slug,
-			"title":      title,
-			"subtitle":   deref(subtitle),
-			"icon":       deref(icon),
-			"menu_order": menuOrder,
-		})
+		page.subtitle = deref(subtitle)
+		page.icon = deref(icon)
+		rawPages = append(rawPages, page)
+		keys = append(keys, "public_page:"+page.id+":title", "public_page:"+page.id+":subtitle")
 	}
-	if pages == nil {
-		pages = []map[string]interface{}{}
+	translations := map[string]string{}
+	if !strings.EqualFold(lang, fallbackLang) {
+		translations = localizedContentValues(r.Context(), h.Pool, keys, lang)
+	}
+	pages := []map[string]interface{}{}
+	for _, page := range rawPages {
+		title := page.title
+		subtitle := page.subtitle
+		if value := translations["public_page:"+page.id+":title"]; value != "" {
+			title = value
+		}
+		if value := translations["public_page:"+page.id+":subtitle"]; value != "" {
+			subtitle = value
+		}
+		pages = append(pages, map[string]interface{}{
+			"id": page.id, "slug": page.slug, "title": title, "subtitle": subtitle,
+			"icon": page.icon, "menu_order": page.menuOrder,
+			"language": lang, "is_fallback": !strings.EqualFold(lang, fallbackLang) && len(translations) == 0,
+		})
 	}
 	writeJSON(w, 200, pages)
 }
@@ -2606,7 +2722,7 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	slug := chi.URLParam(r, "slug")
-	lang := r.URL.Query().Get("lang")
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	var id, title, content string
 	var subtitle, icon *string
@@ -2641,32 +2757,36 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Si se solicita un idioma especifico, intentar cargar la traduccion
-	if lang != "" && lang != "es" {
-		var trTitle, trSubtitle, trContent string
-		err2 := h.Pool.QueryRow(r.Context(),
-			`SELECT COALESCE(title, ''), COALESCE(subtitle, ''), COALESCE(content, '')
-			 FROM public_page_translations
-			 WHERE page_id = $1::uuid AND language = $2`, id, lang).Scan(&trTitle, &trSubtitle, &trContent)
-		if err2 == nil && trContent != "" {
-			title = trTitle
-			if trSubtitle != "" {
-				subtitle = &trSubtitle
-			}
-			content = trContent
+	isFallback := false
+	if !strings.EqualFold(lang, fallbackLang) {
+		keys := []string{
+			"public_page:" + id + ":title",
+			"public_page:" + id + ":subtitle",
+			"public_page:" + id + ":content",
+		}
+		translations := localizedContentValues(r.Context(), h.Pool, keys, lang)
+		if value := translations[keys[0]]; value != "" {
+			title = value
+		} else {
+			isFallback = true
+		}
+		if value := translations[keys[1]]; value != "" {
+			subtitle = &value
+		} else if deref(subtitle) != "" {
+			isFallback = true
+		}
+		if value := translations[keys[2]]; value != "" {
+			content = value
+		} else {
+			isFallback = true
 		}
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"id":           id,
-		"slug":         slug,
-		"title":        title,
-		"subtitle":     deref(subtitle),
-		"content":      content,
-		"icon":         deref(icon),
-		"menu_order":   menuOrder,
-		"is_published": isPublished,
-		"show_in_menu": showInMenu,
+		"id": id, "slug": slug, "title": title, "subtitle": deref(subtitle), "content": content,
+		"icon": deref(icon), "menu_order": menuOrder, "is_published": isPublished,
+		"show_in_menu": showInMenu, "language": lang, "source_language": fallbackLang,
+		"is_fallback": isFallback,
 	})
 }
 
@@ -2902,27 +3022,49 @@ type AdmissionRequestReq struct {
 func (h *SystemHandler) getPublicAdmissionForm(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	var schema json.RawMessage
 	var formTitle, formSubtitle *string
-
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT admission_form_schema, admission_form_title, admission_form_subtitle
 		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(&schema, &formTitle, &formSubtitle)
-	if err != nil || len(schema) == 0 || string(schema) == "null" {
-		// Default rich form schema
-		writeJSON(w, 200, map[string]interface{}{
-			"title":    "Solicitud de Ingreso a la Red",
-			"subtitle": "Completa tus datos para postularte como productor conuquero, artesano o miembro.",
-			"schema":   nil,
-		})
-		return
+	title := "Solicitud de Ingreso a la Red"
+	subtitle := "Completa tus datos para postularte como productor conuquero, artesano o miembro."
+	if err == nil {
+		if deref(formTitle) != "" {
+			title = deref(formTitle)
+		}
+		if deref(formSubtitle) != "" {
+			subtitle = deref(formSubtitle)
+		}
 	}
-
+	isFallback := false
+	if !strings.EqualFold(lang, fallbackLang) {
+		keys := []string{"admission_form:" + nodeDomain + ":title", "admission_form:" + nodeDomain + ":subtitle", "admission_form:" + nodeDomain + ":schema"}
+		values := localizedContentValues(r.Context(), h.Pool, keys, lang)
+		if values[keys[0]] != "" {
+			title = values[keys[0]]
+		} else {
+			isFallback = true
+		}
+		if values[keys[1]] != "" {
+			subtitle = values[keys[1]]
+		} else {
+			isFallback = true
+		}
+		if values[keys[2]] != "" {
+			schema = json.RawMessage(values[keys[2]])
+		} else if len(schema) > 0 && string(schema) != "null" {
+			isFallback = true
+		}
+	}
+	if len(schema) == 0 || string(schema) == "null" {
+		schema = nil
+	}
 	writeJSON(w, 200, map[string]interface{}{
-		"title":    deref(formTitle),
-		"subtitle": deref(formSubtitle),
-		"schema":   schema,
+		"title": title, "subtitle": subtitle, "schema": schema,
+		"language": lang, "source_language": fallbackLang, "is_fallback": isFallback,
 	})
 }
 
@@ -3292,8 +3434,12 @@ func (h *SystemHandler) createSitePage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, err.Error())
 		return
 	}
+	pageID := id.String()
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, "title", req.Title, map[string]interface{}{"label": req.Title, "editor": "page"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, "subtitle", req.Subtitle, map[string]interface{}{"label": req.Title, "editor": "page"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, "content", req.Content, map[string]interface{}{"label": req.Title, "editor": "page"})
 
-	writeJSON(w, 201, map[string]interface{}{"id": id.String(), "message": "Pagina creada"})
+	writeJSON(w, 201, map[string]interface{}{"id": pageID, "message": "Pagina creada"})
 	GenerateStaticHTMLFiles(h.Pool)
 }
 
@@ -3305,16 +3451,24 @@ func (h *SystemHandler) updateSitePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.Pool.Exec(r.Context(), `
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	result, err := h.Pool.Exec(r.Context(), `
 		UPDATE public_pages SET
 			slug = $1, title = $2, subtitle = $3, content = $4, icon = $5,
 			menu_order = $6, is_published = $7, show_in_menu = $8, updated_at = NOW()
-		WHERE id = $9::uuid`,
-		req.Slug, req.Title, req.Subtitle, req.Content, req.Icon, req.MenuOrder, req.IsPublished, req.ShowInMenu, id)
+		WHERE id = $9::uuid AND node_domain = $10`,
+		req.Slug, req.Title, req.Subtitle, req.Content, req.Icon, req.MenuOrder, req.IsPublished, req.ShowInMenu, id, nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
+	if result.RowsAffected() == 0 {
+		writeError(w, 404, "page not found")
+		return
+	}
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", id, "title", req.Title, map[string]interface{}{"label": req.Title, "editor": "page"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", id, "subtitle", req.Subtitle, map[string]interface{}{"label": req.Title, "editor": "page"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", id, "content", req.Content, map[string]interface{}{"label": req.Title, "editor": "page"})
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Pagina actualizada"})
 	GenerateStaticHTMLFiles(h.Pool)
@@ -3336,7 +3490,8 @@ func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Requ
 		targetSlug = req.Slug
 	}
 
-	_, err := h.Pool.Exec(r.Context(), `
+	var pageID string
+	err := h.Pool.QueryRow(r.Context(), `
 		INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (node_domain, slug) DO UPDATE SET
@@ -3347,14 +3502,18 @@ func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Requ
 			menu_order = EXCLUDED.menu_order,
 			is_published = EXCLUDED.is_published,
 			show_in_menu = EXCLUDED.show_in_menu,
-			updated_at = NOW()`,
-		nodeDomain, targetSlug, req.Title, req.Subtitle, req.Content, req.Icon, req.MenuOrder, req.IsPublished, req.ShowInMenu)
+			updated_at = NOW()
+		RETURNING id::text`,
+		nodeDomain, targetSlug, req.Title, req.Subtitle, req.Content, req.Icon, req.MenuOrder, req.IsPublished, req.ShowInMenu).Scan(&pageID)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, "title", req.Title, map[string]interface{}{"label": req.Title, "editor": "page"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, "subtitle", req.Subtitle, map[string]interface{}{"label": req.Title, "editor": "page"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, "content", req.Content, map[string]interface{}{"label": req.Title, "editor": "page"})
 
-	writeJSON(w, 200, map[string]interface{}{"message": "Pagina guardada con exito"})
+	writeJSON(w, 200, map[string]interface{}{"id": pageID, "message": "Pagina guardada con exito"})
 	GenerateStaticHTMLFiles(h.Pool)
 }
 
@@ -3537,6 +3696,17 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 		writeError(w, 500, err.Error())
 		return
 	}
+	translatable := map[string]string{
+		"site_title": req.SiteTitle, "site_subtitle": req.SiteSubtitle,
+		"announcement_text": req.AnnouncementText, "contact_address": req.ContactAddress,
+		"footer_about": req.FooterAbout, "footer_schedule": req.FooterSchedule,
+		"footer_col1_title": req.FooterCol1Title, "footer_col2_title": req.FooterCol2Title,
+		"footer_col3_title": req.FooterCol3Title, "footer_col4_title": req.FooterCol4Title,
+		"footer_slogan": req.FooterSlogan, "footer_admission_text": req.FooterAdmission,
+	}
+	for field, value := range translatable {
+		_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_settings", nodeDomain, field, value, map[string]interface{}{"editor": "site_settings"})
+	}
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Configuracion del sitio actualizada"})
 }
@@ -3644,6 +3814,9 @@ func (h *SystemHandler) updateSiteAdmissionForm(w http.ResponseWriter, r *http.R
 		writeError(w, 500, err.Error())
 		return
 	}
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "admission_form", nodeDomain, "title", req.Title, map[string]interface{}{"editor": "admission_form"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "admission_form", nodeDomain, "subtitle", req.Subtitle, map[string]interface{}{"editor": "admission_form"})
+	_, _ = upsertContentSource(r.Context(), h.Pool, nodeDomain, "admission_form", nodeDomain, "schema", schemaJSON, map[string]interface{}{"editor": "admission_form"})
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Formulario de admision actualizado con exito"})
 }
@@ -4174,6 +4347,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	if domain == "" {
 		domain = db.ResolveNodeDomain(r.Context(), h.Pool, "", h.nodeDomain)
 	}
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, domain)
 	args := []interface{}{domain}
 	argIdx := 2
 
@@ -4255,6 +4429,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 			"group_id":        gid,
 		})
 	}
+	localizeEntityMaps(r.Context(), h.Pool, products, "product", lang, fallbackLang, "name", "description", "badge", "unit")
 	writeJSON(w, 200, map[string]interface{}{
 		"products": products,
 		"total":    total,
@@ -4274,6 +4449,31 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 		nodeDomain = h.nodeDomain
 	}
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, _ := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	labels := map[string]string{}
+	labelRows, labelErr := h.Pool.Query(r.Context(), `
+		SELECT pt.level, pt.parent_source_value, pt.source_value,
+		       COALESCE(NULLIF(ct.value, ''), pt.source_value)
+		FROM product_taxonomy_terms pt
+		LEFT JOIN content_translation_sources s ON s.translation_key = 'product_taxonomy:' || pt.id::text || ':label'
+		LEFT JOIN content_translations ct ON ct.translation_key = s.translation_key
+		  AND LOWER(ct.language) = LOWER($2) AND ct.source_hash = s.source_hash
+		WHERE pt.node_domain IN ($1, 'localhost', 'default') AND pt.is_active = true`, nodeDomain, lang)
+	if labelErr == nil {
+		defer labelRows.Close()
+		for labelRows.Next() {
+			var level, parent, source, label string
+			if labelRows.Scan(&level, &parent, &source, &label) == nil {
+				labels[level+"|"+parent+"|"+source] = label
+			}
+		}
+	}
+	labelFor := func(level, parent, source string) string {
+		if label := labels[level+"|"+parent+"|"+source]; label != "" {
+			return label
+		}
+		return source
+	}
 	// Obtener todas las combinaciones distintas de (parent_category, category, subcategory)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT DISTINCT parent_category, category, subcategory
@@ -4292,14 +4492,17 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 	defer rows.Close()
 
 	type subcat struct {
-		Name string `json:"name"`
+		Name  string `json:"name"`
+		Label string `json:"label"`
 	}
 	type cat struct {
 		Name    string   `json:"name"`
+		Label   string   `json:"label"`
 		Subcats []subcat `json:"subcategories"`
 	}
 	type parentCat struct {
 		Name       string `json:"name"`
+		Label      string `json:"label"`
 		Categories []cat  `json:"categories"`
 	}
 
@@ -4317,7 +4520,7 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 		// parent category
 		p, ok := parentMap[pc]
 		if !ok {
-			p = &parentCat{Name: pc}
+			p = &parentCat{Name: pc, Label: labelFor("parent", "", pc)}
 			parentMap[pc] = p
 			parentOrder = append(parentOrder, pc)
 		}
@@ -4326,7 +4529,7 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 		catKey := pc + "|" + c
 		ca, ok := catMap[catKey]
 		if !ok {
-			ca = &cat{Name: c}
+			ca = &cat{Name: c, Label: labelFor("category", pc, c)}
 			catMap[catKey] = ca
 			p.Categories = append(p.Categories, *ca)
 			catOrder[pc] = append(catOrder[pc], c)
@@ -4337,7 +4540,7 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 			// Find the category in parent's list and append subcategory
 			for i := range p.Categories {
 				if p.Categories[i].Name == c {
-					p.Categories[i].Subcats = append(p.Categories[i].Subcats, subcat{Name: sc})
+					p.Categories[i].Subcats = append(p.Categories[i].Subcats, subcat{Name: sc, Label: labelFor("subcategory", pc+"|"+c, sc)})
 					break
 				}
 			}
@@ -4558,7 +4761,7 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Idioma solicitado para traducciones
-	lang := resolveLang(r)
+	lang, _ := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	// Cargar valores dinamicos de la configuracion real del nodo
 	dynValues := h.loadGovernanceDynamicValues(r.Context(), nodeDomain)

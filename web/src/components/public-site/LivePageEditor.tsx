@@ -380,6 +380,7 @@ export function LivePageEditor({
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [error, setError] = useState('')
   const [editLang, setEditLang] = useState(getCurrentLanguage())
+  const [defaultLang, setDefaultLang] = useState('es')
   const [languages, setLanguages] = useState<any[]>([])
   const [pageTranslations, setPageTranslations] = useState<Record<string, boolean>>({})
   const [pageTitle, setPageTitle] = useState(title)
@@ -388,12 +389,15 @@ export function LivePageEditor({
   // Cargar idiomas disponibles
   useEffect(() => {
     api.get<any[]>('/languages').then((langs) => {
-      setLanguages((langs || []).filter((l: any) => l.enabled))
+      const enabled = (langs || []).filter((l: any) => l.enabled)
+      setLanguages(enabled)
+      setDefaultLang(enabled.find((l: any) => l.is_default)?.code || 'es')
     }).catch(() => {
       setLanguages([
-        { code: 'es', native_name: 'Español' },
-        { code: 'en', native_name: 'English' },
+        { code: 'es', native_name: 'Español', is_default: true },
+        { code: 'en', native_name: 'English', is_default: false },
       ])
+      setDefaultLang('es')
     })
   }, [])
 
@@ -522,8 +526,6 @@ export function LivePageEditor({
     try {
       const content = JSON.stringify(blocks, null, 2)
 
-      // Guardar metadatos (slug, icon, etc.) en el idioma por defecto
-      // solo si estamos editando el idioma por defecto del nodo
       const payload = {
         slug,
         title: pageTitle,
@@ -535,17 +537,15 @@ export function LivePageEditor({
         content,
       }
 
-      // Guardar en la pagina principal (metadatos)
-      await api.put(`/site/pages/by-slug/${slug}`, payload)
-
-      // Guardar la traducción del contenido en el idioma seleccionado
-      if (pageId && editLang) {
+      if (editLang === defaultLang) {
+        await api.put(`/site/pages/by-slug/${slug}`, payload)
+      } else {
+        if (!pageId) throw new Error('Guarda primero la página en el idioma principal')
         await api.put(`/site/pages/${pageId}/translations/${editLang}`, {
           title: pageTitle,
           subtitle: pageSubtitle || '',
           content,
         })
-        // Marcar como traducido
         setPageTranslations(prev => ({ ...prev, [editLang]: true }))
       }
 
@@ -594,7 +594,7 @@ export function LivePageEditor({
                   title={l.native_name}
                 >
                   {l.code.toUpperCase()}
-                  {pageTranslations[l.code] && (
+                  {(l.code === defaultLang || pageTranslations[l.code]) && (
                     <CheckCircle2 size={10} className={editLang === l.code ? 'text-gray-900' : 'text-green-400'} />
                   )}
                 </button>
@@ -778,7 +778,7 @@ export function LivePageEditor({
                       setBlocks(updated)
                       setHasChanges(true)
                     }}
-                    onArrayChange={(action, arrayField, index, item) => {
+                    onArrayChange={(action, arrayField, itemIndex, item) => {
                       const updated = [...blocks]
                       const newBlock = JSON.parse(JSON.stringify(updated[index])) as SiteBlock
                       if (action === 'add') {
@@ -788,10 +788,10 @@ export function LivePageEditor({
                         } else {
                           (newBlock as any)[arrayField] = [item]
                         }
-                      } else if (action === 'remove' && index !== undefined) {
+                      } else if (action === 'remove' && itemIndex !== undefined) {
                         const arr = (newBlock as any)[arrayField]
                         if (Array.isArray(arr)) {
-                          arr.splice(index, 1)
+                          arr.splice(itemIndex, 1)
                         }
                       }
                       updated[index] = newBlock

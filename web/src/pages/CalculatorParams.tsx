@@ -25,6 +25,7 @@ export default function CalculatorParams() {
   }
   const [params, setParams] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
+  const categoryLabel = (name: string) => categories.find((category: any) => (category.source_name || category.name) === name)?.name || tc(name)
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
   const [error, setError] = useState('')
@@ -216,7 +217,7 @@ export default function CalculatorParams() {
           <label className="label">{t('calculator_params.filter_cat', 'Filtrar por categoria')}</label>
           <select className="input" value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
             <option value="">{t('calculator_params.all_cats', 'Todas las categorias')}</option>
-            {categories.map((c, i) => <option key={i} value={c.name}>{tc(c.name)}</option>)}
+            {categories.map((c, i) => <option key={i} value={c.source_name || c.name}>{c.name || tc(c.source_name)}</option>)}
           </select>
           <p className="text-xs text-gray-400 mt-1">{t('calc_params_filter_hint', 'Selecciona una categoria para ver solo sus parametros. Ej: "Construccion" para ver albañileria, plomeria, etc.')}</p>
         </div>
@@ -252,7 +253,7 @@ export default function CalculatorParams() {
             <label className="label">{t('calculator_params.category', 'Categoria')}</label>
             <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               <option value="">{t('calculator_params.select_cat', 'Seleccionar categoria...')}</option>
-              {categories.map((c, i) => <option key={i} value={c.name}>{tc(c.name)}</option>)}
+              {categories.map((c, i) => <option key={i} value={c.source_name || c.name}>{c.name || tc(c.source_name)}</option>)}
             </select>
             <p className="text-xs text-gray-400 mt-1">{t('calc_params_param_cat_hint', 'A que categoria pertenece este parametro. Ej: "Construccion" para albañileria, "Alimentos" para harina. Si necesitas una categoria nueva, creala primero con el boton "Nueva Categoria".')}</p>
           </div>
@@ -337,7 +338,7 @@ export default function CalculatorParams() {
             <div key={cat} className="card">
               <h3 className="font-semibold text-trueque-700 mb-3 flex items-center gap-2">
                 {tab === 'work' ? <Zap size={16} /> : <Package size={16} />}
-                {tc(cat)}
+                {categoryLabel(cat)}
                 <span className="text-xs text-gray-400">({items.length})</span>
               </h3>
               <div className="space-y-2">

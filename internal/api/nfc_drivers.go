@@ -64,6 +64,7 @@ func (h *NFCDriverHandler) listDrivers(w http.ResponseWriter, r *http.Request) {
 	if drivers == nil {
 		drivers = []cards.InstalledDriverInfo{}
 	}
+	h.localizeDrivers(r, drivers)
 	writeJSON(w, 200, drivers)
 }
 
@@ -75,7 +76,43 @@ func (h *NFCDriverHandler) getDriver(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 404, "driver no encontrado: "+err.Error())
 		return
 	}
+	if driver != nil {
+		list := []cards.InstalledDriverInfo{*driver}
+		h.localizeDrivers(r, list)
+		driver = &list[0]
+	}
 	writeJSON(w, 200, driver)
+}
+
+func (h *NFCDriverHandler) localizeDrivers(r *http.Request, drivers []cards.InstalledDriverInfo) {
+	if len(drivers) == 0 {
+		return
+	}
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, "__GLOBAL__")
+	if lang == fallbackLang {
+		return
+	}
+	keys := make([]string, 0, len(drivers)*3)
+	for _, d := range drivers {
+		keys = append(keys,
+			"nfc_card_driver:"+d.ID+":display_name",
+			"nfc_card_driver:"+d.ID+":description",
+			"nfc_card_driver:"+d.ID+":manufacturer",
+		)
+	}
+	vals := localizedContentValues(r.Context(), h.Pool, keys, lang)
+	for i := range drivers {
+		id := drivers[i].ID
+		if v := vals["nfc_card_driver:"+id+":display_name"]; v != "" {
+			drivers[i].DisplayName = v
+		}
+		if v := vals["nfc_card_driver:"+id+":description"]; v != "" {
+			drivers[i].Description = v
+		}
+		if v := vals["nfc_card_driver:"+id+":manufacturer"]; v != "" {
+			drivers[i].Manufacturer = v
+		}
+	}
 }
 
 // uploadDriver recibe un .nfcpkg via multipart/form-data y lo instala.

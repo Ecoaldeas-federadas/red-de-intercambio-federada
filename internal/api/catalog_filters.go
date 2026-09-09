@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"federated-credit-node/internal/db"
+
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -15,23 +18,20 @@ type CatalogFiltersHandler struct {
 }
 
 func (h *CatalogFiltersHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
-	r.Get("/api/catalog/rules", h.listRules)
+	r.With(am.RequireAuth).Get("/api/catalog/rules", h.listRules)
 	r.With(am.RequirePermission("config.manage")).Post("/api/catalog/rules", h.upsertRule)
 	r.With(am.RequirePermission("config.manage")).Delete("/api/catalog/rules/{category}", h.deleteRule)
 
-	r.Get("/api/catalog/labels", h.listLabels)
+	r.With(am.RequireAuth).Get("/api/catalog/labels", h.listLabels)
 	r.With(am.RequirePermission("config.manage")).Post("/api/catalog/labels", h.upsertLabel)
 	r.With(am.RequirePermission("config.manage")).Delete("/api/catalog/labels/{id}", h.deleteLabel)
 
-	r.With(am.RequirePermission("config.manage")).Post("/api/catalog/products/{id}/labels", h.assignProductLabel)
+	r.With(am.RequirePermission("config.manage")).Post("/api/catalog/products/{id}/labels/{labelId}", h.assignProductLabel)
 	r.With(am.RequirePermission("config.manage")).Delete("/api/catalog/products/{id}/labels/{labelId}", h.removeProductLabel)
 }
 
 func (h *CatalogFiltersHandler) listRules(w http.ResponseWriter, r *http.Request) {
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = h.NodeDomain
-	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, category_name, is_prohibited, requires_label, reason, label, is_active, created_at
@@ -51,32 +51,35 @@ func (h *CatalogFiltersHandler) listRules(w http.ResponseWriter, r *http.Request
 			continue
 		}
 		r := map[string]interface{}{
-			"id":              id,
-			"category_name":   category,
+			"id":              deref(id),
+			"category_name":   deref(category),
 			"is_prohibited":   isProhibited,
 			"requires_label":  requiresLabel,
-			"reason":          reason,
-			"label":           label,
+			"reason":          deref(reason),
+			"label":           deref(label),
 			"is_active":       isActive,
 			"created_at":      createdAt,
 		}
 		rules = append(rules, r)
 	}
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), h.Pool, rules, "catalog_dietary_rule", lang, fallbackLang, "category_name", "reason")
+	if rules == nil {
+		rules = []map[string]interface{}{}
+	}
 	writeJSON(w, 200, map[string]interface{}{"rules": rules})
 }
 
 func (h *CatalogFiltersHandler) upsertRule(w http.ResponseWriter, r *http.Request) {
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = h.NodeDomain
-	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
 
 	var req struct {
-		CategoryName  string  `json:"category_name"`
-		IsProhibited  bool    `json:"is_prohibited"`
-		RequiresLabel bool    `json:"requires_label"`
-		Reason        *string `json:"reason"`
-		Label         *string `json:"label"`
+		CategoryName  string                       `json:"category_name"`
+		IsProhibited  bool                         `json:"is_prohibited"`
+		RequiresLabel bool                         `json:"requires_label"`
+		Reason        *string                      `json:"reason"`
+		Label         *string                      `json:"label"`
+		Translations  map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -87,17 +90,31 @@ func (h *CatalogFiltersHandler) upsertRule(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	_, err := h.Pool.Exec(r.Context(), `
+	var id string
+	err := h.Pool.QueryRow(r.Context(), `
 		INSERT INTO catalog_dietary_rules (node_domain, category_name, is_prohibited, requires_label, reason, label, is_active)
 		VALUES ($1, $2, $3, $4, $5, $6, true)
 		ON CONFLICT (node_domain, category_name) DO UPDATE SET
-			is_prohibited = $3, requires_label = $4, reason = $5, label = $6, updated_at = NOW()`,
-		nodeDomain, req.CategoryName, req.IsProhibited, req.RequiresLabel, req.Reason, req.Label)
+			is_prohibited = $3, requires_label = $4, reason = $5, label = $6, updated_at = NOW()
+		RETURNING id::text`,
+		nodeDomain, req.CategoryName, req.IsProhibited, req.RequiresLabel, req.Reason, req.Label).Scan(&id)
 	if err != nil {
 		writeError(w, 500, "error saving rule: "+err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"success": true})
+
+	reasonVal := ""
+	if req.Reason != nil {
+		reasonVal = *req.Reason
+	}
+	ruleFields := map[string]string{"category_name": req.CategoryName, "reason": reasonVal}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "catalog_dietary_rule", id, ruleFields, map[string]interface{}{"label": req.CategoryName})
+	if len(req.Translations) > 0 {
+		userID, _ := uuid.Parse(r.Header.Get("X-User-ID"))
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "catalog_dietary_rule", id, ruleFields, req.Translations, userID)
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"id": id, "success": true})
 }
 
 func (h *CatalogFiltersHandler) deleteRule(w http.ResponseWriter, r *http.Request) {
@@ -122,10 +139,7 @@ func (h *CatalogFiltersHandler) deleteRule(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *CatalogFiltersHandler) listLabels(w http.ResponseWriter, r *http.Request) {
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = h.NodeDomain
-	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, color, icon, is_active
@@ -144,28 +158,31 @@ func (h *CatalogFiltersHandler) listLabels(w http.ResponseWriter, r *http.Reques
 			continue
 		}
 		labels = append(labels, map[string]interface{}{
-			"id":          id,
-			"name":        name,
-			"description": description,
-			"color":       color,
-			"icon":        icon,
+			"id":          deref(id),
+			"name":        deref(name),
+			"description": deref(description),
+			"color":       deref(color),
+			"icon":        deref(icon),
 			"is_active":   isActive,
 		})
+	}
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), h.Pool, labels, "catalog_label", lang, fallbackLang, "name", "description")
+	if labels == nil {
+		labels = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, map[string]interface{}{"labels": labels})
 }
 
 func (h *CatalogFiltersHandler) upsertLabel(w http.ResponseWriter, r *http.Request) {
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = h.NodeDomain
-	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
 
 	var req struct {
-		Name        string  `json:"name"`
-		Description *string `json:"description"`
-		Color       *string `json:"color"`
-		Icon        *string `json:"icon"`
+		Name         string                       `json:"name"`
+		Description  *string                      `json:"description"`
+		Color        *string                      `json:"color"`
+		Icon         *string                      `json:"icon"`
+		Translations map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -176,17 +193,31 @@ func (h *CatalogFiltersHandler) upsertLabel(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	_, err := h.Pool.Exec(r.Context(), `
+	var id string
+	err := h.Pool.QueryRow(r.Context(), `
 		INSERT INTO catalog_labels (node_domain, name, description, color, icon, is_active)
 		VALUES ($1, $2, $3, $4, $5, true)
 		ON CONFLICT (node_domain, name) DO UPDATE SET
-			description = $3, color = $4, icon = $5`,
-		nodeDomain, req.Name, req.Description, req.Color, req.Icon)
+			description = $3, color = $4, icon = $5
+		RETURNING id::text`,
+		nodeDomain, req.Name, req.Description, req.Color, req.Icon).Scan(&id)
 	if err != nil {
-		writeError(w, 500, "error saving label")
+		writeError(w, 500, "error saving label: "+err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"success": true})
+
+	descVal := ""
+	if req.Description != nil {
+		descVal = *req.Description
+	}
+	labelFields := map[string]string{"name": req.Name, "description": descVal}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "catalog_label", id, labelFields, map[string]interface{}{"label": req.Name})
+	if len(req.Translations) > 0 {
+		userID, _ := uuid.Parse(r.Header.Get("X-User-ID"))
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "catalog_label", id, labelFields, req.Translations, userID)
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"id": id, "success": true})
 }
 
 func (h *CatalogFiltersHandler) deleteLabel(w http.ResponseWriter, r *http.Request) {

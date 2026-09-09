@@ -94,9 +94,11 @@ func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 		meetingType = "assembly"
 	}
 
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 	query := `SELECT id, node_domain, session_type, title, description, start_time, end_time, status, created_at,
 		       is_presential, minutes, recall_number, original_scheduled_time, quorum_verified, quorum_checked_at, meeting_type
-		FROM assembly_sessions WHERE meeting_type = $1`
+		FROM assembly_sessions WHERE node_domain = $1 AND meeting_type = $2`
 
 	switch filter {
 	case "upcoming":
@@ -106,7 +108,7 @@ func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 	default:
 		query += ` ORDER BY created_at DESC LIMIT 50`
 	}
-	rows, err := h.Pool.Query(r.Context(), query, meetingType)
+	rows, err := h.Pool.Query(r.Context(), query, nodeDomain, meetingType)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -148,6 +150,7 @@ func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 			"quorum_checked_at":       derefTime(quorumCheckedAt),
 		})
 	}
+	localizeEntityMaps(r.Context(), h.Pool, sessions, "assembly_session", lang, fallbackLang, "title", "description", "minutes")
 	if sessions == nil {
 		sessions = []map[string]interface{}{}
 	}
@@ -243,6 +246,7 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 500, err.Error())
 		return
 	}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "assembly_session", id.String(), map[string]string{"title": req.Title, "description": req.Description, "minutes": ""}, map[string]interface{}{"label": req.Title})
 
 	// Notificar a los miembros de la convocatoria
 	label := "Asamblea"
@@ -288,6 +292,7 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	// Total de miembros con derecho a voto para calcular no-votantes
 	var totalVotingMembers int
@@ -305,6 +310,7 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 		       COALESCE(sv.votes_against, 0) as votes_against,
 		       COALESCE(sv.votes_abstain, 0) as votes_abstain
 		FROM assembly_decisions d
+		JOIN assembly_sessions sess ON sess.id = d.assembly_id
 		LEFT JOIN (
 			SELECT decision_id,
 				COUNT(*) FILTER (WHERE vote = 'for') as votes_for,
@@ -312,7 +318,8 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 				COUNT(*) FILTER (WHERE vote = 'abstain') as votes_abstain
 			FROM assembly_votes GROUP BY decision_id
 		) sv ON sv.decision_id = d.id
-		ORDER BY d.created_at DESC LIMIT 100`)
+		WHERE sess.node_domain = $1
+		ORDER BY d.created_at DESC LIMIT 100`, nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -373,6 +380,7 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 			"total_voting_members":    totalVotingMembers,
 		})
 	}
+	localizeEntityMaps(r.Context(), h.Pool, proposals, "assembly_decision", lang, fallbackLang, "description")
 	if proposals == nil {
 		proposals = []map[string]interface{}{}
 	}
@@ -420,14 +428,13 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Crear sesion si no existe una activa
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
 	var sessionID uuid.UUID
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
+		SELECT id FROM assembly_sessions WHERE node_domain = $1 AND status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`, nodeDomain).Scan(&sessionID)
 	if err != nil {
 		// Crear sesion automaticamente
 		sessionID = uuid.New()
-		nodeDomain := r.Header.Get("X-Node-Domain")
-		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 		_, _ = h.Pool.Exec(r.Context(), `
 			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
 			VALUES ($1, $2, 'ordinaria', 'Sesion automatica', NOW(), 'active')`,
@@ -470,6 +477,7 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 		writeError(w, 500, err.Error())
 		return
 	}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "assembly_decision", id.String(), map[string]string{"description": req.Description}, map[string]interface{}{"label": req.ProposalType})
 
 	// Audit log
 	auditDetails, _ := json.Marshal(map[string]interface{}{"proposal_type": req.ProposalType, "description": req.Description})
@@ -1223,14 +1231,18 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 				canCreateOrg, canCrossNode, canNFC, canAudit, canBridge, int(maxOrgs), canReqLimit, levelID)
 		} else if name != "" {
 			// Crear nuevo nivel
-			h.Pool.Exec(r.Context(), `
+			_ = h.Pool.QueryRow(r.Context(), `
 				INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum,
 					credit_limit, debit_limit, tax_rate, can_create_organization, can_cross_node_trade, can_receive_nfc_card,
 					can_view_audit, can_use_external_bridge, max_organizations, can_request_limit_increase)
-				VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+				VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+				RETURNING id`,
 				nodeDomain, name, description, int(levelNum), hasVoice, hasVote, quorum,
 				int64(creditLimit), int64(debitLimit), taxRate,
-				canCreateOrg, canCrossNode, canNFC, canAudit, canBridge, int(maxOrgs), canReqLimit)
+				canCreateOrg, canCrossNode, canNFC, canAudit, canBridge, int(maxOrgs), canReqLimit).Scan(&levelID)
+		}
+		if levelID != "" {
+			registerEntityFields(r.Context(), h.Pool, nodeDomain, "member_level", levelID, map[string]string{"name": name, "description": description}, map[string]interface{}{"label": name})
 		}
 	case "org_level":
 		// Crear o modificar un nivel de organizacion (aprobado por asamblea)
@@ -1258,12 +1270,16 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 				name, description, int(levelNum), int64(creditLimit), int64(debitLimit), taxRate,
 				canCrossNode, canBridge, canAudit, int(maxMembers), levelID)
 		} else if name != "" {
-			h.Pool.Exec(r.Context(), `
+			_ = h.Pool.QueryRow(r.Context(), `
 				INSERT INTO organization_levels (node_domain, name, description, level, credit_limit, debit_limit, tax_rate,
 					can_cross_node_trade, can_use_external_bridge, can_view_audit, max_members)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+				RETURNING id::text`,
 				nodeDomain, name, description, int(levelNum), int64(creditLimit), int64(debitLimit), taxRate,
-				canCrossNode, canBridge, canAudit, int(maxMembers))
+				canCrossNode, canBridge, canAudit, int(maxMembers)).Scan(&levelID)
+		}
+		if levelID != "" {
+			registerEntityFields(r.Context(), h.Pool, nodeDomain, "organization_level", levelID, map[string]string{"name": name, "description": description}, map[string]interface{}{"label": name})
 		}
 	case "governance_rule":
 		// Crear, modificar o eliminar regla de gobernanza (aprobado por asamblea)
@@ -1284,10 +1300,15 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 				ruleType = "informativo"
 			}
 
-			h.Pool.Exec(r.Context(), `
+			var ruleID string
+			_ = h.Pool.QueryRow(r.Context(), `
 				INSERT INTO governance_rules (node_domain, category, title, description, severity, icon, sort_order, rule_type)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-				nodeDomain, category, title, description, severity, icon, int(sortOrder), ruleType)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				RETURNING id::text`,
+				nodeDomain, category, title, description, severity, icon, int(sortOrder), ruleType).Scan(&ruleID)
+			if ruleID != "" {
+				registerEntityFields(r.Context(), h.Pool, nodeDomain, "governance_rule", ruleID, map[string]string{"title": title, "description": description}, map[string]interface{}{"label": title})
+			}
 
 		case "update":
 			ruleID, _ := params["rule_id"].(string)
@@ -1309,6 +1330,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 					icon = $5, sort_order = $6, rule_type = $7, is_active = $8, updated_at = NOW()
 				WHERE id = $9`,
 				category, title, description, severity, icon, int(sortOrder), ruleType, isActive, ruleID)
+			registerEntityFields(r.Context(), h.Pool, nodeDomain, "governance_rule", ruleID, map[string]string{"title": title, "description": description}, map[string]interface{}{"label": title})
 
 		case "delete":
 			ruleID, _ := params["rule_id"].(string)
@@ -1751,6 +1773,7 @@ func (h *AssemblyHandler) listVotingMembers(w http.ResponseWriter, r *http.Reque
 func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, node_domain, proposal_type, approval_method, required_percentage,
@@ -1815,6 +1838,7 @@ func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Requ
 			"signers":                signers,
 		})
 	}
+	localizeEntityMaps(r.Context(), h.Pool, configs, "assembly_config", lang, fallbackLang, "description")
 	if configs == nil {
 		configs = []map[string]interface{}{}
 	}
@@ -1928,6 +1952,7 @@ func (h *AssemblyHandler) updateAssemblyConfig(w http.ResponseWriter, r *http.Re
 
 	// Cargar signers para la respuesta
 	signers := h.loadConfigSigners(r.Context(), id)
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "assembly_config", id.String(), map[string]string{"description": req.Description}, map[string]interface{}{"label": proposalType})
 
 	writeJSON(w, 200, map[string]interface{}{
 		"id":                   id.String(),
@@ -3504,6 +3529,10 @@ func (h *AssemblyHandler) getProposalTypes(w http.ResponseWriter, r *http.Reques
 	}
 	if types == nil {
 		types = []map[string]interface{}{}
+	} else {
+		nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+		localizeEntityMaps(r.Context(), h.Pool, types, "assembly_proposal_type", lang, fallbackLang, "label", "description")
 	}
 	writeJSON(w, 200, types)
 }

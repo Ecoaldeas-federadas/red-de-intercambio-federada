@@ -80,7 +80,70 @@ web/
         ├── Profile.tsx            # Perfil del usuario, documentos
         ├── CommunityFund.tsx      # Fondo comunitario
         └── WebsiteAdmin.tsx       # Admin del sitio web publico
+    ├── i18n/
+    │   ├── index.ts                # Configuracion de i18next
+    │   ├── TranslationProvider.tsx  # Provider de React
+    │   └── useT.ts                 # Hook personalizado
+    ├── components/
+    │   └── LanguageTabs.tsx        # Selector de idioma reutilizable para formularios
+    └── locales/
+        ├── es/                     # Traducciones espanolas (namespace JSON)
+        └── en/                     # Traducciones inglesas (namespace JSON)
 ```
+
+## Internacionalizacion (i18n)
+
+### Arquitectura hibrida JSON + Base de datos
+
+El frontend usa dos capas de internacionalizacion:
+
+1. **i18next + react-i18next**: para textos estaticos de la interfaz (botones, etiquetas, mensajes).
+   - Configuracion: `web/src/i18n/index.ts`
+   - Provider: `web/src/i18n/TranslationProvider.tsx`
+   - Locales: `web/src/locales/{es,en}/*.json` organizados por namespaces
+   - Idioma actual sincronizado en `window.__i18n_lang__`
+
+2. **Capa unificada de contenido dinamico**: para textos almacenados en la BD (productos, paginas, reglas, etc.).
+   - El backend entrega el texto localizado segun el idioma solicitado
+   - El frontend usa `source_name`/valor estable internamente y muestra el nombre localizado
+
+### Envio de idioma al backend
+
+`web/src/api.ts` envia el idioma actual en la cabecera `Accept-Language` de cada peticion.
+El backend resuelve el idioma solicitado y aplica fallback al idioma base del nodo si no
+hay traduccion o si esta desactualizada (stale).
+
+### TranslationEditor (`/app/translations`)
+
+El editor central de traducciones tiene dos pestañas:
+
+1. **Interfaz (UI Translations)**: claves JSON tradicionales por namespace, con comparacion
+   JSON vs BD y aplicacion de diferencias.
+
+2. **Contenido Dinamico (Database Content)**: listado de todas las fuentes dinamicas
+   registradas en `content_translation_sources` con:
+   - Busqueda por clave o texto
+   - Filtro por tipo de entidad (producto, pagina, regla, etc.)
+   - Filtro por estado: `missing` (faltante), `translated` (traducido), `stale` (desactualizado)
+   - Editor en linea con guardado individual
+   - Guardado masivo via `POST /api/content-translations/bulk`
+
+### LanguageTabs (`web/src/components/LanguageTabs.tsx`)
+
+Componente reutilizable para formularios de edicion multilingue:
+- Muestra pestañas por idioma habilitado
+- Destaca el idioma principal del nodo como obligatorio
+- Muestra badges de estado (traducido/stale/faltante) por idioma
+- Boton "copiar desde idioma principal" para iniciar una traduccion
+- Notifica al formulario padre los cambios para almacenar borradores
+
+Integrado en: Products.tsx, CalculatorParams.tsx, y formularios de gobernanza.
+
+### LivePageEditor multilingue
+
+`web/src/components/public-site/LivePageEditor.tsx` permite editar paginas publicas
+por idioma sin sobrescribir el contenido base. Al editar un idioma secundario, guarda
+en `content_translations` sin modificar `public_pages`.
 
 ## PWA
 

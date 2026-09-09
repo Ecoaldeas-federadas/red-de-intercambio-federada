@@ -15,7 +15,20 @@ type NSResult = {
   keys: KeyEntry[]
 }
 
-type Tab = 'db' | 'diff'
+type ContentTranslationItem = {
+  translation_key: string
+  entity_type: string
+  entity_id: string
+  field_name: string
+  source_language: string
+  source_text: string
+  source_hash: string
+  value: string
+  status: 'missing' | 'translated' | 'stale'
+  context?: Record<string, any>
+}
+
+type Tab = 'db' | 'diff' | 'content'
 
 export default function TranslationEditor() {
   const { t } = useTranslation(['translations', 'common'])
@@ -49,6 +62,13 @@ export default function TranslationEditor() {
   const [showHelp, setShowHelp] = useState(true)
   const [applyingAll, setApplyingAll] = useState(false)
   const [showApplyAllModal, setShowApplyAllModal] = useState(false)
+  const [contentItems, setContentItems] = useState<ContentTranslationItem[]>([])
+  const [contentTotal, setContentTotal] = useState(0)
+  const [contentLoading, setContentLoading] = useState(false)
+  const [contentStatus, setContentStatus] = useState('missing')
+  const [contentEntityType, setContentEntityType] = useState('')
+  const [contentSearch, setContentSearch] = useState('')
+  const [contentEdits, setContentEdits] = useState<Record<string, string>>({})
 
   useEffect(() => {
     loadLanguages()
@@ -63,10 +83,19 @@ export default function TranslationEditor() {
     }
   }, [selectedLang])
 
+  useEffect(() => {
+    if (tab === 'content' && selectedLang) loadContentTranslations()
+  }, [tab, selectedLang, contentStatus, contentEntityType])
+
   const loadLanguages = async () => {
     try {
       const langs = await api.get<any[]>('/languages')
-      setLanguages(langs || [])
+      const available = langs || []
+      setLanguages(available)
+      const defaultCode = available.find((lang: any) => lang.is_default)?.code
+      if (selectedLang === defaultCode) {
+        setSelectedLang(available.find((lang: any) => lang.enabled && lang.code !== defaultCode)?.code || defaultCode || 'es')
+      }
     } catch {
       setLanguages([
         { code: 'es', name: 'Spanish', native_name: 'Espanol', enabled: true, is_default: true },
@@ -137,6 +166,43 @@ export default function TranslationEditor() {
   }
 
   // Una clave esta "sucia" si el texto editado difiere del ultimo valor guardado
+  const loadContentTranslations = async () => {
+    setContentLoading(true)
+    try {
+      const params = new URLSearchParams({ lang: selectedLang, limit: '200' })
+      if (contentStatus) params.set('status', contentStatus)
+      if (contentEntityType) params.set('entity_type', contentEntityType)
+      if (contentSearch.trim()) params.set('search', contentSearch.trim())
+      const result = await api.get<any>(`/content-translations/sources?${params.toString()}`)
+      const items = Array.isArray(result?.items) ? result.items : []
+      setContentItems(items)
+      setContentTotal(result?.total || 0)
+      setContentEdits(Object.fromEntries(items.map((item: ContentTranslationItem) => [item.translation_key, item.value || ''])))
+    } catch (e: any) {
+      setSaveError(true)
+      setSaveMsg(e.message || t('content_load_error', 'No se pudo cargar el contenido traducible'))
+    } finally {
+      setContentLoading(false)
+    }
+  }
+
+  const saveContentTranslation = async (item: ContentTranslationItem) => {
+    const value = contentEdits[item.translation_key] ?? ''
+    setSavingKey(item.translation_key)
+    setSaveMsg('')
+    setSaveError(false)
+    try {
+      await api.put(`/content-translations/sources/${encodeURIComponent(item.translation_key)}/${encodeURIComponent(selectedLang)}`, { value })
+      setSaveMsg(t('content_saved', 'Traducción de contenido guardada'))
+      await loadContentTranslations()
+    } catch (e: any) {
+      setSaveError(true)
+      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
   const isDirty = (editKey: string) =>
     editingValues[editKey] !== undefined && editingValues[editKey] !== savedValues[editKey]
 
@@ -416,6 +482,79 @@ export default function TranslationEditor() {
   const dbCount = dbData.reduce((s, ns) => s + ns.keys.length, 0)
   const diffCount = diffData.reduce((s, ns) => s + ns.keys.length, 0)
   const visibleCount = filteredData.reduce((s, ns) => s + ns.keys.length, 0)
+  const contentEntityTypes = [
+    'public_page', 'public_settings', 'admission_form', 'product', 'product_taxonomy',
+    'calculator_category', 'calculator_parameter', 'governance_rule', 'member_level',
+    'organization_level', 'assembly_config', 'assembly_session', 'assembly_session_scoped',
+    'assembly_decision', 'assembly_decision_scoped', 'federation_constant', 'public_proposal',
+    'notification', 'department', 'department_role', 'organization_service', 'store_item',
+		'organization',
+    'node_faith_profile', 'profile_product_prohibition', 'catalog_label',
+    'catalog_dietary_rule', 'commerce_schedule', 'nfc_card_driver',
+  ]
+
+  const renderContentEditor = () => (
+    <div className="space-y-4">
+      <p className="text-xs text-gray-500">
+        {t('content_tab_hint', 'Textos visibles almacenados en la base de datos. Si no existe traducción, la aplicación muestra el idioma principal del nodo.')}
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_220px_auto] gap-2">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input className="input text-sm pl-10" value={contentSearch} onChange={(e) => setContentSearch(e.target.value)} placeholder={t('content_search', 'Buscar clave o texto...')} />
+        </div>
+        <select className="input text-sm" value={contentStatus} onChange={(e) => setContentStatus(e.target.value)}>
+          <option value="">{t('content_all_statuses', 'Todos los estados')}</option>
+          <option value="missing">{t('content_missing', 'Faltantes')}</option>
+          <option value="translated">{t('content_translated', 'Traducidos')}</option>
+          <option value="stale">{t('content_stale', 'Desactualizados')}</option>
+        </select>
+        <select className="input text-sm" value={contentEntityType} onChange={(e) => setContentEntityType(e.target.value)}>
+          <option value="">{t('content_all_modules', 'Todos los módulos')}</option>
+          {contentEntityTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+        </select>
+        <button onClick={loadContentTranslations} className="btn-secondary text-sm px-3 flex items-center justify-center gap-1">
+          <Search size={14} /> {t('common:search', 'Buscar')}
+        </button>
+      </div>
+      <div className="text-xs text-gray-500">{contentTotal} {t('content_results', 'textos encontrados')}</div>
+      {contentLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="animate-spin text-trueque-600" /></div>
+      ) : contentItems.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">{t('content_empty', 'No hay contenido con estos filtros.')}</div>
+      ) : (
+        <div className="space-y-3">
+          {contentItems.map((item) => {
+            const dirty = (contentEdits[item.translation_key] ?? '') !== (item.value || '')
+            return (
+              <div key={item.translation_key} className="border rounded-lg p-3 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-gray-500 break-all">{item.translation_key}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${item.status === 'translated' ? 'bg-green-100 text-green-700' : item.status === 'stale' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{item.status}</span>
+                  <span className="text-xs text-gray-400">{item.source_language.toUpperCase()}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500">{t('content_source', 'Original')}</label>
+                    <div className="mt-1 p-2 bg-gray-50 border rounded text-sm whitespace-pre-wrap max-h-40 overflow-auto">{item.source_text}</div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500">{selectedLang.toUpperCase()}</label>
+                    <textarea className={`input text-sm mt-1 min-h-24 ${dirty ? 'border-amber-400 bg-amber-50' : ''}`} value={contentEdits[item.translation_key] ?? ''} onChange={(e) => setContentEdits((prev) => ({ ...prev, [item.translation_key]: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => saveContentTranslation(item)} disabled={!dirty || savingKey === item.translation_key} className={`text-sm px-3 py-1.5 flex items-center gap-1 ${dirty ? 'btn-primary' : 'btn-secondary opacity-50'}`}>
+                    {savingKey === item.translation_key ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {t('common:save', 'Guardar')}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 
   if (loading) {
     return (
@@ -585,8 +724,20 @@ export default function TranslationEditor() {
             <AlertCircle size={14} className="inline mr-1" />
             {t('tab_diff', 'Differences (JSON vs DB)')} ({diffCount})
           </button>
+          <button
+            onClick={() => setTab('content')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+              tab === 'content'
+                ? 'border-trueque-600 text-trueque-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Database size={14} className="inline mr-1" />
+            {t('tab_content', 'Contenido de la base de datos')}
+          </button>
         </div>
 
+        {tab === 'content' ? renderContentEditor() : <>
         <p className="text-xs text-gray-500 mb-3">
           {tab === 'db'
             ? t('tab_db_hint', 'These keys are already in the database: they are what is shown in the interface. Edit the text and press Save to apply the change.')
@@ -861,6 +1012,7 @@ export default function TranslationEditor() {
             })}
           </div>
         )}
+        </>}
       </div>
 
       {/* Gestion de idiomas */}

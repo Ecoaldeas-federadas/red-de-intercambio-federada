@@ -90,5 +90,18 @@
   "saved_tooltip": "Sin cambios por guardar",
   "save_to_db": "Guardar en BD",
   "key_applied": "Traduccion aplicada a la base de datos",
-  "seed_force_confirm": "Esto sobrescribira TODAS las traducciones de \"{{lang}}\" en la base de datos con los valores de los archivos JSON. Continuar?"
+  "seed_force_confirm": "Esto sobrescribira TODAS las traducciones de \"{{lang}}\" en la base de datos con los valores de los archivos JSON. Continuar?",
+  "tab_content": "Contenido de la base de datos",
+  "content_tab_hint": "Textos visibles almacenados en la base de datos. Si no existe traduccion, la aplicacion muestra el idioma principal del nodo.",
+  "content_search": "Buscar clave o texto...",
+  "content_all_statuses": "Todos los estados",
+  "content_missing": "Faltantes",
+  "content_translated": "Traducidos",
+  "content_stale": "Desactualizados",
+  "content_all_modules": "Todos los modulos",
+  "content_results": "textos encontrados",
+  "content_empty": "No hay contenido con estos filtros.",
+  "content_source": "Original",
+  "content_saved": "Traduccion de contenido guardada",
+  "content_load_error": "No se pudo cargar el contenido traducible"
 }

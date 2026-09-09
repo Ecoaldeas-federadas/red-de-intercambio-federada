@@ -185,6 +185,9 @@ func (h *NotificationHandler) listNotifications(w http.ResponseWriter, r *http.R
 		}
 		notifs = append(notifs, entry)
 	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), h.Pool, notifs, "notification", lang, fallbackLang, "title", "message")
 	writeJSON(w, 200, notifs)
 }
 

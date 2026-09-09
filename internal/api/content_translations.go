@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
+	"time"
 
 	"federated-credit-node/internal/db"
 
@@ -33,7 +35,8 @@ func (h *SystemHandler) getPageTranslations(w http.ResponseWriter, r *http.Reque
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, title, subtitle, content, updatedAt string
+		var lang, title, subtitle, content string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &title, &subtitle, &content, &updatedAt); err != nil {
 			continue
 		}
@@ -55,43 +58,44 @@ func (h *SystemHandler) getPageTranslations(w http.ResponseWriter, r *http.Reque
 // GET /api/site/pages/{id}/translations/{lang}
 func (h *SystemHandler) getPageTranslation(w http.ResponseWriter, r *http.Request) {
 	pageID := chi.URLParam(r, "id")
-	lang := chi.URLParam(r, "lang")
+	lang := normalizeLanguageCode(chi.URLParam(r, "lang"))
 	if pageID == "" || lang == "" {
 		writeJSON(w, 400, map[string]string{"error": "page id and language required"})
 		return
 	}
 
-	var title, subtitle, content string
+	var nodeDomain, title, subtitle, content string
 	err := h.Pool.QueryRow(r.Context(),
-		`SELECT COALESCE(title, ''), COALESCE(subtitle, ''), COALESCE(content, '')
-		 FROM public_page_translations
-		 WHERE page_id = $1::uuid AND language = $2`, pageID, lang).Scan(&title, &subtitle, &content)
+		`SELECT node_domain, title, COALESCE(subtitle, ''), content FROM public_pages WHERE id = $1::uuid`, pageID).
+		Scan(&nodeDomain, &title, &subtitle, &content)
 	if err != nil {
-		// No existe traducción: devolver contenido por defecto de public_pages
-		var defTitle, defSubtitle, defContent string
-		err2 := h.Pool.QueryRow(r.Context(),
-			`SELECT title, COALESCE(subtitle, ''), content FROM public_pages WHERE id = $1::uuid`, pageID).
-			Scan(&defTitle, &defSubtitle, &defContent)
-		if err2 != nil {
-			writeJSON(w, 404, map[string]string{"error": "page not found"})
-			return
-		}
-		writeJSON(w, 200, map[string]interface{}{
-			"language":   lang,
-			"title":      defTitle,
-			"subtitle":   defSubtitle,
-			"content":    defContent,
-			"is_default": true,
-		})
+		writeJSON(w, 404, map[string]string{"error": "page not found"})
 		return
 	}
-
+	fallbackLang := defaultLanguage(r.Context(), h.Pool, nodeDomain)
+	isFallback := !strings.EqualFold(lang, fallbackLang)
+	if isFallback {
+		keys := []string{"public_page:" + pageID + ":title", "public_page:" + pageID + ":subtitle", "public_page:" + pageID + ":content"}
+		values := localizedContentValues(r.Context(), h.Pool, keys, lang)
+		translatedFields := 0
+		if values[keys[0]] != "" {
+			title = values[keys[0]]
+			translatedFields++
+		}
+		if values[keys[1]] != "" {
+			subtitle = values[keys[1]]
+			translatedFields++
+		}
+		if values[keys[2]] != "" {
+			content = values[keys[2]]
+			translatedFields++
+		}
+		isFallback = translatedFields < 3
+	}
 	writeJSON(w, 200, map[string]interface{}{
-		"language":   lang,
-		"title":      title,
-		"subtitle":   subtitle,
-		"content":    content,
-		"is_default": false,
+		"language": lang, "source_language": fallbackLang, "title": title,
+		"subtitle": subtitle, "content": content, "is_default": isFallback,
+		"is_fallback": isFallback,
 	})
 }
 
@@ -115,20 +119,47 @@ func (h *SystemHandler) updatePageTranslation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	_, err := h.Pool.Exec(r.Context(),
-		`INSERT INTO public_page_translations (page_id, language, title, subtitle, content, updated_at)
-		 VALUES ($1::uuid, $2, $3, $4, $5, NOW())
-		 ON CONFLICT (page_id, language) DO UPDATE SET
-		   title = EXCLUDED.title,
-		   subtitle = EXCLUDED.subtitle,
-		   content = EXCLUDED.content,
-		   updated_at = NOW()`,
-		pageID, lang, req.Title, req.Subtitle, req.Content)
-	if err != nil {
-		writeJSON(w, 500, map[string]string{"error": "error saving translation"})
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	var pageNodeDomain, sourceTitle, sourceSubtitle, sourceContent string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT node_domain, title, COALESCE(subtitle, ''), content
+		FROM public_pages WHERE id = $1::uuid`, pageID).
+		Scan(&pageNodeDomain, &sourceTitle, &sourceSubtitle, &sourceContent)
+	if err != nil || pageNodeDomain != nodeDomain {
+		writeJSON(w, 404, map[string]string{"error": "page not found"})
 		return
 	}
-
+	lang = normalizeLanguageCode(lang)
+	if strings.EqualFold(lang, defaultLanguage(r.Context(), h.Pool, nodeDomain)) {
+		writeJSON(w, 400, map[string]string{"error": "edit the source language through the page editor"})
+		return
+	}
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeJSON(w, 401, map[string]string{"error": "authentication required"})
+		return
+	}
+	fields := []struct {
+		name, source, value string
+	}{
+		{"title", sourceTitle, req.Title},
+		{"subtitle", sourceSubtitle, req.Subtitle},
+		{"content", sourceContent, req.Content},
+	}
+	for _, field := range fields {
+		key, sourceErr := upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, field.name, field.source, map[string]interface{}{"editor": "page"})
+		if sourceErr != nil || saveContentTranslation(r.Context(), h.Pool, key, lang, field.value, userID) != nil {
+			writeJSON(w, 500, map[string]string{"error": "error saving translation"})
+			return
+		}
+	}
+	_, _ = h.Pool.Exec(r.Context(), `
+		INSERT INTO public_page_translations (page_id, language, title, subtitle, content, updated_at)
+		VALUES ($1::uuid, $2, $3, $4, $5, NOW())
+		ON CONFLICT (page_id, language) DO UPDATE SET
+		  title = EXCLUDED.title, subtitle = EXCLUDED.subtitle,
+		  content = EXCLUDED.content, updated_at = NOW()`,
+		pageID, lang, req.Title, req.Subtitle, req.Content)
 	writeJSON(w, 200, map[string]string{"status": "ok"})
 	GenerateStaticHTMLFiles(h.Pool)
 }
@@ -138,45 +169,15 @@ func (h *SystemHandler) updatePageTranslation(w http.ResponseWriter, r *http.Req
 // getSiteSettingsTranslation obtiene la configuracion del sitio en un idioma.
 // GET /api/site/settings/{lang}
 func (h *SystemHandler) getSiteSettingsTranslation(w http.ResponseWriter, r *http.Request) {
-	lang := chi.URLParam(r, "lang")
+	lang := normalizeLanguageCode(chi.URLParam(r, "lang"))
 	if lang == "" {
 		writeJSON(w, 400, map[string]string{"error": "language required"})
 		return
 	}
-
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
-
-	var title, subtitle string
-	err := h.Pool.QueryRow(r.Context(),
-		`SELECT COALESCE(site_title, ''), COALESCE(site_subtitle, '')
-		 FROM public_settings_translations
-		 WHERE node_domain = $1 AND language = $2`, nodeDomain, lang).Scan(&title, &subtitle)
-	if err != nil {
-		// Fallback a public_settings
-		var defTitle, defSubtitle string
-		err2 := h.Pool.QueryRow(r.Context(),
-			`SELECT site_title, COALESCE(site_subtitle, '') FROM public_settings WHERE node_domain = $1`,
-			nodeDomain).Scan(&defTitle, &defSubtitle)
-		if err2 != nil {
-			writeJSON(w, 404, map[string]string{"error": "settings not found"})
-			return
-		}
-		writeJSON(w, 200, map[string]interface{}{
-			"language":      lang,
-			"site_title":    defTitle,
-			"site_subtitle": defSubtitle,
-			"is_default":    true,
-		})
-		return
-	}
-
-	writeJSON(w, 200, map[string]interface{}{
-		"language":      lang,
-		"site_title":    title,
-		"site_subtitle": subtitle,
-		"is_default":    false,
-	})
+	query := r.URL.Query()
+	query.Set("lang", lang)
+	r.URL.RawQuery = query.Encode()
+	h.getPublicSettings(w, r)
 }
 
 // updateSiteSettingsTranslation guarda la configuracion del sitio en un idioma.
@@ -192,15 +193,52 @@ func (h *SystemHandler) updateSiteSettingsTranslation(w http.ResponseWriter, r *
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var req struct {
-		SiteTitle    string `json:"site_title"`
-		SiteSubtitle string `json:"site_subtitle"`
+		SiteTitle           string `json:"site_title"`
+		SiteSubtitle        string `json:"site_subtitle"`
+		AnnouncementText    string `json:"announcement_text"`
+		ContactAddress      string `json:"contact_address"`
+		FooterAbout         string `json:"footer_about"`
+		FooterSchedule      string `json:"footer_schedule"`
+		FooterCol1Title     string `json:"footer_col1_title"`
+		FooterCol2Title     string `json:"footer_col2_title"`
+		FooterCol3Title     string `json:"footer_col3_title"`
+		FooterCol4Title     string `json:"footer_col4_title"`
+		FooterSlogan        string `json:"footer_slogan"`
+		FooterAdmissionText string `json:"footer_admission_text"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	_, err := h.Pool.Exec(r.Context(),
+	lang = normalizeLanguageCode(lang)
+	if strings.EqualFold(lang, defaultLanguage(r.Context(), h.Pool, nodeDomain)) {
+		writeJSON(w, 400, map[string]string{"error": "edit the source language through site settings"})
+		return
+	}
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeJSON(w, 401, map[string]string{"error": "authentication required"})
+		return
+	}
+	values := map[string]string{
+		"site_title": req.SiteTitle, "site_subtitle": req.SiteSubtitle,
+		"announcement_text": req.AnnouncementText, "contact_address": req.ContactAddress,
+		"footer_about": req.FooterAbout, "footer_schedule": req.FooterSchedule,
+		"footer_col1_title": req.FooterCol1Title, "footer_col2_title": req.FooterCol2Title,
+		"footer_col3_title": req.FooterCol3Title, "footer_col4_title": req.FooterCol4Title,
+		"footer_slogan": req.FooterSlogan, "footer_admission_text": req.FooterAdmissionText,
+	}
+	for field, value := range values {
+		if value == "" && field != "site_title" && field != "site_subtitle" {
+			continue
+		}
+		if err := saveContentTranslation(r.Context(), h.Pool, "public_settings:"+nodeDomain+":"+field, lang, value, userID); err != nil {
+			writeJSON(w, 500, map[string]string{"error": "error saving translation"})
+			return
+		}
+	}
+	_, err = h.Pool.Exec(r.Context(),
 		`INSERT INTO public_settings_translations (node_domain, language, site_title, site_subtitle, updated_at)
 		 VALUES ($1, $2, $3, $4, NOW())
 		 ON CONFLICT (node_domain, language) DO UPDATE SET
@@ -288,20 +326,43 @@ func (h *SystemHandler) updateAdmissionFormTranslation(w http.ResponseWriter, r 
 		return
 	}
 
-	_, err := h.Pool.Exec(r.Context(),
-		`INSERT INTO admission_form_translations (node_domain, language, title, subtitle, schema, updated_at)
-		 VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
-		 ON CONFLICT (node_domain, language) DO UPDATE SET
-		   title = EXCLUDED.title,
-		   subtitle = EXCLUDED.subtitle,
-		   schema = EXCLUDED.schema,
-		   updated_at = NOW()`,
-		nodeDomain, lang, req.Title, req.Subtitle, string(req.Schema))
-	if err != nil {
-		writeJSON(w, 500, map[string]string{"error": "error saving translation"})
+	lang = normalizeLanguageCode(lang)
+	if strings.EqualFold(lang, defaultLanguage(r.Context(), h.Pool, nodeDomain)) {
+		writeJSON(w, 400, map[string]string{"error": "edit the source language through the admission form editor"})
 		return
 	}
-
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeJSON(w, 401, map[string]string{"error": "authentication required"})
+		return
+	}
+	var sourceTitle, sourceSubtitle string
+	var sourceSchema []byte
+	if err := h.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(admission_form_title, ''), COALESCE(admission_form_subtitle, ''), COALESCE(admission_form_schema::text, '[]')
+		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(&sourceTitle, &sourceSubtitle, &sourceSchema); err != nil {
+		writeJSON(w, 404, map[string]string{"error": "admission form not found"})
+		return
+	}
+	fields := []struct{ name, source, value string }{
+		{"title", sourceTitle, req.Title},
+		{"subtitle", sourceSubtitle, req.Subtitle},
+		{"schema", string(sourceSchema), string(req.Schema)},
+	}
+	for _, field := range fields {
+		key, sourceErr := upsertContentSource(r.Context(), h.Pool, nodeDomain, "admission_form", nodeDomain, field.name, field.source, map[string]interface{}{"editor": "admission_form"})
+		if sourceErr != nil || saveContentTranslation(r.Context(), h.Pool, key, lang, field.value, userID) != nil {
+			writeJSON(w, 500, map[string]string{"error": "error saving translation"})
+			return
+		}
+	}
+	_, _ = h.Pool.Exec(r.Context(), `
+		INSERT INTO admission_form_translations (node_domain, language, title, subtitle, schema, updated_at)
+		VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
+		ON CONFLICT (node_domain, language) DO UPDATE SET
+		  title = EXCLUDED.title, subtitle = EXCLUDED.subtitle,
+		  schema = EXCLUDED.schema, updated_at = NOW()`,
+		nodeDomain, lang, req.Title, req.Subtitle, string(req.Schema))
 	writeJSON(w, 200, map[string]string{"status": "ok"})
 }
 
@@ -310,40 +371,5 @@ func (h *SystemHandler) updateAdmissionFormTranslation(w http.ResponseWriter, r 
 // getPublicPageTranslated devuelve una pagina publica en el idioma solicitado.
 // GET /api/public/pages/{slug}?lang=en
 func (h *SystemHandler) getPublicPageTranslated(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "slug")
-	lang := r.URL.Query().Get("lang")
-	if lang == "" {
-		lang = "es"
-	}
-
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
-
-	// Intentar obtener la traduccion
-	var title, subtitle, content string
-	err := h.Pool.QueryRow(r.Context(),
-		`SELECT p.title, COALESCE(p.subtitle, ''), p.content
-		 FROM public_pages p
-		 JOIN public_page_translations pt ON pt.page_id = p.id
-		 WHERE p.node_domain = $1 AND p.slug = $2 AND pt.language = $3 AND p.is_published = true`,
-		nodeDomain, slug, lang).Scan(&title, &subtitle, &content)
-	if err != nil {
-		// Fallback al contenido por defecto de public_pages
-		err2 := h.Pool.QueryRow(r.Context(),
-			`SELECT title, COALESCE(subtitle, ''), content FROM public_pages
-			 WHERE node_domain = $1 AND slug = $2 AND is_published = true`,
-			nodeDomain, slug).Scan(&title, &subtitle, &content)
-		if err2 != nil {
-			writeJSON(w, 404, map[string]string{"error": "page not found"})
-			return
-		}
-	}
-
-	writeJSON(w, 200, map[string]interface{}{
-		"slug":     slug,
-		"title":    title,
-		"subtitle": subtitle,
-		"content":  content,
-		"language": lang,
-	})
+	h.getPublicPage(w, r)
 }

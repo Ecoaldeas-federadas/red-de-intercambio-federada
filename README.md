@@ -412,8 +412,27 @@ A continuacion el listado completo agrupado por tema:
 - [docs/notifications.md](docs/notifications.md) — Sistema unificado, pasarelas federadas (Matrix, Telegram, XMPP)
 
 ### Internacionalizacion (i18n)
-- [docs/I18N.md](docs/I18N.md) — Sistema de internacionalizacion: arquitectura, JSON + BD, namespaces
-- [docs/I18N-STATUS.md](docs/I18N-STATUS.md) — Estado maestro de i18n: auditoria, tareas pendientes, progreso
+
+El sistema soporta internacionalizacion completa en dos capas:
+
+1. **Textos estaticos de la interfaz**: i18next + react-i18next con namespaces JSON
+   (`web/src/locales/{es,en}/*.json`). El idioma se envia al backend via `Accept-Language`.
+
+2. **Contenido dinamico de la base de datos**: capa unificada (migraciones 173-175)
+   que permite traducir cualquier texto visible almacenado en la BD (paginas publicas,
+   productos, calculadora, gobernanza, asambleas, niveles, servicios, notificaciones,
+   tienda, perfiles, etc.) sin modificar el texto original.
+   - Clave estable: `entity_type:entity_id:field_name`
+   - Deteccion de cambios por `source_hash`: si el original cambia, las traducciones
+     quedan `stale` y se aplica fallback seguro al idioma base del nodo
+   - Idioma base configurable por nodo (`node_config.default_language`)
+   - Permiso requerido: `translations.edit` (no requiere aprobacion de asamblea)
+   - Editor central: `/app/translations` con pestaña "Contenido de la base de datos"
+   - Componente reutilizable: `LanguageTabs` para formularios multilingues
+   - HTML estatico multi-idioma: `html/{lang}/` con etiquetas hreflang para SEO
+
+- [docs/I18N.md](docs/I18N.md) — Sistema de internacionalizacion: arquitectura, JSON + BD, namespaces, capa unificada de contenido dinamico
+- [docs/I18N-STATUS.md](docs/I18N-STATUS.md) — Estado maestro de i18n: matriz de cobertura, garantias implementadas, migraciones 173-175
 - [docs/backend-i18n-plan.md](docs/backend-i18n-plan.md) — Plan de i18n del backend
 
 ### Frontend y POS

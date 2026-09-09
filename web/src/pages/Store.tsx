@@ -422,7 +422,7 @@ export default function Store() {
                         >
                           <option value="">{t('store_select_option', '-- Selecciona --')}</option>
                           {hierarchy.map((pc: any) => (
-                            <option key={pc.name} value={pc.name}>{tc(pc.name)}</option>
+                            <option key={pc.name} value={pc.name}>{pc.label || tc(pc.name)}</option>
                           ))}
                         </select>
                       </div>
@@ -441,7 +441,7 @@ export default function Store() {
                           {selectedParent && hierarchy
                             .find((pc: any) => pc.name === selectedParent)
                             ?.categories?.map((c: any) => (
-                              <option key={c.name} value={c.name}>{tc(c.name)}</option>
+                              <option key={c.name} value={c.name}>{c.label || tc(c.name)}</option>
                             ))}
                         </select>
                       </div>
@@ -458,7 +458,7 @@ export default function Store() {
                             .find((pc: any) => pc.name === selectedParent)
                             ?.categories?.find((c: any) => c.name === selectedCategory)
                             ?.subcategories?.map((sc: any) => (
-                              <option key={sc.name} value={sc.name}>{tc(sc.name)}</option>
+                              <option key={sc.name} value={sc.name}>{sc.label || tc(sc.name)}</option>
                             ))}
                         </select>
                       </div>

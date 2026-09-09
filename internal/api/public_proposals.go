@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"context"
@@ -89,6 +89,9 @@ func (h *PublicProposalsHandler) listProposals(w http.ResponseWriter, r *http.Re
 	}
 	if proposals == nil {
 		proposals = []map[string]interface{}{}
+	} else {
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, "__GLOBAL__")
+		localizeEntityMaps(r.Context(), h.Pool, proposals, "public_proposal", lang, fallbackLang, "title", "description")
 	}
 	writeJSON(w, 200, proposals)
 }
@@ -96,11 +99,12 @@ func (h *PublicProposalsHandler) listProposals(w http.ResponseWriter, r *http.Re
 // createProposal crea una nueva propuesta publica
 func (h *PublicProposalsHandler) createProposal(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Category    string `json:"category"`
-		AuthorName  string `json:"author_name"`
-		AuthorEmail string `json:"author_email"`
+		Title        string                       `json:"title"`
+		Description  string                       `json:"description"`
+		Category     string                       `json:"category"`
+		AuthorName   string                       `json:"author_name"`
+		AuthorEmail  string                       `json:"author_email"`
+		Translations map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -135,6 +139,16 @@ func (h *PublicProposalsHandler) createProposal(w http.ResponseWriter, r *http.R
 	if err != nil {
 		writeError(w, 500, "error al crear propuesta")
 		return
+	}
+
+	proposalFields := map[string]string{
+		"title":       req.Title,
+		"description": req.Description,
+	}
+	registerEntityFields(r.Context(), h.Pool, "__GLOBAL__", "public_proposal", id.String(), proposalFields, map[string]interface{}{"category": req.Category, "author_name": req.AuthorName})
+	if len(req.Translations) > 0 {
+		userID, _ := h.Auth.GetUserID(r)
+		saveSubmittedTranslations(r.Context(), h.Pool, "__GLOBAL__", "public_proposal", id.String(), proposalFields, req.Translations, userID)
 	}
 
 	writeJSON(w, 201, map[string]interface{}{
@@ -207,6 +221,9 @@ func (h *PublicProposalsHandler) adminListProposals(w http.ResponseWriter, r *ht
 	}
 	if proposals == nil {
 		proposals = []map[string]interface{}{}
+	} else {
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, "__GLOBAL__")
+		localizeEntityMaps(r.Context(), h.Pool, proposals, "public_proposal", lang, fallbackLang, "title", "description", "admin_notes")
 	}
 	writeJSON(w, 200, proposals)
 }
@@ -219,8 +236,9 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 		return
 	}
 	var req struct {
-		Status     string `json:"status"`
-		AdminNotes string `json:"admin_notes"`
+		Status       string                       `json:"status"`
+		AdminNotes   string                       `json:"admin_notes"`
+		Translations map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -236,6 +254,15 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 	if err != nil {
 		writeError(w, 500, "error al actualizar")
 		return
+	}
+
+	if req.AdminNotes != "" {
+		fields := map[string]string{"admin_notes": req.AdminNotes}
+		registerEntityFields(r.Context(), h.Pool, "__GLOBAL__", "public_proposal", id.String(), fields, nil)
+		if len(req.Translations) > 0 {
+			userID, _ := h.Auth.GetUserID(r)
+			saveSubmittedTranslations(r.Context(), h.Pool, "__GLOBAL__", "public_proposal", id.String(), fields, req.Translations, userID)
+		}
 	}
 
 	writeJSON(w, 200, map[string]string{"status": "updated"})

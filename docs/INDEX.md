@@ -45,6 +45,8 @@
 41. [Plantilla de Driver NFC](../templates/nfc-driver-template/) - Plantilla base con todos los archivos para crear un driver nuevo
 42. [Diseno: Perfiles de Nodo con Prohibiciones Compartidas](diseno-perfiles-nodo-productos-prohibidos.md) - Perfiles dinamicos (adventista, ISKCON, etc.) con prohibiciones de productos compartidas via federation
 43. [Guia: Perfiles de Nodo y Productos Prohibidos](guia-perfiles-nodo.md) - Para admin: como configurar perfil del nodo, marcar productos prohibidos, y compartir con otros nodos
+44. [Sistema de Internacionalizacion (i18n)](I18N.md) - Arquitectura hibrida JSON + BD, namespaces, federacion de traducciones, capa unificada de contenido dinamico
+45. [Estado de i18n de Contenido Dinamico](I18N-STATUS.md) - Matriz de cobertura por modulo, garantias implementadas, migraciones 173-175
 
 ## Estado de Implementacion
 

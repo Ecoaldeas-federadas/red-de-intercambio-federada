@@ -118,10 +118,14 @@ export interface EventScheduleBlockData {
 export interface ProductItem {
   name: string
   category?: string
+  parent_category?: string
+  subcategory?: string
   description: string
   image_url?: string
   badge?: string
+  unit?: string
   price_energy?: string
+  price_trueque?: number
 }
 
 export interface ProductsShowcaseBlockData {

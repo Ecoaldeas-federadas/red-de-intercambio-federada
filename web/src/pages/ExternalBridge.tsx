@@ -201,7 +201,7 @@ export default function ExternalBridge() {
       return
     }
     try {
-      const res = await api.post('/external/fc/calculate-basket', {
+      const res = await api.post<any>('/external/fc/calculate-basket', {
         external_currency: fcForm.external_currency,
         basket_cost_external: fcForm.basket_cost_external,
         basket_cost_local_tq: fcForm.basket_cost_local_tq,

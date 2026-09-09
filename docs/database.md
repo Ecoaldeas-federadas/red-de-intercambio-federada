@@ -78,6 +78,20 @@
 | `142_shift_transaction_indexes.sql` | Indices para pos_shifts.opened_at, closed_at y nfc_transactions.created_at |
 | `143_pos_retention_config.sql` | Tabla pos_retention_config (retencion configurable, purga automatica) |
 | `146_terminal_authorized_users.sql` | Tabla nfc_terminal_authorized_users (personas adicionales autorizadas por terminal) |
+| `163_languages_table.sql` | Tabla `languages` (code, name, native_name, enabled, is_default) |
+| `164_translations_table.sql` | Tabla `translations` (namespace, key, value por idioma) |
+| `165_translation_permissions.sql` | Permisos `translations.manage`, `translations.edit`, `translations.delegate` |
+| `166_node_config_language.sql` | Columna `default_language` en `node_config` |
+| `167_user_preferences_language.sql` | Idioma en `user_preferences` |
+| `168_translation_federation.sql` | Federacion de traducciones entre nodos |
+| `169_content_translations.sql` | Tablas legacy de traducciones de contenido (paginas, settings, admision) |
+| `170_english_content_translations.sql` | Backfill de traducciones inglesas legacy |
+| `171_level_translations.sql` | Traducciones de niveles (member_levels, organization_levels) |
+| `172_dynamic_data_translations.sql` | Traducciones legacy de productos, calculadora, gobernanza |
+| `173_unified_content_translations.sql` | Capa unificada: `content_translation_sources`, `content_translations`, `content_translation_history`, `product_taxonomy_terms` + funcion `upsert_content_translation_source` con deteccion de cambios por `source_hash` |
+| `174_translation_sources_extended.sql` | Backfill de fuentes extendidas: asambleas, propuestas publicas, notificaciones, departamentos, roles, servicios, tienda, perfiles de fe, prohibiciones, etiquetas de catalogo, reglas dietarias, horarios comerciales, drivers NFC |
+| `175_content_translation_source_language.sql` | Correccion federada: `source_language` proviene de `node_config.default_language` del nodo propietario, no del traductor |
+| `176_english_content_seed_translations.sql` | Backfill de traducciones inglesas reales del contenido seed (productos, calculadora, reglas, niveles, constantes federadas) |
 
 ## Tablas Principales
 
@@ -223,6 +237,30 @@
 ### Sitio Web Publico
 - **`public_pages`**: Paginas del sitio web publico del nodo
 - **`public_settings`**: Configuracion del sitio publico
+
+### Internacionalizacion de Contenido Dinamico (Capa Unificada — migraciones 173-175)
+
+Las tablas legacy 169-172 se conservan por compatibilidad. La capa unificada permite
+que cualquier texto visible almacenado en la BD tenga una clave estable, traducciones
+por idioma, deteccion de cambios e historial, sin modificar el texto original.
+
+- **`content_translation_sources`**: Registro de fuentes traducibles.
+  - Clave: `translation_key` = `entity_type:entity_id:field_name`
+  - Campos: `node_domain`, `source_language` (del nodo propietario), `source_text`, `source_hash` (md5), `context` (JSONB), `is_active`
+  - Unique: `(node_domain, entity_type, entity_id, field_name)`
+- **`content_translations`**: Traducciones por idioma.
+  - FK a `content_translation_sources` (ON DELETE CASCADE)
+  - Campos: `language`, `value`, `source_hash` (para detectar traducciones stale), `translated_by` (FK users)
+  - Unique: `(translation_key, language)`
+- **`content_translation_history`**: Auditoria de cambios.
+  - Campos: `old_value`, `new_value`, `source_hash`, `changed_by`, `changed_at`
+- **`product_taxonomy_terms`**: Taxonomia estable de productos.
+  - Permite que los filtros usen el valor base (`source_value`) mientras se muestra el label traducido
+  - Levels: `parent`, `category`, `subcategory`
+  - Unique: `(node_domain, level, parent_source_value, source_value)`
+- **Funcion `upsert_content_translation_source`**: Inserta o actualiza una fuente.
+  - Si el `source_text` cambia, `source_hash` cambia y las traducciones existentes quedan `stale`
+  - El `source_language` se resuelve desde `node_config.default_language` del nodo propietario
 
 ## Relaciones Clave
 

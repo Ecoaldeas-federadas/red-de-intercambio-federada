@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -21,7 +22,7 @@ func (h *SystemHandler) getMemberLevelTranslations(w http.ResponseWriter, r *htt
 	rows, err := h.Pool.Query(r.Context(),
 		`SELECT language, name, COALESCE(description, ''), updated_at
 		 FROM member_level_translations
-		 WHERE level_id = $1::uuid
+		 WHERE level_id = $1
 		 ORDER BY language`, levelID)
 	if err != nil {
 		writeJSON(w, 500, map[string]string{"error": "error querying translations"})
@@ -31,7 +32,8 @@ func (h *SystemHandler) getMemberLevelTranslations(w http.ResponseWriter, r *htt
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, name, description, updatedAt string
+		var lang, name, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &name, &description, &updatedAt); err != nil {
 			continue
 		}
@@ -62,11 +64,11 @@ func (h *SystemHandler) getMemberLevelTranslation(w http.ResponseWriter, r *http
 	err := h.Pool.QueryRow(r.Context(),
 		`SELECT COALESCE(name, ''), COALESCE(description, '')
 		 FROM member_level_translations
-		 WHERE level_id = $1::uuid AND language = $2`, levelID, lang).Scan(&name, &description)
+		 WHERE level_id = $1 AND language = $2`, levelID, lang).Scan(&name, &description)
 	if err != nil {
 		var defName, defDesc string
 		err2 := h.Pool.QueryRow(r.Context(),
-			`SELECT name, COALESCE(description, '') FROM member_levels WHERE id = $1::uuid`, levelID).
+			`SELECT name, COALESCE(description, '') FROM member_levels WHERE id = $1`, levelID).
 			Scan(&defName, &defDesc)
 		if err2 != nil {
 			writeJSON(w, 404, map[string]string{"error": "level not found"})
@@ -110,7 +112,7 @@ func (h *SystemHandler) updateMemberLevelTranslation(w http.ResponseWriter, r *h
 
 	_, err := h.Pool.Exec(r.Context(),
 		`INSERT INTO member_level_translations (level_id, language, name, description, updated_at)
-		 VALUES ($1::uuid, $2, $3, $4, NOW())
+		 VALUES ($1, $2, $3, $4, NOW())
 		 ON CONFLICT (level_id, language) DO UPDATE SET
 		   name = EXCLUDED.name,
 		   description = EXCLUDED.description,
@@ -148,7 +150,8 @@ func (h *SystemHandler) getOrgLevelTranslations(w http.ResponseWriter, r *http.R
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, name, description, updatedAt string
+		var lang, name, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &name, &description, &updatedAt); err != nil {
 			continue
 		}

@@ -3,32 +3,10 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
-
-// resolveLang extracts the requested language from query param "lang"
-// or falls back to the Accept-Language header, defaulting to "es".
-func resolveLang(r *http.Request) string {
-	lang := r.URL.Query().Get("lang")
-	if lang == "" {
-		lang = r.Header.Get("Accept-Language")
-		if lang != "" {
-			// Accept-Language may be "en-US,en;q=0.9" - take first part
-			if idx := strings.Index(lang, ","); idx > 0 {
-				lang = lang[:idx]
-			}
-			if idx := strings.Index(lang, "-"); idx > 0 {
-				lang = lang[:idx]
-			}
-		}
-	}
-	if lang == "" {
-		lang = "es"
-	}
-	return lang
-}
 
 // ===== Traducciones de reglas de gobernanza =====
 
@@ -54,7 +32,8 @@ func (h *SystemHandler) getGovernanceRuleTranslations(w http.ResponseWriter, r *
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, title, description, updatedAt string
+		var lang, title, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &title, &description, &updatedAt); err != nil {
 			continue
 		}
@@ -130,7 +109,8 @@ func (h *SystemHandler) getCalculatorParameterTranslations(w http.ResponseWriter
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, name, description, updatedAt string
+		var lang, name, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &name, &description, &updatedAt); err != nil {
 			continue
 		}
@@ -206,7 +186,8 @@ func (h *SystemHandler) getCalculatorCategoryTranslations(w http.ResponseWriter,
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, name, description, updatedAt string
+		var lang, name, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &name, &description, &updatedAt); err != nil {
 			continue
 		}
@@ -282,7 +263,8 @@ func (h *SystemHandler) getProductTranslations(w http.ResponseWriter, r *http.Re
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, name, description, updatedAt string
+		var lang, name, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &name, &description, &updatedAt); err != nil {
 			continue
 		}
@@ -358,7 +340,8 @@ func (h *SystemHandler) getAssemblyConfigTranslations(w http.ResponseWriter, r *
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, description, updatedAt string
+		var lang, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &description, &updatedAt); err != nil {
 			continue
 		}
@@ -431,7 +414,8 @@ func (h *SystemHandler) getFederationConstantTranslations(w http.ResponseWriter,
 
 	var result []map[string]interface{}
 	for rows.Next() {
-		var lang, description, updatedAt string
+		var lang, description string
+		var updatedAt time.Time
 		if err := rows.Scan(&lang, &description, &updatedAt); err != nil {
 			continue
 		}

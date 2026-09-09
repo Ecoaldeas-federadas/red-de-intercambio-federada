@@ -119,7 +119,7 @@ function getShortLabel(p: { slug: string; title: string }): string {
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, username, logout } = useAuth()
-  const { t: tpub } = useTranslation(['public', 'common'])
+  const { t: tpub, i18n: publicI18n } = useTranslation(['public', 'common'])
   const location = useLocation()
   const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [pages, setPages] = useState<PublicPageData[]>([])
@@ -220,7 +220,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         setPages(tmplPages)
       }
     }).catch(() => {})
-  }, [])
+  }, [publicI18n.language])
 
   // Close "More" dropdown when clicking outside
   useEffect(() => {

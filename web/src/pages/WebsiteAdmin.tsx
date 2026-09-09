@@ -456,6 +456,7 @@ export default function WebsiteAdmin() {
 
   // Idioma de edicion para formulario de admision y settings
   const [adminEditLang, setAdminEditLang] = useState('es')
+  const [adminDefaultLang, setAdminDefaultLang] = useState('es')
   const [adminLanguages, setAdminLanguages] = useState<any[]>([])
   const [admissionTranslations, setAdmissionTranslations] = useState<Record<string, boolean>>({})
 
@@ -533,9 +534,15 @@ export default function WebsiteAdmin() {
     load()
     // Cargar idiomas disponibles
     api.get<any[]>('/languages').then((langs) => {
-      setAdminLanguages((langs || []).filter((l: any) => l.enabled))
+      const enabled = (langs || []).filter((l: any) => l.enabled)
+      const defaultCode = enabled.find((l: any) => l.is_default)?.code || 'es'
+      setAdminLanguages(enabled)
+      setAdminDefaultLang(defaultCode)
+      setAdminEditLang(defaultCode)
     }).catch(() => {
-      setAdminLanguages([{ code: 'es', native_name: 'Español' }, { code: 'en', native_name: 'English' }])
+      setAdminLanguages([{ code: 'es', native_name: 'Español', is_default: true }, { code: 'en', native_name: 'English', is_default: false }])
+      setAdminDefaultLang('es')
+      setAdminEditLang('es')
     })
   }, [])
 
@@ -775,19 +782,15 @@ export default function WebsiteAdmin() {
     setError('')
     setSuccess('')
     try {
-      // Guardar en el idioma por defecto (endpoint original)
-      await api.put('/site/admission-form', {
+      const payload = {
         title: formConfig.title,
         subtitle: formConfig.subtitle,
         schema: formConfig.schema,
-      })
-      // Guardar traducción en el idioma seleccionado
-      if (adminEditLang !== 'es') {
-        await api.put(`/site/admission-form/${adminEditLang}`, {
-          title: formConfig.title,
-          subtitle: formConfig.subtitle,
-          schema: formConfig.schema,
-        })
+      }
+      if (adminEditLang === adminDefaultLang) {
+        await api.put('/site/admission-form', payload)
+      } else {
+        await api.put(`/site/admission-form/${adminEditLang}`, payload)
       }
       setAdmissionTranslations(prev => ({ ...prev, [adminEditLang]: true }))
       setSuccess(t('form_saved'))
