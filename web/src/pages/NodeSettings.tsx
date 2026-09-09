@@ -12,7 +12,7 @@ const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
 
 export default function NodeSettings() {
   const { hasPermission } = usePermissions()
-  const { t } = useTranslation(['settings', 'common', 'assembly'])
+  const { t, i18n } = useTranslation(['settings', 'common', 'assembly'])
   const canManage = hasPermission('config.manage')
   const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
 
@@ -175,14 +175,19 @@ export default function NodeSettings() {
   const [tariffLoading, setTariffLoading] = useState(true)
 
   const load = () => {
-    const lang = getCurrentLanguage()
+    const lang = i18n.language || getCurrentLanguage()
     api.get('/config').then((d: any) => setConfig(d)).catch(() => {})
     api.get(`/member-levels?lang=${lang}`).then((d: any) => setLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get(`/organization-levels?lang=${lang}`).then((d: any) => setOrgLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/calculator/tariff').then((d: any) => { setTariff(d); setTariffLoading(false) }).catch(() => setTariffLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    if (tab === 'database') {
+      loadClusterConfig()
+    }
+  }, [i18n.language])
 
   // Cargar presets disponibles para el demo
   const loadDemoPresets = async () => {
@@ -393,7 +398,7 @@ export default function NodeSettings() {
     try {
       const [cfgRes, hwRes] = await Promise.all([
         api.get('/cluster/config'),
-        api.get('/cluster/hardware'),
+        api.get('/cluster/hardware?lang=' + (i18n.language || 'es')),
       ])
       setClusterConfig(cfgRes)
       setHardwareInfo(hwRes)

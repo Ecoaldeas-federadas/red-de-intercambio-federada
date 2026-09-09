@@ -135,7 +135,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
-    api.get('/public/pages').then((d: any) => {
+    api.get(`/public/pages?lang=${publicI18n.language || 'es'}`).then((d: any) => {
       if (Array.isArray(d) && d.length > 0) {
         // Merge: keep DB pages, but add any template pages whose slug
         // doesn't exist in the DB yet (so new template pages appear
@@ -2062,7 +2062,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             }
           }
           await api.get('/public/settings').then((s: any) => setSettings(s))
-          await api.get('/public/pages').then((d: any) => {
+          await api.get(`/public/pages?lang=${publicI18n.language || 'es'}`).then((d: any) => {
             if (Array.isArray(d)) setPages(d)
           })
         }}

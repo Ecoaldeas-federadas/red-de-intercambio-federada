@@ -222,6 +222,7 @@ type HardwareInfo struct {
 	RecommendedMode   string `json:"recommended_mode"`    // "single" o "multi"
 	RecommendedMemPct int    `json:"recommended_mem_pct"` // global_memstore_size_percentage
 	Recommendation    string `json:"recommendation"`
+	RecommendationKey string `json:"recommendation_key"`
 	NeedsMoreServers  bool   `json:"needs_more_servers"`
 	ServersNeeded     int    `json:"servers_needed"`
 }
@@ -234,6 +235,12 @@ func (ch *ClusterHandler) getHardwareInfo(w http.ResponseWriter, r *http.Request
 
 	info.RAMGB = detectSystemRAM()
 
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = r.Header.Get("Accept-Language")
+	}
+	isEnglish := strings.HasPrefix(strings.ToLower(lang), "en")
+
 	// Recomendaciones basadas en hardware
 	// Regla: ~100 tabletas por GB de RAM
 	// global_memstore_size_percentage: % de RAM para DocDB (escritura)
@@ -245,32 +252,57 @@ func (ch *ClusterHandler) getHardwareInfo(w http.ResponseWriter, r *http.Request
 		info.RecommendedLimit = 2000
 		info.RecommendedMode = "single"
 		info.RecommendedMemPct = 30
-		info.Recommendation = "Tu servidor tiene suficiente RAM para un solo nodo con limite alto (2000 tabletas) y 30% de memoria para DocDB (9.6GB)."
+		info.RecommendationKey = "ram_ge_32"
+		if isEnglish {
+			info.Recommendation = "Your server has enough RAM for a single node with high limit (2000 tablets) and 30% memory for DocDB (9.6GB)."
+		} else {
+			info.Recommendation = "Tu servidor tiene suficiente RAM para un solo nodo con limite alto (2000 tabletas) y 30% de memoria para DocDB (9.6GB)."
+		}
 		info.NeedsMoreServers = false
 	} else if info.RAMGB >= 16 {
 		info.RecommendedLimit = 1000
 		info.RecommendedMode = "single"
 		info.RecommendedMemPct = 10
-		info.Recommendation = "Tu servidor tiene 16GB RAM. Un solo nodo con limite 1000 y 10% de memoria para DocDB (1.6GB). Esto deja ~14GB para el backend, frontend y el OS. Si la base de datos crece mucho, agrega un segundo servidor."
+		info.RecommendationKey = "ram_ge_16"
+		if isEnglish {
+			info.Recommendation = "Your server has 16GB RAM. A single node with limit 1000 and 10% memory for DocDB (1.6GB). This leaves ~14GB for the backend, frontend and OS. If the database grows significantly, add a second server."
+		} else {
+			info.Recommendation = "Tu servidor tiene 16GB RAM. Un solo nodo con limite 1000 y 10% de memoria para DocDB (1.6GB). Esto deja ~14GB para el backend, frontend y el OS. Si la base de datos crece mucho, agrega un segundo servidor."
+		}
 		info.NeedsMoreServers = false
 	} else if info.RAMGB >= 8 {
 		info.RecommendedLimit = 600
 		info.RecommendedMode = "single"
 		info.RecommendedMemPct = 5
-		info.Recommendation = "Tu servidor tiene 8GB RAM. Un solo nodo con limite 600 y solo 5% de memoria para DocDB (0.4GB). Es ajustado pero funciona. Para crecer, necesitas un servidor con mas RAM."
+		info.RecommendationKey = "ram_ge_8"
+		if isEnglish {
+			info.Recommendation = "Your server has 8GB RAM. A single node with limit 600 and only 5% memory for DocDB (0.4GB). It is tight but functional. To scale, you need a server with more RAM."
+		} else {
+			info.Recommendation = "Tu servidor tiene 8GB RAM. Un solo nodo con limite 600 y solo 5% de memoria para DocDB (0.4GB). Es ajustado pero funciona. Para crecer, necesitas un servidor con mas RAM."
+		}
 		info.NeedsMoreServers = false
 	} else if info.RAMGB >= 4 {
 		info.RecommendedLimit = 400
 		info.RecommendedMode = "multi"
 		info.RecommendedMemPct = 5
-		info.Recommendation = "Tu servidor tiene poca RAM (4GB). No es suficiente para produccion. Usa limite 400 con 5% de memoria para DocDB. Para escalar, NECESITAS un segundo servidor con mas RAM (minimo 8GB, idealmente 16GB)."
+		info.RecommendationKey = "ram_ge_4"
+		if isEnglish {
+			info.Recommendation = "Your server has low RAM (4GB). Not sufficient for production. Use limit 400 with 5% memory for DocDB. To scale, you NEED a second server with more RAM (minimum 8GB, ideally 16GB)."
+		} else {
+			info.Recommendation = "Tu servidor tiene poca RAM (4GB). No es suficiente para produccion. Usa limite 400 con 5% de memoria para DocDB. Para escalar, NECESITAS un segundo servidor con mas RAM (minimo 8GB, idealmente 16GB)."
+		}
 		info.NeedsMoreServers = true
 		info.ServersNeeded = 1
 	} else {
 		info.RecommendedLimit = 300
 		info.RecommendedMode = "multi"
 		info.RecommendedMemPct = 5
-		info.Recommendation = "Tu servidor tiene muy poca RAM (menos de 4GB). No es suficiente para YugabyteDB. Necesitas al menos un servidor con 8GB RAM, idealmente 16GB."
+		info.RecommendationKey = "ram_lt_4"
+		if isEnglish {
+			info.Recommendation = "Your server has very low RAM (less than 4GB). Not enough for YugabyteDB. You need at least one server with 8GB RAM, ideally 16GB."
+		} else {
+			info.Recommendation = "Tu servidor tiene muy poca RAM (menos de 4GB). No es suficiente para YugabyteDB. Necesitas al menos un servidor con 8GB RAM, idealmente 16GB."
+		}
 		info.NeedsMoreServers = true
 		info.ServersNeeded = 1
 	}

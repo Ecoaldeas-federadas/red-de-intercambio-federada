@@ -409,7 +409,7 @@ const BLOCK_DEFINITIONS: {
 ]
 
 export default function WebsiteAdmin() {
-  const { t } = useTranslation(['website', 'common'])
+  const { t, i18n } = useTranslation(['website', 'common'])
   const tt = (key: string) => t(key, { defaultValue: key })
   const { hasPermission } = usePermissions()
 
@@ -516,7 +516,8 @@ export default function WebsiteAdmin() {
   })
 
   const load = () => {
-    api.get('/site/pages').then((d: any) => setPages(Array.isArray(d) ? d : [])).catch(() => {})
+    const lang = i18n.language || 'es'
+    api.get(`/site/pages?lang=${lang}`).then((d: any) => setPages(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/site/settings').then(setSettings).catch(() => {})
     api.get('/admission-requests').then((d: any) => setAdmissionRequests(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/public/admission-form').then((d: any) => {
@@ -532,6 +533,9 @@ export default function WebsiteAdmin() {
 
   useEffect(() => {
     load()
+  }, [i18n.language])
+
+  useEffect(() => {
     // Cargar idiomas disponibles
     api.get<any[]>('/languages').then((langs) => {
       const enabled = (langs || []).filter((l: any) => l.enabled)

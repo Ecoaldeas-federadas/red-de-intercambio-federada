@@ -2739,10 +2739,21 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 		// pero el frontend las renderiza con componentes especiales.
 		// Devolver una pagina vacia para que el frontend no de error 404.
 		if slug == "federacion" || slug == "gobernanza" {
+			vTitle := "Federacion"
+			if slug == "gobernanza" {
+				vTitle = "Gobernanza"
+			}
+			if strings.HasPrefix(strings.ToLower(lang), "en") {
+				if slug == "federacion" {
+					vTitle = "Federation"
+				} else {
+					vTitle = "Village Governance"
+				}
+			}
 			writeJSON(w, 200, map[string]interface{}{
 				"id":           "",
 				"slug":         slug,
-				"title":        "Federacion",
+				"title":        vTitle,
 				"subtitle":     "",
 				"content":      "[]",
 				"icon":         "globe",
@@ -3364,6 +3375,7 @@ func (h *SystemHandler) submitAdmissionDefense(w http.ResponseWriter, r *http.Re
 func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id::text, slug, title, subtitle, icon, menu_order, is_published, show_in_menu
@@ -3374,24 +3386,49 @@ func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var pages []map[string]interface{}
+	type pageItem struct {
+		id, slug, title string
+		subtitle, icon  *string
+		menuOrder       int
+		isPublished     bool
+		showInMenu      bool
+	}
+	var rawPages []pageItem
+	var keys []string
 	for rows.Next() {
-		var id, slug, title string
-		var subtitle, icon *string
-		var menuOrder int
-		var isPublished, showInMenu bool
-		if err := rows.Scan(&id, &slug, &title, &subtitle, &icon, &menuOrder, &isPublished, &showInMenu); err != nil {
+		var p pageItem
+		if err := rows.Scan(&p.id, &p.slug, &p.title, &p.subtitle, &p.icon, &p.menuOrder, &p.isPublished, &p.showInMenu); err != nil {
 			continue
 		}
+		rawPages = append(rawPages, p)
+		keys = append(keys, "public_page:"+p.id+":title", "public_page:"+p.id+":subtitle")
+	}
+
+	translations := map[string]string{}
+	if !strings.EqualFold(lang, fallbackLang) {
+		translations = localizedContentValues(r.Context(), h.Pool, keys, lang)
+	}
+
+	var pages []map[string]interface{}
+	for _, p := range rawPages {
+		title := p.title
+		subtitle := deref(p.subtitle)
+		if val := translations["public_page:"+p.id+":title"]; val != "" {
+			title = val
+		}
+		if val := translations["public_page:"+p.id+":subtitle"]; val != "" {
+			subtitle = val
+		}
 		pages = append(pages, map[string]interface{}{
-			"id":           id,
-			"slug":         slug,
+			"id":           p.id,
+			"slug":         p.slug,
 			"title":        title,
-			"subtitle":     deref(subtitle),
-			"icon":         deref(icon),
-			"menu_order":   menuOrder,
-			"is_published": isPublished,
-			"show_in_menu": showInMenu,
+			"subtitle":     subtitle,
+			"icon":         deref(p.icon),
+			"menu_order":   p.menuOrder,
+			"is_published": p.isPublished,
+			"show_in_menu": p.showInMenu,
+			"language":     lang,
 		})
 	}
 	if pages == nil {
