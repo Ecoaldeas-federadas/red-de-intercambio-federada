@@ -53,7 +53,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { SiteBlock, BlockType, HeaderStyleType, FormFieldSchema, FormFieldType } from '../types/publicSite'
-import { FERIA_CONUQUERA_TEMPLATES } from '../components/public-site/defaultSiteData'
+import { FERIA_CONUQUERA_TEMPLATES, FERIA_CONUQUERA_TEMPLATES_EN } from '../components/public-site/defaultSiteData'
 import { DEFAULT_ADMISSION_FIELDS } from '../components/public-site/DynamicAdmissionForm'
 import { PageBlocksRenderer } from '../components/public-site/PublicBlocks'
 import { HEADER_STYLES } from '../components/public-site/headerStyles'
@@ -459,6 +459,7 @@ export default function WebsiteAdmin() {
   const [adminDefaultLang, setAdminDefaultLang] = useState('es')
   const [adminLanguages, setAdminLanguages] = useState<any[]>([])
   const [admissionTranslations, setAdmissionTranslations] = useState<Record<string, boolean>>({})
+  const [pageTranslations, setPageTranslations] = useState<Record<string, boolean>>({})
 
   // Settings State
   const [settingsForm, setSettingsForm] = useState({
@@ -608,9 +609,108 @@ export default function WebsiteAdmin() {
     }
   }, [settings])
 
-  // Open a page in the Modular Builder
-  const openPageBuilder = (page: any) => {
-    setSelectedPage(page)
+  // Cargar contenido de la página para un idioma determinado en el Builder
+  const loadPageContentForLang = async (page: any, lang: string) => {
+    setAdminEditLang(lang)
+    if (!page) return
+
+    if (lang === adminDefaultLang) {
+      // Idioma por defecto (Español base)
+      setPageMeta({
+        title: page.title || '',
+        subtitle: page.subtitle || '',
+        slug: page.slug || '',
+        icon: page.icon || 'home',
+        menu_order: page.menu_order || 1,
+        is_published: page.is_published ?? true,
+        show_in_menu: page.show_in_menu ?? true,
+      })
+
+      let parsedBlocks: SiteBlock[] = []
+      try {
+        if (page.content) {
+          const parsed = JSON.parse(page.content)
+          if (Array.isArray(parsed)) parsedBlocks = parsed
+        }
+      } catch {
+        if (page.content) parsedBlocks = [{ type: 'richtext', title: page.title, content: page.content }]
+      }
+
+      if (parsedBlocks.length === 0) {
+        const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === page.slug)
+        if (tmpl) parsedBlocks = JSON.parse(JSON.stringify(tmpl.blocks))
+      }
+
+      setBlocks(parsedBlocks)
+      setEditingBlockIndex(null)
+      return
+    }
+
+    // Idioma secundario (ej. en)
+    if (page.id) {
+      try {
+        const tr = await api.get<any>(`/site/pages/${page.id}/translations/${lang}`)
+        if (tr && (tr.title || tr.content) && !tr.is_fallback) {
+          setPageMeta({
+            title: tr.title || page.title || '',
+            subtitle: tr.subtitle || '',
+            slug: page.slug || '',
+            icon: page.icon || 'home',
+            menu_order: page.menu_order || 1,
+            is_published: page.is_published ?? true,
+            show_in_menu: page.show_in_menu ?? true,
+          })
+
+          let parsedBlocks: SiteBlock[] = []
+          try {
+            if (tr.content) {
+              const parsed = JSON.parse(tr.content)
+              if (Array.isArray(parsed) && parsed.length > 0) parsedBlocks = parsed
+            }
+          } catch {
+            if (tr.content) parsedBlocks = [{ type: 'richtext', title: tr.title, content: tr.content }]
+          }
+
+          if (parsedBlocks.length > 0) {
+            setBlocks(parsedBlocks)
+            setEditingBlockIndex(null)
+            return
+          }
+        }
+      } catch {}
+    }
+
+    // Si no hay traducción en la BD aún, verificar si hay plantilla predefinida en inglés
+    if (lang === 'en') {
+      const tmplEn = FERIA_CONUQUERA_TEMPLATES_EN.find((t) => t.slug === page.slug)
+      if (tmplEn) {
+        setPageMeta({
+          title: tmplEn.title,
+          subtitle: tmplEn.subtitle,
+          slug: page.slug || '',
+          icon: page.icon || 'home',
+          menu_order: page.menu_order || 1,
+          is_published: page.is_published ?? true,
+          show_in_menu: page.show_in_menu ?? true,
+        })
+        setBlocks(JSON.parse(JSON.stringify(tmplEn.blocks)))
+        setEditingBlockIndex(null)
+        return
+      }
+    }
+
+    // Fallback: bloques base en español para traducir
+    let fallbackBlocks: SiteBlock[] = []
+    try {
+      if (page.content) {
+        const parsed = JSON.parse(page.content)
+        if (Array.isArray(parsed)) fallbackBlocks = parsed
+      }
+    } catch {}
+    if (fallbackBlocks.length === 0) {
+      const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === page.slug)
+      if (tmpl) fallbackBlocks = JSON.parse(JSON.stringify(tmpl.blocks))
+    }
     setPageMeta({
       title: page.title || '',
       subtitle: page.subtitle || '',
@@ -620,31 +720,61 @@ export default function WebsiteAdmin() {
       is_published: page.is_published ?? true,
       show_in_menu: page.show_in_menu ?? true,
     })
+    setBlocks(fallbackBlocks)
+    setEditingBlockIndex(null)
+  }
 
+  // Open a page in the Modular Builder
+  const openPageBuilder = async (page: any, targetLang?: string) => {
+    setSelectedPage(page)
+    const lang = targetLang || adminDefaultLang || 'es'
+    setAdminEditLang(lang)
+
+    // Consultar qué traducciones existen ya para esta página
+    if (page.id) {
+      try {
+        const transList = await api.get<any[]>(`/site/pages/${page.id}/translations`)
+        const map: Record<string, boolean> = { [adminDefaultLang]: true }
+        if (Array.isArray(transList)) {
+          transList.forEach((t) => {
+            if (t.language && (t.title || t.content)) {
+              map[t.language] = true
+            }
+          })
+        }
+        setPageTranslations(map)
+      } catch {
+        setPageTranslations({ [adminDefaultLang]: true })
+      }
+    }
+
+    await loadPageContentForLang(page, lang)
+    changeTab('builder')
+  }
+
+  // Copiar contenido desde el idioma base (Español)
+  const copyFromDefaultLang = () => {
+    if (!selectedPage) return
     let parsedBlocks: SiteBlock[] = []
     try {
-      if (page.content) {
-        const parsed = JSON.parse(page.content)
-        if (Array.isArray(parsed)) {
-          parsedBlocks = parsed
-        }
+      if (selectedPage.content) {
+        const parsed = JSON.parse(selectedPage.content)
+        if (Array.isArray(parsed)) parsedBlocks = parsed
       }
     } catch {
-      if (page.content) {
-        parsedBlocks = [{ type: 'richtext', title: page.title, content: page.content }]
-      }
+      if (selectedPage.content) parsedBlocks = [{ type: 'richtext', title: selectedPage.title, content: selectedPage.content }]
     }
-
     if (parsedBlocks.length === 0) {
-      const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === page.slug)
-      if (tmpl) {
-        parsedBlocks = JSON.parse(JSON.stringify(tmpl.blocks))
-      }
+      const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === selectedPage.slug)
+      if (tmpl) parsedBlocks = JSON.parse(JSON.stringify(tmpl.blocks))
     }
-
-    setBlocks(parsedBlocks)
-    setEditingBlockIndex(null)
-    changeTab('builder')
+    setBlocks(JSON.parse(JSON.stringify(parsedBlocks)))
+    setPageMeta((prev) => ({
+      ...prev,
+      title: selectedPage.title || prev.title,
+      subtitle: selectedPage.subtitle || prev.subtitle,
+    }))
+    setSuccess('Contenido base copiado. Puedes editar los textos para este idioma y guardar.')
   }
 
   // Save the page with all modular blocks
@@ -663,8 +793,14 @@ export default function WebsiteAdmin() {
       }
 
       if (selectedPage?.id) {
-        await api.put(`/site/pages/${selectedPage.id}`, payload)
-        setSuccess(t('page_saved_success'))
+        if (adminEditLang && adminEditLang !== adminDefaultLang) {
+          await api.put(`/site/pages/${selectedPage.id}?lang=${adminEditLang}`, payload)
+          setPageTranslations((prev) => ({ ...prev, [adminEditLang]: true }))
+          setSuccess(`Traducción en ${adminEditLang.toUpperCase()} guardada con éxito`)
+        } else {
+          await api.put(`/site/pages/${selectedPage.id}`, payload)
+          setSuccess(t('page_saved_success'))
+        }
       } else {
         await api.post('/site/pages', payload)
         setSuccess(t('page_created_success'))
@@ -719,7 +855,7 @@ export default function WebsiteAdmin() {
     }
   }
 
-  // Apply preconfigured rich templates for all pages
+  // Apply preconfigured rich templates for all pages (Español e Inglés)
   const applyAllFeriaTemplates = async () => {
     if (
       !confirm(
@@ -731,6 +867,7 @@ export default function WebsiteAdmin() {
     setError('')
     setSuccess('')
     try {
+      // 1. Guardar plantillas en español (base)
       for (const tmpl of FERIA_CONUQUERA_TEMPLATES) {
         const existing = pages.find((p) => p.slug === tmpl.slug)
         const payload = {
@@ -750,6 +887,26 @@ export default function WebsiteAdmin() {
           await api.post('/site/pages', payload)
         }
       }
+
+      // 2. Guardar plantillas en inglés para todos los idiomas instalados
+      const currentPages = await api.get<any[]>('/site/pages?lang=es')
+      const pagesList = Array.isArray(currentPages) ? currentPages : pages
+      for (const tmplEn of FERIA_CONUQUERA_TEMPLATES_EN) {
+        const page = pagesList.find((p) => p.slug === tmplEn.slug)
+        if (page?.id) {
+          await api.put(`/site/pages/${page.id}?lang=en`, {
+            slug: tmplEn.slug,
+            title: tmplEn.title,
+            subtitle: tmplEn.subtitle,
+            icon: tmplEn.icon,
+            menu_order: tmplEn.menu_order,
+            is_published: true,
+            show_in_menu: true,
+            content: JSON.stringify(tmplEn.blocks, null, 2),
+          })
+        }
+      }
+
       setSuccess(t('template_applied'))
       load()
     } catch (err) {
@@ -1172,13 +1329,23 @@ export default function WebsiteAdmin() {
                   </div>
 
                   <div className="pt-4 mt-3 border-t border-gray-100 flex items-center justify-between">
-                    <button
-                      onClick={() => openPageBuilder(p)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
-                    >
-                      <Edit size={14} />
-                      {t('edit_modules')}
-                    </button>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => openPageBuilder(p, 'es')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
+                      >
+                        <Edit size={14} />
+                        {t('edit_modules')}
+                      </button>
+                      <button
+                        onClick={() => openPageBuilder(p, 'en')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition border border-gray-200"
+                        title="Editar / traducir en Inglés"
+                      >
+                        <Globe size={13} />
+                        EN
+                      </button>
+                    </div>
 
                     <a
                       href={`/p/${p.slug}`}
@@ -1219,6 +1386,48 @@ export default function WebsiteAdmin() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* Selector de idioma para edición */}
+              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200">
+                <Globe size={14} className="text-gray-500 ml-1" />
+                <span className="text-[11px] font-bold text-gray-500 hidden sm:inline mr-1">Idioma:</span>
+                {adminLanguages.map((l: any) => {
+                  const isSelected = adminEditLang === l.code
+                  const hasTrans = pageTranslations[l.code] || l.code === adminDefaultLang
+                  return (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => loadPageContentForLang(selectedPage, l.code)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-emerald-800 text-white shadow-xs'
+                          : 'text-gray-700 hover:bg-gray-200'
+                      }`}
+                      title={l.native_name || l.name}
+                    >
+                      <span>{l.code.toUpperCase()}</span>
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          hasTrans ? 'bg-emerald-400' : 'bg-gray-300'
+                        }`}
+                      />
+                    </button>
+                  )
+                })}
+              </div>
+
+              {adminEditLang !== adminDefaultLang && (
+                <button
+                  type="button"
+                  onClick={copyFromDefaultLang}
+                  className="px-2.5 py-2 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center gap-1 border border-gray-200"
+                  title={`Copiar contenido base desde ${adminDefaultLang.toUpperCase()}`}
+                >
+                  <Copy size={14} />
+                  <span className="hidden lg:inline">Copiar desde {adminDefaultLang.toUpperCase()}</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setPreviewMode(!previewMode)}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
@@ -1245,7 +1454,9 @@ export default function WebsiteAdmin() {
                 className="btn-primary text-xs sm:text-sm flex items-center gap-1.5 shadow"
               >
                 <Save size={16} />
-                {t('save_modules')}
+                {adminEditLang !== adminDefaultLang
+                  ? `Guardar (${adminEditLang.toUpperCase()})`
+                  : t('save_modules')}
               </button>
             </div>
           </div>
@@ -1282,10 +1493,25 @@ export default function WebsiteAdmin() {
             <div className="grid lg:grid-cols-12 gap-6">
               <div className="lg:col-span-5 space-y-4">
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-3">
-                  <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                    <FileText size={16} className="text-emerald-700" />
-                    {t('page_properties')}
+                  <h3 className="font-bold text-sm text-gray-900 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <FileText size={16} className="text-emerald-700" />
+                      {t('page_properties')}
+                    </span>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 uppercase">
+                      {adminEditLang}
+                    </span>
                   </h3>
+
+                  {adminEditLang !== adminDefaultLang && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+                      <Globe size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">Editando versión en {adminEditLang.toUpperCase()}</p>
+                        <p className="text-[11px] text-amber-800 mt-0.5">Los cambios se guardarán como una traducción independiente sin afectar el idioma base ({adminDefaultLang.toUpperCase()}).</p>
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className="label text-xs font-semibold">{t('page_title_label')}</label>

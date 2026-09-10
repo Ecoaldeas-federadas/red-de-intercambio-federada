@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Sparkles,
   Plus,
@@ -26,6 +26,7 @@ import { SiteBlock, BlockType } from '../../types/publicSite'
 import { BlockRenderer } from './PublicBlocks'
 import { getCurrentLanguage } from '../../i18n/TranslationProvider'
 import { api } from '../../api'
+import { getPreconfiguredTemplate } from './defaultSiteData'
 
 // Block definitions for the inline module adder
 const BLOCK_TEMPLATES: {
@@ -411,25 +412,113 @@ export function LivePageEditor({
     }).catch(() => {})
   }, [pageId])
 
+  // Si el editor se abre en un idioma secundario, cargar su contenido
+  useEffect(() => {
+    if (editLang && editLang !== defaultLang) {
+      loadLangContent(editLang)
+    }
+  }, [])
+
   // Cargar contenido del idioma seleccionado
   const loadLangContent = async (lang: string) => {
-    if (!pageId) return
+    setError('')
     try {
-      const tr = await api.get<any>(`/site/pages/${pageId}/translations/${lang}`)
-      if (tr?.content) {
-        try {
-          const parsed = JSON.parse(tr.content)
-          if (Array.isArray(parsed)) {
-            setBlocks(parsed)
+      if (lang !== defaultLang) {
+        let tr: any = null
+        if (pageId) {
+          try {
+            tr = await api.get<any>(`/site/pages/${pageId}/translations/${lang}`)
+          } catch {
+            tr = null
           }
-        } catch {}
+        }
+        if (!tr) {
+          try {
+            tr = await api.get<any>(`/site/pages/by-slug/${slug}?lang=${lang}`)
+          } catch {
+            tr = null
+          }
+        }
+
+        // Si existe traducción en BD y NO es un fallback que devuelve el contenido en español
+        if (tr && !tr.is_fallback && tr.content) {
+          try {
+            const parsed = JSON.parse(tr.content)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setBlocks(parsed)
+              setPageTitle(tr.title || title)
+              setPageSubtitle(tr.subtitle || '')
+              setHasChanges(false)
+              return
+            }
+          } catch {}
+        }
+
+        // Si es fallback o no tiene traducción en BD, consultar plantilla preconfigurada en ese idioma
+        const tmpl = getPreconfiguredTemplate(slug, lang)
+        if (tmpl) {
+          setBlocks(tmpl.blocks)
+          setPageTitle(tmpl.title)
+          setPageSubtitle(tmpl.subtitle || '')
+          setHasChanges(false)
+          return
+        }
+
+        // Fallback a título traducido si existiera
+        if (tr?.title && !tr.is_fallback) {
+          setPageTitle(tr.title)
+          setPageSubtitle(tr.subtitle || '')
+        }
+      } else {
+        // Idioma principal (defaultLang)
+        let baseData: any = null
+        if (pageId) {
+          try {
+            baseData = await api.get<any>(`/site/pages/${pageId}/translations/${defaultLang}`)
+          } catch {
+            baseData = null
+          }
+        }
+        if (!baseData || !baseData.content) {
+          try {
+            baseData = await api.get<any>(`/site/pages/by-slug/${slug}?lang=${defaultLang}`)
+          } catch {
+            baseData = null
+          }
+        }
+
+        if (baseData?.content) {
+          try {
+            const parsed = JSON.parse(baseData.content)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setBlocks(parsed)
+              setPageTitle(baseData.title || title)
+              setPageSubtitle(baseData.subtitle || '')
+              setHasChanges(false)
+              return
+            }
+          } catch {}
+        }
+
+        const tmpl = getPreconfiguredTemplate(slug, defaultLang)
+        if (tmpl) {
+          setBlocks(tmpl.blocks)
+          setPageTitle(tmpl.title)
+          setPageSubtitle(tmpl.subtitle || '')
+        } else {
+          setBlocks(initialBlocks)
+          setPageTitle(title)
+          setPageSubtitle(subtitle || '')
+        }
       }
-      setPageTitle(tr?.title || title)
-      setPageSubtitle(tr?.subtitle || subtitle || '')
-    } catch {
-      // No hay traducción: mantener contenido actual como punto de partida
-      setPageTitle(title)
-      setPageSubtitle(subtitle || '')
+    } catch (e) {
+      console.error('Error cargando idioma en editor:', e)
+      const tmpl = getPreconfiguredTemplate(slug, lang)
+      if (tmpl) {
+        setBlocks(tmpl.blocks)
+        setPageTitle(tmpl.title)
+        setPageSubtitle(tmpl.subtitle || '')
+      }
     }
     setHasChanges(false)
   }
@@ -444,10 +533,35 @@ export function LivePageEditor({
 
   // Copiar contenido de otro idioma como punto de partida
   const copyFromLang = async (fromLang: string) => {
-    if (!pageId) return
-    if (!confirm(`¿Copiar el contenido desde ${fromLang.toUpperCase()}? Esto reemplazará el contenido actual.`)) return
+    if (!confirm(`¿Copiar el contenido desde ${fromLang.toUpperCase()}? Esto reemplazará el contenido actual en este editor.`)) return
     try {
-      const tr = await api.get<any>(`/site/pages/${pageId}/translations/${fromLang}`)
+      let tr: any = null
+      if (pageId) {
+        try {
+          tr = await api.get<any>(`/site/pages/${pageId}/translations/${fromLang}`)
+        } catch {
+          tr = null
+        }
+      }
+      if (!tr) {
+        try {
+          tr = await api.get<any>(`/site/pages/by-slug/${slug}?lang=${fromLang}`)
+        } catch {
+          tr = null
+        }
+      }
+
+      if (!tr || tr.is_fallback || !tr.content) {
+        const tmpl = getPreconfiguredTemplate(slug, fromLang)
+        if (tmpl) {
+          setBlocks(tmpl.blocks)
+          setPageTitle(tmpl.title)
+          setPageSubtitle(tmpl.subtitle || '')
+          setHasChanges(true)
+          return
+        }
+      }
+
       if (tr?.content) {
         try {
           const parsed = JSON.parse(tr.content)
@@ -540,12 +654,15 @@ export function LivePageEditor({
       if (editLang === defaultLang) {
         await api.put(`/site/pages/by-slug/${slug}`, payload)
       } else {
-        if (!pageId) throw new Error('Guarda primero la página en el idioma principal')
-        await api.put(`/site/pages/${pageId}/translations/${editLang}`, {
-          title: pageTitle,
-          subtitle: pageSubtitle || '',
-          content,
-        })
+        if (pageId) {
+          await api.put(`/site/pages/${pageId}/translations/${editLang}`, {
+            title: pageTitle,
+            subtitle: pageSubtitle || '',
+            content,
+          })
+        } else {
+          await api.put(`/site/pages/by-slug/${slug}?lang=${editLang}`, payload)
+        }
         setPageTranslations(prev => ({ ...prev, [editLang]: true }))
       }
 

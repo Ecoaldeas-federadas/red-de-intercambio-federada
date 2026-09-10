@@ -2696,23 +2696,45 @@ func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) 
 		keys = append(keys, "public_page:"+page.id+":title", "public_page:"+page.id+":subtitle")
 	}
 	translations := map[string]string{}
+	directTitles := map[string]struct{ title, subtitle string }{}
 	if !strings.EqualFold(lang, fallbackLang) {
 		translations = localizedContentValues(r.Context(), h.Pool, keys, lang)
+		tRows, tErr := h.Pool.Query(r.Context(), `
+			SELECT page_id::text, COALESCE(title, ''), COALESCE(subtitle, '')
+			FROM public_page_translations
+			WHERE LOWER(language) = LOWER($1)`, lang)
+		if tErr == nil {
+			defer tRows.Close()
+			for tRows.Next() {
+				var pID, tTitle, tSubtitle string
+				if err := tRows.Scan(&pID, &tTitle, &tSubtitle); err == nil {
+					directTitles[pID] = struct{ title, subtitle string }{title: tTitle, subtitle: tSubtitle}
+				}
+			}
+		}
 	}
 	pages := []map[string]interface{}{}
 	for _, page := range rawPages {
 		title := page.title
 		subtitle := page.subtitle
-		if value := translations["public_page:"+page.id+":title"]; value != "" {
+		if dt, ok := directTitles[page.id]; ok {
+			if dt.title != "" {
+				title = dt.title
+			}
+			if dt.subtitle != "" {
+				subtitle = dt.subtitle
+			}
+		}
+		if value := translations["public_page:"+page.id+":title"]; value != "" && (directTitles[page.id].title == "") {
 			title = value
 		}
-		if value := translations["public_page:"+page.id+":subtitle"]; value != "" {
+		if value := translations["public_page:"+page.id+":subtitle"]; value != "" && (directTitles[page.id].subtitle == "") {
 			subtitle = value
 		}
 		pages = append(pages, map[string]interface{}{
 			"id": page.id, "slug": page.slug, "title": title, "subtitle": subtitle,
 			"icon": page.icon, "menu_order": page.menuOrder,
-			"language": lang, "is_fallback": !strings.EqualFold(lang, fallbackLang) && len(translations) == 0,
+			"language": lang, "is_fallback": !strings.EqualFold(lang, fallbackLang) && len(translations) == 0 && len(directTitles) == 0,
 		})
 	}
 	writeJSON(w, 200, pages)
@@ -2770,26 +2792,53 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 
 	isFallback := false
 	if !strings.EqualFold(lang, fallbackLang) {
+		// 1. Consultar primero public_page_translations para traduccion directa
+		var trTitle, trSubtitle, trContent string
+		trErr := h.Pool.QueryRow(r.Context(), `
+			SELECT COALESCE(title, ''), COALESCE(subtitle, ''), COALESCE(content, '')
+			FROM public_page_translations
+			WHERE page_id = $1::uuid AND LOWER(language) = LOWER($2)`,
+			id, lang).Scan(&trTitle, &trSubtitle, &trContent)
+
+		if trErr == nil {
+			if trTitle != "" {
+				title = trTitle
+			}
+			if trSubtitle != "" {
+				subtitle = &trSubtitle
+			}
+			if trContent != "" {
+				content = trContent
+			}
+		}
+
+		// 2. Si no habia contenido en public_page_translations o faltan campos, consultar content_translations
 		keys := []string{
 			"public_page:" + id + ":title",
 			"public_page:" + id + ":subtitle",
 			"public_page:" + id + ":content",
 		}
 		translations := localizedContentValues(r.Context(), h.Pool, keys, lang)
-		if value := translations[keys[0]]; value != "" {
-			title = value
-		} else {
-			isFallback = true
+		if trErr != nil || trTitle == "" {
+			if value := translations[keys[0]]; value != "" {
+				title = value
+			} else {
+				isFallback = true
+			}
 		}
-		if value := translations[keys[1]]; value != "" {
-			subtitle = &value
-		} else if deref(subtitle) != "" {
-			isFallback = true
+		if trErr != nil || trSubtitle == "" {
+			if value := translations[keys[1]]; value != "" {
+				subtitle = &value
+			} else if deref(subtitle) != "" {
+				isFallback = true
+			}
 		}
-		if value := translations[keys[2]]; value != "" {
-			content = value
-		} else {
-			isFallback = true
+		if trErr != nil || trContent == "" {
+			if value := translations[keys[2]]; value != "" {
+				content = value
+			} else {
+				isFallback = true
+			}
 		}
 	}
 
@@ -3378,7 +3427,7 @@ func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
 	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id::text, slug, title, subtitle, icon, menu_order, is_published, show_in_menu
+		SELECT id::text, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu
 		FROM public_pages WHERE node_domain = $1 ORDER BY menu_order`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []map[string]interface{}{})
@@ -3387,43 +3436,82 @@ func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	type pageItem struct {
-		id, slug, title string
-		subtitle, icon  *string
-		menuOrder       int
-		isPublished     bool
-		showInMenu      bool
+		id, slug, title, content string
+		subtitle, icon          *string
+		menuOrder               int
+		isPublished             bool
+		showInMenu              bool
 	}
 	var rawPages []pageItem
 	var keys []string
 	for rows.Next() {
 		var p pageItem
-		if err := rows.Scan(&p.id, &p.slug, &p.title, &p.subtitle, &p.icon, &p.menuOrder, &p.isPublished, &p.showInMenu); err != nil {
+		if err := rows.Scan(&p.id, &p.slug, &p.title, &p.subtitle, &p.content, &p.icon, &p.menuOrder, &p.isPublished, &p.showInMenu); err != nil {
 			continue
 		}
 		rawPages = append(rawPages, p)
-		keys = append(keys, "public_page:"+p.id+":title", "public_page:"+p.id+":subtitle")
+		keys = append(keys, "public_page:"+p.id+":title", "public_page:"+p.id+":subtitle", "public_page:"+p.id+":content")
 	}
 
 	translations := map[string]string{}
+	directTranslations := map[string]struct{ title, subtitle, content string }{}
 	if !strings.EqualFold(lang, fallbackLang) {
 		translations = localizedContentValues(r.Context(), h.Pool, keys, lang)
+
+		// Consultar tambien public_page_translations
+		tRows, tErr := h.Pool.Query(r.Context(), `
+			SELECT page_id::text, COALESCE(title, ''), COALESCE(subtitle, ''), COALESCE(content, '')
+			FROM public_page_translations
+			WHERE LOWER(language) = LOWER($1)`, lang)
+		if tErr == nil {
+			defer tRows.Close()
+			for tRows.Next() {
+				var pID, tTitle, tSubtitle, tContent string
+				if err := tRows.Scan(&pID, &tTitle, &tSubtitle, &tContent); err == nil {
+					directTranslations[pID] = struct{ title, subtitle, content string }{
+						title: tTitle, subtitle: tSubtitle, content: tContent,
+					}
+				}
+			}
+		}
 	}
 
 	var pages []map[string]interface{}
 	for _, p := range rawPages {
 		title := p.title
 		subtitle := deref(p.subtitle)
-		if val := translations["public_page:"+p.id+":title"]; val != "" {
+		content := p.content
+
+		// Prioridad 1: public_page_translations directa
+		if dt, ok := directTranslations[p.id]; ok {
+			if dt.title != "" {
+				title = dt.title
+			}
+			if dt.subtitle != "" {
+				subtitle = dt.subtitle
+			}
+			if dt.content != "" {
+				content = dt.content
+			}
+		}
+
+		// Prioridad 2: content_translations si no habia en la directa
+		if val := translations["public_page:"+p.id+":title"]; val != "" && (directTranslations[p.id].title == "") {
 			title = val
 		}
-		if val := translations["public_page:"+p.id+":subtitle"]; val != "" {
+		if val := translations["public_page:"+p.id+":subtitle"]; val != "" && (directTranslations[p.id].subtitle == "") {
 			subtitle = val
 		}
+		if val := translations["public_page:"+p.id+":content"]; val != "" && (directTranslations[p.id].content == "") {
+			content = val
+		}
+
 		pages = append(pages, map[string]interface{}{
 			"id":           p.id,
 			"slug":         p.slug,
 			"title":        title,
 			"subtitle":     subtitle,
+			"content":      content,
 			"icon":         deref(p.icon),
 			"menu_order":   p.menuOrder,
 			"is_published": p.isPublished,
@@ -3489,6 +3577,51 @@ func (h *SystemHandler) updateSitePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	lang := normalizeLanguageCode(r.URL.Query().Get("lang"))
+	defLang := defaultLanguage(r.Context(), h.Pool, nodeDomain)
+
+	// Si se solicita actualizar en un idioma secundario, guardar en public_page_translations y content_translations
+	if lang != "" && !strings.EqualFold(lang, defLang) {
+		var pageNodeDomain, sourceTitle, sourceSubtitle, sourceContent string
+		err := h.Pool.QueryRow(r.Context(), `
+			SELECT node_domain, title, COALESCE(subtitle, ''), content
+			FROM public_pages WHERE id = $1::uuid`, id).
+			Scan(&pageNodeDomain, &sourceTitle, &sourceSubtitle, &sourceContent)
+		if err != nil || pageNodeDomain != nodeDomain {
+			writeError(w, 404, "page not found")
+			return
+		}
+
+		userID, _ := h.Auth.GetUserID(r)
+		fields := []struct{ name, source, value string }{
+			{"title", sourceTitle, req.Title},
+			{"subtitle", sourceSubtitle, req.Subtitle},
+			{"content", sourceContent, req.Content},
+		}
+		for _, field := range fields {
+			key, sErr := upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", id, field.name, field.source, map[string]interface{}{"editor": "page"})
+			if sErr == nil {
+				_ = saveContentTranslation(r.Context(), h.Pool, key, lang, field.value, userID)
+			}
+		}
+
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO public_page_translations (page_id, language, title, subtitle, content, updated_at)
+			VALUES ($1::uuid, $2, $3, $4, $5, NOW())
+			ON CONFLICT (page_id, language) DO UPDATE SET
+			  title = EXCLUDED.title, subtitle = EXCLUDED.subtitle,
+			  content = EXCLUDED.content, updated_at = NOW()`,
+			id, lang, req.Title, req.Subtitle, req.Content)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+
+		writeJSON(w, 200, map[string]interface{}{"message": "Traducción guardada con éxito"})
+		GenerateStaticHTMLFiles(h.Pool)
+		return
+	}
+
 	result, err := h.Pool.Exec(r.Context(), `
 		UPDATE public_pages SET
 			slug = $1, title = $2, subtitle = $3, content = $4, icon = $5,
@@ -3521,6 +3654,8 @@ func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Requ
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	lang := normalizeLanguageCode(r.URL.Query().Get("lang"))
+	defLang := defaultLanguage(r.Context(), h.Pool, nodeDomain)
 
 	targetSlug := slug
 	if req.Slug != "" {
@@ -3529,6 +3664,48 @@ func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Requ
 
 	var pageID string
 	err := h.Pool.QueryRow(r.Context(), `
+		SELECT id::text FROM public_pages WHERE node_domain = $1 AND slug = $2`,
+		nodeDomain, targetSlug).Scan(&pageID)
+
+	// Si se actualiza en un idioma secundario y la pagina ya existe
+	if err == nil && lang != "" && !strings.EqualFold(lang, defLang) {
+		var sourceTitle, sourceSubtitle, sourceContent string
+		_ = h.Pool.QueryRow(r.Context(), `
+			SELECT title, COALESCE(subtitle, ''), content
+			FROM public_pages WHERE id = $1::uuid`, pageID).
+			Scan(&sourceTitle, &sourceSubtitle, &sourceContent)
+
+		userID, _ := h.Auth.GetUserID(r)
+		fields := []struct{ name, source, value string }{
+			{"title", sourceTitle, req.Title},
+			{"subtitle", sourceSubtitle, req.Subtitle},
+			{"content", sourceContent, req.Content},
+		}
+		for _, field := range fields {
+			key, sErr := upsertContentSource(r.Context(), h.Pool, nodeDomain, "public_page", pageID, field.name, field.source, map[string]interface{}{"editor": "page"})
+			if sErr == nil {
+				_ = saveContentTranslation(r.Context(), h.Pool, key, lang, field.value, userID)
+			}
+		}
+
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO public_page_translations (page_id, language, title, subtitle, content, updated_at)
+			VALUES ($1::uuid, $2, $3, $4, $5, NOW())
+			ON CONFLICT (page_id, language) DO UPDATE SET
+			  title = EXCLUDED.title, subtitle = EXCLUDED.subtitle,
+			  content = EXCLUDED.content, updated_at = NOW()`,
+			pageID, lang, req.Title, req.Subtitle, req.Content)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+
+		writeJSON(w, 200, map[string]interface{}{"id": pageID, "message": "Traducción guardada con éxito"})
+		GenerateStaticHTMLFiles(h.Pool)
+		return
+	}
+
+	err = h.Pool.QueryRow(r.Context(), `
 		INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (node_domain, slug) DO UPDATE SET

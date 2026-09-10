@@ -2204,11 +2204,30 @@ export function PublicPageView() {
 
   // Pagina especial: federacion muestra la pagina de invitacion a ecoaldeas
   // con el boton para iniciar el nodo demo y ver como funciona por dentro.
-  if (targetSlug === 'federacion') {
+  // En modo edición en vivo se muestra el editor visual LivePageEditor.
+  if (targetSlug === 'federacion' && !isLiveEditing) {
     return <PublicFederationPage />
   }
 
-  if (!page) {
+  const effectivePage = page || (() => {
+    const tmpl = getPreconfiguredTemplate(targetSlug, activeLang)
+    if (tmpl) {
+      return {
+        id: undefined,
+        slug: tmpl.slug,
+        title: tmpl.title,
+        subtitle: tmpl.subtitle,
+        content: JSON.stringify(tmpl.blocks),
+        icon: tmpl.icon,
+        menu_order: tmpl.menu_order,
+        is_published: true,
+        show_in_menu: true,
+      } as any
+    }
+    return null
+  })()
+
+  if (!effectivePage) {
     return (
       <div className="text-center py-16 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 max-w-lg mx-auto space-y-3">
         <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
@@ -2229,10 +2248,10 @@ export function PublicPageView() {
   // Parse blocks for the live editor
   let currentBlocks: SiteBlock[] = []
   try {
-    const parsed = JSON.parse(page.content)
+    const parsed = JSON.parse(effectivePage.content)
     if (Array.isArray(parsed)) currentBlocks = parsed
   } catch {
-    currentBlocks = [{ type: 'richtext', title: page.title, content: page.content }]
+    currentBlocks = [{ type: 'richtext', title: effectivePage.title, content: effectivePage.content }]
   }
 
   return (
@@ -2240,14 +2259,14 @@ export function PublicPageView() {
       {/* When in Live Edit Mode, render the Interactive WYSIWYG Editor */}
       {isLiveEditing ? (
         <LivePageEditor
-          pageId={page.id}
-          slug={page.slug || targetSlug}
-          title={page.title}
-          subtitle={page.subtitle}
-          icon={page.icon}
-          menuOrder={page.menu_order}
-          isPublished={page.is_published}
-          showInMenu={page.show_in_menu}
+          pageId={effectivePage.id}
+          slug={effectivePage.slug || targetSlug}
+          title={effectivePage.title}
+          subtitle={effectivePage.subtitle}
+          icon={effectivePage.icon}
+          menuOrder={effectivePage.menu_order}
+          isPublished={effectivePage.is_published}
+          showInMenu={effectivePage.show_in_menu}
           initialBlocks={currentBlocks}
           onExit={() => setIsLiveEditing(false)}
           onSaved={() => {
@@ -2256,7 +2275,7 @@ export function PublicPageView() {
         />
       ) : (
         /* Normal Clean View */
-        <PageBlocksRenderer content={page.content} />
+        <PageBlocksRenderer content={effectivePage.content} />
       )}
     </div>
   )

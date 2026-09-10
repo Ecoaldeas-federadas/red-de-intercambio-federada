@@ -75,22 +75,42 @@ func (h *SystemHandler) getPageTranslation(w http.ResponseWriter, r *http.Reques
 	fallbackLang := defaultLanguage(r.Context(), h.Pool, nodeDomain)
 	isFallback := !strings.EqualFold(lang, fallbackLang)
 	if isFallback {
-		keys := []string{"public_page:" + pageID + ":title", "public_page:" + pageID + ":subtitle", "public_page:" + pageID + ":content"}
-		values := localizedContentValues(r.Context(), h.Pool, keys, lang)
-		translatedFields := 0
-		if values[keys[0]] != "" {
-			title = values[keys[0]]
-			translatedFields++
+		// Prioridad 1: public_page_translations
+		var ptTitle, ptSubtitle, ptContent string
+		ptErr := h.Pool.QueryRow(r.Context(), `
+			SELECT COALESCE(title, ''), COALESCE(subtitle, ''), COALESCE(content, '')
+			FROM public_page_translations
+			WHERE page_id = $1::uuid AND LOWER(language) = LOWER($2)`, pageID, lang).
+			Scan(&ptTitle, &ptSubtitle, &ptContent)
+		if ptErr == nil && (ptTitle != "" || ptContent != "") {
+			if ptTitle != "" {
+				title = ptTitle
+			}
+			if ptSubtitle != "" {
+				subtitle = ptSubtitle
+			}
+			if ptContent != "" {
+				content = ptContent
+			}
+			isFallback = false
+		} else {
+			keys := []string{"public_page:" + pageID + ":title", "public_page:" + pageID + ":subtitle", "public_page:" + pageID + ":content"}
+			values := localizedContentValues(r.Context(), h.Pool, keys, lang)
+			translatedFields := 0
+			if values[keys[0]] != "" {
+				title = values[keys[0]]
+				translatedFields++
+			}
+			if values[keys[1]] != "" {
+				subtitle = values[keys[1]]
+				translatedFields++
+			}
+			if values[keys[2]] != "" {
+				content = values[keys[2]]
+				translatedFields++
+			}
+			isFallback = translatedFields < 3
 		}
-		if values[keys[1]] != "" {
-			subtitle = values[keys[1]]
-			translatedFields++
-		}
-		if values[keys[2]] != "" {
-			content = values[keys[2]]
-			translatedFields++
-		}
-		isFallback = translatedFields < 3
 	}
 	writeJSON(w, 200, map[string]interface{}{
 		"language": lang, "source_language": fallbackLang, "title": title,
