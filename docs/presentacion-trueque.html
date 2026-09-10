@@ -24,19 +24,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 /* SCENE */
 #scene{width:100vw;height:100vh;position:relative;display:flex;flex-direction:column;
   background:radial-gradient(ellipse at 30% 20%,#0f2027 0%,#020617 50%,#000 100%);
-  transition:opacity .4s ease}
+  transition:opacity .4s ease;min-height:0}
 #scene.hidden{opacity:0;pointer-events:none;position:absolute}
-.scene-header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
+.scene-header{display:flex;align-items:center;justify-content:space-between;padding:6px 20px;flex-shrink:0;
   background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border2);z-index:10}
-.scene-header .logo{display:flex;align-items:center;gap:12px}
-.scene-header .badge{width:40px;height:40px;border-radius:12px;
+.scene-header .logo{display:flex;align-items:center;gap:10px}
+.scene-header .badge{width:30px;height:30px;border-radius:10px;
   background:linear-gradient(135deg,var(--emerald),var(--teal));display:flex;align-items:center;justify-content:center;
-  font-weight:800;font-size:16px;color:#fff;box-shadow:var(--glow)}
-.scene-header h1{font-size:14px;font-weight:700;color:var(--emerald-l);letter-spacing:-.02em}
-.scene-header p{font-size:10px;color:var(--txt4)}
-.scene-header .hint{font-size:11px;color:var(--txt3);background:var(--bg3);padding:8px 16px;border-radius:20px;border:1px solid var(--border2)}
-.scene-body{flex:1;display:flex;align-items:center;justify-content:center;position:relative}
-.scene-body svg{width:100%;height:100%;max-width:1400px;max-height:850px}
+  font-weight:800;font-size:13px;color:#fff;box-shadow:var(--glow)}
+.scene-header h1{font-size:12px;font-weight:700;color:var(--emerald-l);letter-spacing:-.02em}
+.scene-header p{font-size:9px;color:var(--txt4)}
+.scene-header .hint{font-size:10px;color:var(--txt3);background:var(--bg3);padding:5px 12px;border-radius:16px;border:1px solid var(--border2)}
+.scene-body{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0;overflow:hidden}
+.scene-body svg{width:100%;height:100%;max-width:100%;max-height:100%}
 
 .hotspot{cursor:pointer;transition:all .25s}
 .hotspot:hover{filter:brightness(1.2) drop-shadow(0 0 12px rgba(52,211,153,.6))}
@@ -48,26 +48,26 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   background:radial-gradient(ellipse at 50% 0%,#0f2027 0%,#020617 60%,#000 100%)}
 #detail.active{display:flex;animation:dFade .4s ease}
 @keyframes dFade{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
-.d-header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
-  background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border2);flex-shrink:0}
-.d-header .back-btn{padding:8px 18px;border-radius:10px;border:1px solid var(--border2);
-  background:var(--bg3);color:var(--txt2);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.d-header{display:flex;align-items:center;justify-content:space-between;padding:6px 20px;flex-shrink:0;
+  background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border2)}
+.d-header .back-btn{padding:5px 14px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--bg3);color:var(--txt2);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s}
 .d-header .back-btn:hover{background:var(--emerald-d);border-color:var(--emerald);color:#fff}
-.d-header h2{font-size:16px;font-weight:700;color:var(--txt)}
-.d-header .num{font-size:12px;color:var(--txt4);background:var(--bg3);padding:6px 14px;border-radius:20px;border:1px solid var(--border2)}
-.d-body{flex:1;overflow-y:auto;padding:32px;display:flex;flex-direction:column;align-items:center}
+.d-header h2{font-size:14px;font-weight:700;color:var(--txt)}
+.d-header .num{font-size:11px;color:var(--txt4);background:var(--bg3);padding:4px 12px;border-radius:16px;border:1px solid var(--border2)}
+.d-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;align-items:center;min-height:0}
 .d-body::-webkit-scrollbar{width:6px}
 .d-body::-webkit-scrollbar-track{background:var(--bg2)}
 .d-body::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
-.d-card{background:rgba(15,23,42,.6);border:1px solid var(--border2);border-radius:24px;
-  padding:40px;max-width:900px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,.4);backdrop-filter:blur(8px)}
-.d-card svg{width:100%;height:auto;border-radius:16px}
-.d-card .txt{text-align:center;margin-top:24px}
-.d-card .txt h3{font-size:24px;font-weight:800;color:var(--txt);margin-bottom:12px;letter-spacing:-.02em}
-.d-card .txt p{font-size:15px;line-height:1.8;color:var(--txt2);margin-bottom:10px}
-.d-card .txt .key{font-size:16px;font-weight:700;color:var(--emerald-l);
+.d-card{background:rgba(15,23,42,.6);border:1px solid var(--border2);border-radius:20px;
+  padding:24px;max-width:860px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,.4);backdrop-filter:blur(8px)}
+.d-card svg{width:100%;height:auto;border-radius:12px}
+.d-card .txt{text-align:center;margin-top:16px}
+.d-card .txt h3{font-size:20px;font-weight:800;color:var(--txt);margin-bottom:8px;letter-spacing:-.02em}
+.d-card .txt p{font-size:14px;line-height:1.7;color:var(--txt2);margin-bottom:8px}
+.d-card .txt .key{font-size:15px;font-weight:700;color:var(--emerald-l);
   background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);
-  padding:14px 28px;border-radius:14px;margin:16px 0}
+  padding:10px 20px;border-radius:12px;margin:12px 0}
 .d-card .badge{display:inline-block;padding:6px 16px;border-radius:20px;
   font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
 .badge-emerald{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:var(--emerald-l)}
@@ -76,10 +76,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .badge-amber{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);color:var(--amber-l)}
 .badge-blue{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:var(--blue-l)}
 .badge-rose{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.2);color:var(--rose-l)}
-.d-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
-  background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-top:1px solid var(--border2);flex-shrink:0}
-.d-nav button{padding:9px 22px;border-radius:10px;border:1px solid var(--border2);
-  background:var(--bg3);color:var(--txt2);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.d-nav{display:flex;align-items:center;justify-content:space-between;padding:6px 20px;flex-shrink:0;
+  background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-top:1px solid var(--border2)}
+.d-nav button{padding:6px 16px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--bg3);color:var(--txt2);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s}
 .d-nav button:hover{background:var(--emerald-d);border-color:var(--emerald);color:#fff;box-shadow:var(--glow)}
 .d-nav .dots{display:flex;gap:6px}
 .d-nav .dot{width:8px;height:8px;border-radius:50%;background:var(--bg4);transition:all .3s}
@@ -102,7 +102,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .a-draw{stroke-dasharray:400;animation:draw 1.5s ease-out forwards}
 .a-fade{animation:fadeUp .6s ease-out forwards}
 
-@media(max-width:768px){.d-body{padding:16px}.d-card{padding:20px;border-radius:16px}.d-card .txt h3{font-size:18px}.d-card .txt p{font-size:13px}.d-header h2{font-size:14px}.d-nav button{padding:6px 14px;font-size:11px}.scene-header{padding:10px 16px}.scene-header h1{font-size:12px}}
+@media(max-width:768px){.d-body{padding:12px}.d-card{padding:16px;border-radius:14px}.d-card .txt h3{font-size:16px}.d-card .txt p{font-size:12px}.d-card .txt .key{font-size:13px;padding:8px 14px}.d-header{padding:5px 12px}.d-header h2{font-size:12px}.d-header .back-btn{padding:4px 10px;font-size:11px}.d-header .num{font-size:10px;padding:3px 8px}.d-nav{padding:5px 12px}.d-nav button{padding:5px 12px;font-size:11px}.scene-header{padding:4px 12px}.scene-header .badge{width:26px;height:26px;font-size:11px;border-radius:8px}.scene-header h1{font-size:10px}.scene-header p{font-size:8px}.scene-header .hint{font-size:9px;padding:4px 8px}.d-card .badge{font-size:9px;padding:4px 10px}}
 </style>
 </head>
 <body>
