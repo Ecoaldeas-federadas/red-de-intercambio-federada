@@ -18,10 +18,12 @@ interface LanguageSwitcherProps {
   variant?: 'light' | 'dark'
   /** Tamano compacto (solo codigo ES/EN) o completo (nombre nativo) */
   compact?: boolean
+  /** Direccion del dropdown: 'down' para header, 'up' para footer */
+  dropDirection?: 'up' | 'down'
   className?: string
 }
 
-export function LanguageSwitcher({ variant = 'light', compact = true, className = '' }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ variant = 'light', compact = true, dropDirection, className = '' }: LanguageSwitcherProps) {
   const { i18n } = useTranslation(['common'])
   const { isAuthenticated } = useAuth()
   const [languages, setLanguages] = useState<LanguageOption[]>([])
@@ -146,8 +148,10 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
 
   if (languages.length <= 1) return null
 
-  // En modo dark (footer), el dropdown se abre hacia arriba para no salir de la pagina
-  const dropdownPosition = isDark ? 'bottom-full mb-1' : 'top-full mt-1'
+  // Direccion del dropdown: explicita por prop, o por defecto segun variante
+  // (dark=footer=arriba, light=header=abajo) para compatibilidad con usos existentes
+  const effectiveDrop = dropDirection || (isDark ? 'up' : 'down')
+  const dropdownPosition = effectiveDrop === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'
 
   return (
     <div ref={ref} className={`relative ${className}`}>

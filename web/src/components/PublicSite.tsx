@@ -1328,7 +1328,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <LanguageSwitcher variant="dark" compact={true} />
+              <LanguageSwitcher variant="dark" compact={true} dropDirection="down" />
               {settings?.show_join_form && !isAuthenticated && (
                 <Link
                   to="/p/unirse"
@@ -1888,7 +1888,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <ScrollText size={12} />
                 Licencia LPF-1.0
               </Link>
-              <LanguageSwitcher variant="dark" compact={true} />
+              <LanguageSwitcher variant="dark" compact={true} dropDirection="up" />
             </div>
             <div>
               {isAuthenticated ? (
