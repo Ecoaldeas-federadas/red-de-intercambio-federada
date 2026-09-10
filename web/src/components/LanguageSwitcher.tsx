@@ -162,12 +162,12 @@ export function LanguageSwitcher({ variant = 'light', compact = true, dropDirect
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={currentLang?.native_name || `Language: ${current}`}
-        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border ${textColor} ${borderColor} ${hoverColor} transition focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+        className={`flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-1 rounded-lg text-[11px] sm:text-xs font-medium border ${textColor} ${borderColor} ${hoverColor} transition focus:outline-none focus:ring-2 focus:ring-emerald-500 flex-shrink-0`}
         title={currentLang?.native_name || current}
       >
-        <Languages size={14} />
-        <span>{displayLabel}</span>
-        <ChevronDown size={12} className={`transition ${open ? 'rotate-180' : ''}`} />
+        <Languages size={13} className="flex-shrink-0" />
+        <span className="font-semibold">{displayLabel}</span>
+        <ChevronDown size={11} className={`transition flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div
