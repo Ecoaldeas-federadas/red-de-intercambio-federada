@@ -2214,8 +2214,10 @@ export function PublicPageView() {
     }
   }, [urlLang, pageI18n.language])
 
-  const loadPageData = () => {
-    setLoading(true)
+  const loadPageData = (isInitial = false) => {
+    if (isInitial || !page) {
+      setLoading(true)
+    }
     const lang = activeLang
     api
       .get(`/public/pages/${targetSlug}?lang=${lang}`)
@@ -2261,10 +2263,16 @@ export function PublicPageView() {
       })
   }
 
+  // Al cambiar la página (targetSlug), salir del modo edición y recargar
   useEffect(() => {
-    loadPageData()
     setIsLiveEditing(false)
-  }, [targetSlug, activeLang])
+    loadPageData(true)
+  }, [targetSlug])
+
+  // Al cambiar solo el idioma (activeLang), recargar datos pero MANTENER el modo de edición
+  useEffect(() => {
+    loadPageData(false)
+  }, [activeLang])
 
   // Listen for "start live edit" event from the consolidated admin button in PublicLayout
   useEffect(() => {
@@ -2273,7 +2281,7 @@ export function PublicPageView() {
     return () => window.removeEventListener('start-live-edit', handleStartLiveEdit)
   }, [])
 
-  if (loading) {
+  if (loading && !page) {
     return (
       <div className="text-center py-24 space-y-3">
         <div className="w-10 h-10 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin mx-auto" />
@@ -2297,7 +2305,9 @@ export function PublicPageView() {
               ...page,
               [field]: value,
             })
-            loadPageData()
+            api.get(`/public/pages/gobernanza?lang=${activeLang}`).then((d: any) => {
+              if (d) setPage(d)
+            }).catch(() => {})
           } catch (e) {
             console.error('Error guardando:', e)
           }
@@ -2328,7 +2338,9 @@ export function PublicPageView() {
               is_published: true,
               show_in_menu: true,
             })
-            loadPageData()
+            api.get(`/public/pages/federacion?lang=${activeLang}`).then((d: any) => {
+              if (d) setPage(d)
+            }).catch(() => {})
           } catch (e) {
             console.error('Error guardando federacion:', e)
           }

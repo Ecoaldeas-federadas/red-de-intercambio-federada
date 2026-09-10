@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import { SiteBlock, BlockType } from '../../types/publicSite'
 import { BlockRenderer } from './PublicBlocks'
-import { getCurrentLanguage } from '../../i18n/TranslationProvider'
+import { getCurrentLanguage, changeLanguage } from '../../i18n/TranslationProvider'
 import { api } from '../../api'
 import { getPreconfiguredTemplate } from './defaultSiteData'
 
@@ -386,6 +386,8 @@ export function LivePageEditor({
   const [pageTranslations, setPageTranslations] = useState<Record<string, boolean>>({})
   const [pageTitle, setPageTitle] = useState(title)
   const [pageSubtitle, setPageSubtitle] = useState(subtitle || '')
+  // Borradores locales en memoria por idioma para alternar sin pérdida de cambios
+  const [draftsByLang, setDraftsByLang] = useState<Record<string, { blocks: SiteBlock[]; title: string; subtitle: string; hasChanges: boolean }>>({})
 
   // Cargar idiomas disponibles
   useEffect(() => {
@@ -524,10 +526,34 @@ export function LivePageEditor({
   }
 
   const handleLangChange = async (lang: string) => {
-    if (hasChanges && !confirm('Hay cambios sin guardar. ¿Cambiar de idioma de todos modos? Se perderán los cambios no guardados.')) {
+    if (lang === editLang) return
+
+    // 1. Respaldar en memoria local el borrador del idioma que se está editando actualmente
+    setDraftsByLang(prev => ({
+      ...prev,
+      [editLang]: {
+        blocks: [...blocks],
+        title: pageTitle,
+        subtitle: pageSubtitle,
+        hasChanges: hasChanges,
+      }
+    }))
+
+    setEditLang(lang)
+    try {
+      await changeLanguage(lang)
+    } catch {}
+
+    // 2. Si ya teníamos un borrador en memoria para este idioma, restaurarlo de inmediato
+    if (draftsByLang[lang]) {
+      setBlocks(draftsByLang[lang].blocks)
+      setPageTitle(draftsByLang[lang].title)
+      setPageSubtitle(draftsByLang[lang].subtitle)
+      setHasChanges(draftsByLang[lang].hasChanges)
       return
     }
-    setEditLang(lang)
+
+    // 3. Si no estaba en memoria, cargarlo desde el backend o la plantilla
     await loadLangContent(lang)
   }
 
@@ -666,7 +692,44 @@ export function LivePageEditor({
         setPageTranslations(prev => ({ ...prev, [editLang]: true }))
       }
 
+      // Guardar también borradores en otros idiomas si tenían cambios pendientes
+      for (const otherLang of Object.keys(draftsByLang)) {
+        if (otherLang !== editLang && draftsByLang[otherLang]?.hasChanges) {
+          const draft = draftsByLang[otherLang]
+          const otherContent = JSON.stringify(draft.blocks, null, 2)
+          try {
+            if (otherLang === defaultLang) {
+              await api.put(`/site/pages/by-slug/${slug}`, {
+                ...payload,
+                title: draft.title,
+                subtitle: draft.subtitle || '',
+                content: otherContent,
+              })
+            } else {
+              if (pageId) {
+                await api.put(`/site/pages/${pageId}/translations/${otherLang}`, {
+                  title: draft.title,
+                  subtitle: draft.subtitle || '',
+                  content: otherContent,
+                })
+              } else {
+                await api.put(`/site/pages/by-slug/${slug}?lang=${otherLang}`, {
+                  ...payload,
+                  title: draft.title,
+                  subtitle: draft.subtitle || '',
+                  content: otherContent,
+                })
+              }
+              setPageTranslations(prev => ({ ...prev, [otherLang]: true }))
+            }
+          } catch (errOther) {
+            console.error(`Error guardando borrador pendiente de ${otherLang}:`, errOther)
+          }
+        }
+      }
+
       setHasChanges(false)
+      setDraftsByLang({})
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
       if (onSaved) onSaved()

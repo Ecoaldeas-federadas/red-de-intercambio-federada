@@ -45,41 +45,85 @@ export function PublicFederationPage({
   const [demoPresetsLoaded, setDemoPresetsLoaded] = useState(false)
   const [demoError, setDemoError] = useState(false)
 
-  // Estado para edicion en vivo in-situ
-  const [customTitle, setCustomTitle] = useState(pageTitle || '')
-  const [customSubtitle, setCustomSubtitle] = useState(pageSubtitle || '')
+  // Estado para edicion en vivo in-situ con soporte multi-idioma en memoria local
+  const currentLang = i18n.language?.startsWith('en') ? 'en' : 'es'
+  const [draftsByLang, setDraftsByLang] = useState<Record<string, { title?: string; subtitle?: string }>>({})
   const [saving, setSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
 
-  useEffect(() => {
-    if (pageTitle !== undefined) setCustomTitle(pageTitle)
-  }, [pageTitle])
+  // Obtener el valor actual del idioma activo: borrador local si existe, o prop del backend, o traducción por defecto
+  const activeTitle = draftsByLang[currentLang]?.title !== undefined
+    ? draftsByLang[currentLang]!.title!
+    : (pageTitle || t('fed_hero_title'))
 
-  useEffect(() => {
-    if (pageSubtitle !== undefined) setCustomSubtitle(pageSubtitle)
-  }, [pageSubtitle])
+  const activeSubtitle = draftsByLang[currentLang]?.subtitle !== undefined
+    ? draftsByLang[currentLang]!.subtitle!
+    : (pageSubtitle || t('fed_hero_subtitle'))
+
+  const handleTitleChange = (val: string) => {
+    setDraftsByLang(prev => ({
+      ...prev,
+      [currentLang]: { ...(prev[currentLang] || {}), title: val }
+    }))
+  }
+
+  const handleSubtitleChange = (val: string) => {
+    setDraftsByLang(prev => ({
+      ...prev,
+      [currentLang]: { ...(prev[currentLang] || {}), subtitle: val }
+    }))
+  }
+
+  const handleSwitchLanguage = async (newLang: string) => {
+    if (newLang === currentLang) return
+    // Respaldar lo que tiene escrito en el idioma actual antes de alternar
+    setDraftsByLang(prev => ({
+      ...prev,
+      [currentLang]: {
+        title: activeTitle,
+        subtitle: activeSubtitle,
+      }
+    }))
+    await changeLanguage(newLang)
+  }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const titleToSave = customTitle || pageTitle || t('fed_hero_title')
-      const subtitleToSave = customSubtitle || pageSubtitle || t('fed_hero_subtitle')
-      if (onFieldChange) {
-        await onFieldChange('title', titleToSave)
-        await onFieldChange('subtitle', subtitleToSave)
-      } else {
-        const lang = i18n.language || 'es'
-        await api.put(`/site/pages/by-slug/federacion?lang=${lang}`, {
-          slug: 'federacion',
-          title: titleToSave,
-          subtitle: subtitleToSave,
-          content: '[]',
-          icon: 'globe',
-          menu_order: 95,
-          is_published: true,
-          show_in_menu: true,
-        })
+      const titleToSave = activeTitle || t('fed_hero_title')
+      const subtitleToSave = activeSubtitle || t('fed_hero_subtitle')
+
+      // Guardar idioma activo
+      await api.put(`/site/pages/by-slug/federacion?lang=${currentLang}`, {
+        slug: 'federacion',
+        title: titleToSave,
+        subtitle: subtitleToSave,
+        content: '[]',
+        icon: 'globe',
+        menu_order: 95,
+        is_published: true,
+        show_in_menu: true,
+      })
+
+      // Si también se modificó el otro idioma en local, guardarlo para no perderlo
+      const otherLang = currentLang === 'en' ? 'es' : 'en'
+      if (draftsByLang[otherLang]?.title !== undefined || draftsByLang[otherLang]?.subtitle !== undefined) {
+        try {
+          await api.put(`/site/pages/by-slug/federacion?lang=${otherLang}`, {
+            slug: 'federacion',
+            title: draftsByLang[otherLang]?.title || (otherLang === 'en' ? 'Federation' : 'Federación'),
+            subtitle: draftsByLang[otherLang]?.subtitle || (otherLang === 'en' ? 'Join your eco-village to the network' : 'Suma tu ecoaldea a la red'),
+            content: '[]',
+            icon: 'globe',
+            menu_order: 95,
+            is_published: true,
+            show_in_menu: true,
+          })
+        } catch (e2) {
+          console.error('Error guardando federacion en otro idioma:', e2)
+        }
       }
+
       setSavedSuccess(true)
       setTimeout(() => setSavedSuccess(false), 3000)
     } catch (e) {
@@ -243,9 +287,9 @@ export function PublicFederationPage({
               <Languages size={14} className="text-emerald-200 ml-1.5" />
               <button
                 type="button"
-                onClick={() => changeLanguage('es')}
+                onClick={() => handleSwitchLanguage('es')}
                 className={`px-2 py-0.5 rounded text-xs font-bold transition ${
-                  !i18n.language?.startsWith('en')
+                  currentLang === 'es'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'text-emerald-100 hover:text-white hover:bg-white/10'
                 }`}
@@ -254,9 +298,9 @@ export function PublicFederationPage({
               </button>
               <button
                 type="button"
-                onClick={() => changeLanguage('en')}
+                onClick={() => handleSwitchLanguage('en')}
                 className={`px-2 py-0.5 rounded text-xs font-bold transition ${
-                  i18n.language?.startsWith('en')
+                  currentLang === 'en'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'text-emerald-100 hover:text-white hover:bg-white/10'
                 }`}
@@ -311,21 +355,15 @@ export function PublicFederationPage({
             <div className="space-y-4 max-w-2xl mx-auto my-4">
               <input
                 type="text"
-                value={customTitle || pageTitle || t('fed_hero_title')}
-                onChange={(e) => {
-                  setCustomTitle(e.target.value)
-                  onFieldChange?.('title', e.target.value)
-                }}
+                value={activeTitle}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 className="w-full text-center text-3xl sm:text-4xl font-extrabold bg-white/20 text-white border-2 border-amber-400 rounded-2xl px-4 py-2.5 outline-none focus:ring-4 focus:ring-amber-400/50 shadow-inner"
                 placeholder={t('fed_hero_title')}
               />
               <textarea
                 rows={3}
-                value={customSubtitle || pageSubtitle || t('fed_hero_subtitle')}
-                onChange={(e) => {
-                  setCustomSubtitle(e.target.value)
-                  onFieldChange?.('subtitle', e.target.value)
-                }}
+                value={activeSubtitle}
+                onChange={(e) => handleSubtitleChange(e.target.value)}
                 className="w-full text-center text-sm sm:text-base bg-white/20 text-emerald-100 border-2 border-amber-400 rounded-2xl px-4 py-2 outline-none focus:ring-4 focus:ring-amber-400/50 shadow-inner"
                 placeholder={t('fed_hero_subtitle')}
               />
@@ -333,10 +371,10 @@ export function PublicFederationPage({
           ) : (
             <>
               <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-                {pageTitle || customTitle || t('fed_hero_title')}
+                {activeTitle}
               </h1>
               <p className="text-xl text-emerald-100 mb-8 max-w-2xl mx-auto">
-                {pageSubtitle || customSubtitle || t('fed_hero_subtitle')}
+                {activeSubtitle}
               </p>
             </>
           )}
