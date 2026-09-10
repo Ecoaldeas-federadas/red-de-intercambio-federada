@@ -2204,9 +2204,33 @@ export function PublicPageView() {
 
   // Pagina especial: federacion muestra la pagina de invitacion a ecoaldeas
   // con el boton para iniciar el nodo demo y ver como funciona por dentro.
-  // En modo edición en vivo se muestra el editor visual LivePageEditor.
-  if (targetSlug === 'federacion' && !isLiveEditing) {
-    return <PublicFederationPage />
+  // En modo edición en vivo se edita directamente sobre la ventana de federacion in-situ.
+  if (targetSlug === 'federacion') {
+    return (
+      <PublicFederationPage
+        editMode={isLiveEditing}
+        onExit={() => setIsLiveEditing(false)}
+        pageTitle={page?.title}
+        pageSubtitle={page?.subtitle}
+        onFieldChange={async (field, value) => {
+          try {
+            await api.put(`/site/pages/by-slug/federacion?lang=${activeLang}`, {
+              slug: 'federacion',
+              title: field === 'title' ? value : (page?.title || 'Federación'),
+              subtitle: field === 'subtitle' ? value : (page?.subtitle || ''),
+              content: page?.content || '[]',
+              icon: 'globe',
+              menu_order: 95,
+              is_published: true,
+              show_in_menu: true,
+            })
+            loadPageData()
+          } catch (e) {
+            console.error('Error guardando federacion:', e)
+          }
+        }}
+      />
+    )
   }
 
   const effectivePage = page || (() => {

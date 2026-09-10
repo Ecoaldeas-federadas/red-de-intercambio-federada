@@ -6,13 +6,28 @@ import {
   Globe, Users, Network, Leaf, Heart, Scale, ArrowRight, Check,
   Sparkles, MessageSquare, ThumbsUp, Send, Menu, X, Home, Copy, Share2,
   Power, Loader2, ExternalLink, AlertCircle, CheckCircle, Code,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, Save, Eye, Languages
 } from 'lucide-react'
+import { changeLanguage } from '../../i18n/TranslationProvider'
 
 const SHARE_MESSAGE_KEY = 'fed_share_message'
 
-export function PublicFederationPage() {
-  const { t } = useTranslation(['public', 'common'])
+export interface PublicFederationPageProps {
+  editMode?: boolean
+  onExit?: () => void
+  pageTitle?: string
+  pageSubtitle?: string
+  onFieldChange?: (field: string, value: any) => Promise<void> | void
+}
+
+export function PublicFederationPage({
+  editMode = false,
+  onExit,
+  pageTitle,
+  pageSubtitle,
+  onFieldChange,
+}: PublicFederationPageProps = {}) {
+  const { t, i18n } = useTranslation(['public', 'common'])
   const SHARE_MESSAGE = t(SHARE_MESSAGE_KEY)
   const [proposals, setProposals] = useState<any[]>([])
   const [showProposalForm, setShowProposalForm] = useState(false)
@@ -29,6 +44,50 @@ export function PublicFederationPage() {
   const [demoPresetSel, setDemoPresetSel] = useState('gen_ecoaldea')
   const [demoPresetsLoaded, setDemoPresetsLoaded] = useState(false)
   const [demoError, setDemoError] = useState(false)
+
+  // Estado para edicion en vivo in-situ
+  const [customTitle, setCustomTitle] = useState(pageTitle || '')
+  const [customSubtitle, setCustomSubtitle] = useState(pageSubtitle || '')
+  const [saving, setSaving] = useState(false)
+  const [savedSuccess, setSavedSuccess] = useState(false)
+
+  useEffect(() => {
+    if (pageTitle !== undefined) setCustomTitle(pageTitle)
+  }, [pageTitle])
+
+  useEffect(() => {
+    if (pageSubtitle !== undefined) setCustomSubtitle(pageSubtitle)
+  }, [pageSubtitle])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const titleToSave = customTitle || pageTitle || t('fed_hero_title')
+      const subtitleToSave = customSubtitle || pageSubtitle || t('fed_hero_subtitle')
+      if (onFieldChange) {
+        await onFieldChange('title', titleToSave)
+        await onFieldChange('subtitle', subtitleToSave)
+      } else {
+        const lang = i18n.language || 'es'
+        await api.put(`/site/pages/by-slug/federacion?lang=${lang}`, {
+          slug: 'federacion',
+          title: titleToSave,
+          subtitle: subtitleToSave,
+          content: '[]',
+          icon: 'globe',
+          menu_order: 95,
+          is_published: true,
+          show_in_menu: true,
+        })
+      }
+      setSavedSuccess(true)
+      setTimeout(() => setSavedSuccess(false), 3000)
+    } catch (e) {
+      console.error('Error guardando en federacion:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   useEffect(() => {
     api.get('/public/proposals').then((d: any) => {
@@ -162,6 +221,82 @@ export function PublicFederationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white">
+      {/* Barra flotante fija de Edicion en Vivo */}
+      {editMode && (
+        <div className="sticky top-14 sm:top-16 z-40 bg-emerald-950/95 text-white backdrop-blur-md border-y border-emerald-700/50 px-3 sm:px-6 py-2.5 shadow-xl flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="flex items-center gap-1.5 text-xs font-bold bg-amber-500 text-gray-950 px-3 py-1 rounded-full shadow-xs animate-pulse">
+              <Sparkles size={13} />
+              Edición en Vivo
+            </span>
+            <span className="text-xs text-emerald-200 hidden sm:inline font-mono">
+              /p/federacion
+            </span>
+            <span className="text-[11px] text-amber-200 hidden md:inline">
+              💡 Clic en los textos para editarlos en tiempo real · Cambia de idioma con el selector
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Selector de idioma que traduce toda la ventana de federacion */}
+            <div className="flex items-center gap-1 bg-white/10 rounded-lg p-0.5 border border-white/20">
+              <Languages size={14} className="text-emerald-200 ml-1.5" />
+              <button
+                type="button"
+                onClick={() => changeLanguage('es')}
+                className={`px-2 py-0.5 rounded text-xs font-bold transition ${
+                  !i18n.language?.startsWith('en')
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-100 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                ES
+              </button>
+              <button
+                type="button"
+                onClick={() => changeLanguage('en')}
+                className={`px-2 py-0.5 rounded text-xs font-bold transition ${
+                  i18n.language?.startsWith('en')
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-100 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                EN
+              </button>
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-600 transition shadow-md"
+            >
+              {savedSuccess ? (
+                <>
+                  <Check size={14} className="text-white" />
+                  ¡Guardado!
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  {saving ? 'Guardando...' : 'Guardar en Vivo'}
+                </>
+              )}
+            </button>
+
+            {onExit && (
+              <button
+                onClick={onExit}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition border border-white/15"
+                title="Salir del modo edición"
+              >
+                <Eye size={14} />
+                <span className="hidden sm:inline">Salir</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-teal-700 to-cyan-800 text-white">
         <div className="absolute inset-0 opacity-10">
@@ -172,12 +307,39 @@ export function PublicFederationPage() {
           <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm mb-6">
             <Sparkles size={16} /> {t('fed_hero_badge')}
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-            {t('fed_hero_title')}
-          </h1>
-          <p className="text-xl text-emerald-100 mb-8 max-w-2xl mx-auto">
-            {t('fed_hero_subtitle')}
-          </p>
+          {editMode ? (
+            <div className="space-y-4 max-w-2xl mx-auto my-4">
+              <input
+                type="text"
+                value={customTitle || pageTitle || t('fed_hero_title')}
+                onChange={(e) => {
+                  setCustomTitle(e.target.value)
+                  onFieldChange?.('title', e.target.value)
+                }}
+                className="w-full text-center text-3xl sm:text-4xl font-extrabold bg-white/20 text-white border-2 border-amber-400 rounded-2xl px-4 py-2.5 outline-none focus:ring-4 focus:ring-amber-400/50 shadow-inner"
+                placeholder={t('fed_hero_title')}
+              />
+              <textarea
+                rows={3}
+                value={customSubtitle || pageSubtitle || t('fed_hero_subtitle')}
+                onChange={(e) => {
+                  setCustomSubtitle(e.target.value)
+                  onFieldChange?.('subtitle', e.target.value)
+                }}
+                className="w-full text-center text-sm sm:text-base bg-white/20 text-emerald-100 border-2 border-amber-400 rounded-2xl px-4 py-2 outline-none focus:ring-4 focus:ring-amber-400/50 shadow-inner"
+                placeholder={t('fed_hero_subtitle')}
+              />
+            </div>
+          ) : (
+            <>
+              <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+                {pageTitle || customTitle || t('fed_hero_title')}
+              </h1>
+              <p className="text-xl text-emerald-100 mb-8 max-w-2xl mx-auto">
+                {pageSubtitle || customSubtitle || t('fed_hero_subtitle')}
+              </p>
+            </>
+          )}
           <div className="flex flex-wrap gap-4 justify-center">
             <a href="#beneficios" className="bg-white text-emerald-700 font-semibold px-6 py-3 rounded-xl hover:bg-emerald-50 transition flex items-center gap-2">
               {t('fed_hero_cta_more')} <ArrowRight size={18} />
