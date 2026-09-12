@@ -112,7 +112,7 @@ interface WorkItem {
 
 export default function Calculator() {
   const { currency } = useConfig()
-  const { t } = useTranslation('common')
+  const { t, i18n } = useTranslation('common')
   const [mode, setMode] = useState<'simple' | 'advanced'>('simple')
   const [showHelp, setShowHelp] = useState(false)
   const [products, setProducts] = useState<any[]>([])
@@ -137,10 +137,10 @@ export default function Calculator() {
   const [advForm, setAdvForm] = useState({ e_direct: 0, e_human: 0, e_inputs: 0, e_amortization: 0, effort_factor: 1.0, tariff: 1.0 })
 
   useEffect(() => {
-    api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+    api.get(`/products?lang=${i18n.language}`).then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
     // Cargar parametros aprobados desde la BD
-    api.get('/calculator/params?type=work&approved=true').then((d: any) => setWorkParams(Array.isArray(d) ? d : [])).catch(() => setWorkParams([]))
-    api.get('/calculator/params?type=material&approved=true').then((d: any) => setMaterialParams(Array.isArray(d) ? d : [])).catch(() => setMaterialParams([]))
+    api.get(`/calculator/params?type=work&approved=true&lang=${i18n.language}`).then((d: any) => setWorkParams(Array.isArray(d) ? d : [])).catch(() => setWorkParams([]))
+    api.get(`/calculator/params?type=material&approved=true&lang=${i18n.language}`).then((d: any) => setMaterialParams(Array.isArray(d) ? d : [])).catch(() => setMaterialParams([]))
     // Cargar tarifa energetica para calculo dinamico
     api.get('/calculator/tariff').then((d: any) => setTariff(d)).catch(() => setTariff(null))
   }, [])
@@ -247,7 +247,7 @@ export default function Calculator() {
   const calculateAdvanced = async () => {
     setError('')
     try {
-      const res = await api.post('/pricing/calculate', advForm)
+      const res: any = await api.post<any>('/pricing/calculate', advForm)
       setResult({
         workKWh: advForm.e_human,
         inputsKWh: advForm.e_inputs + advForm.e_direct,

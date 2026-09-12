@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -69,6 +70,9 @@ func (h *NodeProfileHandler) listFaithProfiles(w http.ResponseWriter, r *http.Re
 			"is_shared":     isShared,
 		})
 	}
+	nodeDomain := h.currentNodeDomain(r)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), h.Pool, profiles, "node_faith_profile", lang, fallbackLang, "name", "description", "default_rules")
 	if profiles == nil {
 		profiles = []map[string]interface{}{}
 	}
@@ -79,12 +83,13 @@ func (h *NodeProfileHandler) createFaithProfile(w http.ResponseWriter, r *http.R
 	nodeDomain := h.currentNodeDomain(r)
 
 	var req struct {
-		ID           string `json:"id"`
-		Name         string `json:"name"`
-		Description  string `json:"description"`
-		Category     string `json:"category"`
-		Icon         string `json:"icon"`
-		DefaultRules string `json:"default_rules"`
+		ID           string                       `json:"id"`
+		Name         string                       `json:"name"`
+		Description  string                       `json:"description"`
+		Category     string                       `json:"category"`
+		Icon         string                       `json:"icon"`
+		DefaultRules string                       `json:"default_rules"`
+		Translations map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -109,6 +114,13 @@ func (h *NodeProfileHandler) createFaithProfile(w http.ResponseWriter, r *http.R
 	if err != nil {
 		writeError(w, 500, "error creating profile: "+err.Error())
 		return
+	}
+
+	profileFields := map[string]string{"name": req.Name, "description": req.Description, "default_rules": req.DefaultRules}
+	registerEntityFields(r.Context(), h.Pool, "__GLOBAL__", "node_faith_profile", req.ID, profileFields, map[string]interface{}{"label": req.Name})
+	if len(req.Translations) > 0 {
+		userID, _ := uuid.Parse(r.Header.Get("X-User-ID"))
+		saveSubmittedTranslations(r.Context(), h.Pool, "__GLOBAL__", "node_faith_profile", req.ID, profileFields, req.Translations, userID)
 	}
 
 	writeJSON(w, 201, map[string]interface{}{"id": req.ID, "success": true})
@@ -140,6 +152,20 @@ func (h *NodeProfileHandler) getNodeProfile(w http.ResponseWriter, r *http.Reque
 	if profile != "" {
 		h.Pool.QueryRow(r.Context(), `
 			SELECT name, default_rules FROM node_faith_profiles WHERE id = $1`, profile).Scan(&name, &rules)
+	}
+
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	if lang != fallbackLang && profile != "" {
+		vals := localizedContentValues(r.Context(), h.Pool, []string{
+			"node_faith_profile:" + profile + ":name",
+			"node_faith_profile:" + profile + ":default_rules",
+		}, lang)
+		if v := vals["node_faith_profile:"+profile+":name"]; v != "" {
+			name = v
+		}
+		if v := vals["node_faith_profile:"+profile+":default_rules"]; v != "" {
+			rules = v
+		}
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
@@ -238,14 +264,16 @@ func (h *NodeProfileHandler) listProhibitions(w http.ResponseWriter, r *http.Req
 			"id":               id,
 			"profile_id":       profileID,
 			"product_name":     productName,
-			"product_category": category,
-			"reason":           reason,
+			"product_category": deref(category),
+			"reason":           deref(reason),
 			"reported_by":      reportedBy,
 			"approval_status":  status,
 			"auto_approved":    autoApproved,
 			"created_at":       createdAt,
 		})
 	}
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), h.Pool, prohibitions, "profile_product_prohibition", lang, fallbackLang, "product_name", "product_category", "reason")
 	if prohibitions == nil {
 		prohibitions = []map[string]interface{}{}
 	}
@@ -285,8 +313,20 @@ func (h *NodeProfileHandler) addProhibition(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	categoryVal := ""
+	if req.ProductCategory != nil {
+		categoryVal = *req.ProductCategory
+	}
+	reasonVal := ""
+	if req.Reason != nil {
+		reasonVal = *req.Reason
+	}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "profile_product_prohibition", id, map[string]string{
+		"product_name": req.ProductName, "product_category": categoryVal, "reason": reasonVal,
+	}, map[string]interface{}{"label": req.ProductName})
+
 	// Tambien marcar productos locales coincidentes como prohibidos
-	h.markLocalProductsProhibited(r, nodeDomain, req.ProductName, req.ProductCategory)
+	h.markLocalProductsProhibited(r, nodeDomain, req.ProductName)
 
 	_ = userID
 
@@ -338,13 +378,15 @@ func (h *NodeProfileHandler) listPendingProhibitions(w http.ResponseWriter, r *h
 			"id":               id,
 			"profile_id":       profileID,
 			"product_name":     productName,
-			"product_category": category,
-			"reason":           reason,
+			"product_category": deref(category),
+			"reason":           deref(reason),
 			"reported_by":      reportedBy,
 			"status":           status,
 			"received_at":      receivedAt,
 		})
 	}
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), h.Pool, pending, "profile_product_prohibition", lang, fallbackLang, "product_name", "product_category", "reason")
 	if pending == nil {
 		pending = []map[string]interface{}{}
 	}
@@ -389,7 +431,7 @@ func (h *NodeProfileHandler) approvePendingProhibition(w http.ResponseWriter, r 
 		WHERE id = $1 AND node_domain = $2`, id, nodeDomain, userID)
 
 	// Marcar productos locales
-	h.markLocalProductsProhibited(r, nodeDomain, productName, category)
+	h.markLocalProductsProhibited(r, nodeDomain, productName)
 
 	writeJSON(w, 200, map[string]interface{}{"success": true})
 }
@@ -422,7 +464,7 @@ func (h *NodeProfileHandler) currentNodeDomain(r *http.Request) string {
 
 // markLocalProductsProhibited marca productos locales cuyo nombre coincide con
 // la prohibicion como prohibidos en catalog_dietary_rules.
-func (h *NodeProfileHandler) markLocalProductsProhibited(r *http.Request, nodeDomain, productName string, category *string) {
+func (h *NodeProfileHandler) markLocalProductsProhibited(r *http.Request, nodeDomain, productName string) {
 	// Buscar productos locales que coincidan por nombre (contains, case-insensitive)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id::text, name FROM products

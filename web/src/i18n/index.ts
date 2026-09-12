@@ -42,8 +42,20 @@ import enSatellite from '../locales/en/satellite.json'
 import esTranslations from '../locales/es/translations.json'
 import enTranslations from '../locales/en/translations.json'
 
-// Función para obtener el idioma inicial desde localStorage o navegador
+// Función para obtener el idioma inicial desde URL, localStorage o navegador
 export function getInitialLanguage(): string {
+  // 0. URL param ?lang= (máxima prioridad para navegación y enlaces directos)
+  try {
+    if (typeof window !== 'undefined' && window.location) {
+      const urlParams = new URLSearchParams(window.location.search)
+      const langParam = urlParams.get('lang')?.toLowerCase()
+      if (langParam === 'en' || langParam === 'es') {
+        localStorage.setItem('user_language', langParam)
+        return langParam
+      }
+    }
+  } catch {}
+
   // 1. localStorage (preferencia del usuario)
   const stored = localStorage.getItem('user_language')
   if (stored) return stored
@@ -70,7 +82,7 @@ const ALL_NS = [
   'satellite', 'translations',
 ]
 
-const esResources: Record<string, unknown> = {
+const esResources: Record<string, any> = {
   common: esCommon, dashboard: esDashboard, transfer: esTransfer,
   nfc: esNfc, federation: esFederation, assembly: esAssembly,
   organizations: esOrganizations, products: esProducts, settings: esSettings,
@@ -80,7 +92,7 @@ const esResources: Record<string, unknown> = {
   translations: esTranslations,
 }
 
-const enResources: Record<string, unknown> = {
+const enResources: Record<string, any> = {
   common: enCommon, dashboard: enDashboard, transfer: enTransfer,
   nfc: enNfc, federation: enFederation, assembly: enAssembly,
   organizations: enOrganizations, products: enProducts, settings: enSettings,
@@ -96,7 +108,7 @@ export const embeddedResources = {
 }
 
 i18n.use(initReactI18next).init({
-  resources: embeddedResources,
+  resources: embeddedResources as any,
   lng: getInitialLanguage(),
   fallbackLng: 'es',
   defaultNS: 'common',
@@ -108,5 +120,13 @@ i18n.use(initReactI18next).init({
     useSuspense: false, // No usar Suspense para evitar flashes
   },
 })
+
+// Sync language to window for apiFetch to use in Accept-Language header
+if (typeof window !== 'undefined') {
+  ;(window as any).__i18n_lang__ = i18n.language || 'es'
+  i18n.on('languageChanged', (lng) => {
+    ;(window as any).__i18n_lang__ = lng
+  })
+}
 
 export default i18n

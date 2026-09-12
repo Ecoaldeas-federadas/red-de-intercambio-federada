@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ed25519"
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -92,7 +94,7 @@ func (h *CardCryptoHandler) getOrCreateMasterKey(nodeDomain string) ([]byte, err
 	}
 
 	var masterKeyEncrypted, keySalt []byte
-	err := h.Pool.QueryRow(nil, `
+	err := h.Pool.QueryRow(context.TODO(), `
 		SELECT master_key_encrypted, key_salt FROM node_master_keys WHERE node_domain = $1`,
 		nodeDomain).Scan(&masterKeyEncrypted, &keySalt)
 
@@ -113,7 +115,7 @@ func (h *CardCryptoHandler) getOrCreateMasterKey(nodeDomain string) ([]byte, err
 		return nil, fmt.Errorf("error encrypting master key: %w", err)
 	}
 
-	h.Pool.Exec(nil, `
+	h.Pool.Exec(context.TODO(), `
 		INSERT INTO node_master_keys (node_domain, master_key_encrypted, key_salt)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (node_domain) DO NOTHING`,
@@ -647,7 +649,7 @@ func (h *CardCryptoHandler) verifySUN(w http.ResponseWriter, r *http.Request) {
 	// NTAG424 SUN usa AES-CMAC, pero HMAC-SHA256 es una alternativa compatible
 	mac := hmac.New(sha256.New, aesKey)
 	mac.Write([]byte(body.UID))
-	mac.Write([]byte(fmt.Sprintf("%d", body.Counter)))
+	mac.Write(strconv.AppendInt(nil, body.Counter, 10))
 	expectedMAC := hex.EncodeToString(mac.Sum(nil))[:32] // primeros 16 bytes en hex
 
 	if body.SUNMAC != expectedMAC {

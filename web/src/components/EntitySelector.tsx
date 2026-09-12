@@ -31,7 +31,7 @@ export function EntitySelector({
 
   useEffect(() => {
     setLoading(true)
-    api.get(endpoint)
+    api.get<any>(endpoint)
       .then(data => {
         const arr = Array.isArray(data) ? data : (data?.items ?? data?.organizations ?? data?.users ?? data?.products ?? [])
         setItems(filterFn ? arr.filter(filterFn) : arr)

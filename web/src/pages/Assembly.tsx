@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import { getCurrentLanguage } from '../i18n/TranslationProvider'
+import { translateAccountName, translateAlias } from '../i18n/accountNames'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { EntitySelector } from '../components/EntitySelector'
@@ -131,230 +133,441 @@ const TAX_APPLIES_OPTIONS = (t: any) => [
   { value: 'org_level', label: t('assembly:opt_tax_org') },
 ]
 
+const BACKUP_ENABLED_OPTIONS = (t: any) => [
+  { value: 'true', label: t('assembly:opt_yes') },
+  { value: 'false', label: t('assembly:opt_no') },
+]
+
+const CLUSTER_MODE_OPTIONS = (t: any) => [
+  { value: 'distributed', label: t('assembly:opt_distributed') },
+  { value: 'clustered', label: t('assembly:opt_clustered') },
+]
+
+const PERMISSION_ACTION_OPTIONS = (t: any) => [
+  { value: 'assign', label: t('assembly:opt_assign') },
+  { value: 'revoke', label: t('assembly:opt_revoke') },
+]
+
+const TREATY_ACTION_OPTIONS = (t: any) => [
+  { value: 'sign', label: t('assembly:opt_sign') },
+  { value: 'revoke', label: t('assembly:opt_revoke_treaty') },
+]
+
+const BOARD_POSITIONS = (t: any) => [
+  { value: 'presidente', label: t('assembly:board_president') },
+  { value: 'vicepresidente', label: t('assembly:board_vice_president') },
+  { value: 'secretario', label: t('assembly:board_secretary') },
+  { value: 'tesorero', label: t('assembly:board_treasurer') },
+  { value: 'vocal', label: t('assembly:board_vocal') },
+  { value: 'fiscal', label: t('assembly:board_fiscal') },
+]
+
 const PROPOSAL_FIELDS = (currency: string, t: any): Record<ProposalType, ProposalField[]> => ({
   limit_change: [
     {
       key: 'usuario_organizacion',
-      label: 'Usuario u organizacion',
-      help: 'Selecciona el usuario o la organizacion a la que se le cambiaran los limites. Ej: maria o coop_norte.',
-      placeholder: 'ej: maria',
+      label: t('assembly:pf_user_or_org'),
+      help: t('assembly:pf_user_or_org_help'),
+      placeholder: t('assembly:pf_example_maria'),
       type: 'entity_toggle',
       entityModes: [
-        { key: 'user', label: 'Buscar Usuario', endpoint: '/accounts/search', valueKey: 'username', labelKey: 'username', subLabelKey: 'display_name', emptyMessage: 'No se encontraron usuarios' },
-        { key: 'org', label: 'Buscar Organizacion', endpoint: '/organizations', valueKey: 'name', labelKey: 'name', subLabelKey: 'description', emptyMessage: 'No se encontraron organizaciones' },
+        { key: 'user', label: t('assembly:pf_search_user'), endpoint: '/accounts/search', valueKey: 'username', labelKey: 'username', subLabelKey: 'display_name', emptyMessage: t('assembly:pf_no_users_found') },
+        { key: 'org', label: t('assembly:pf_search_org'), endpoint: '/organizations', valueKey: 'name', labelKey: 'name', subLabelKey: 'description', emptyMessage: t('assembly:pf_no_orgs_found') },
       ],
     },
-    { key: 'nuevo_limite_credito', label: `Nuevo limite de credito (${currency})`, help: `Monto maximo que la entidad puede deber a favor (credito). Ej: 200 ${currency}.`, placeholder: '200', type: 'number' },
-    { key: 'nuevo_limite_debito', label: `Nuevo limite de debito (${currency})`, help: `Monto maximo que la entidad puede deber en contra (debito). Ej: 200 ${currency}.`, placeholder: '200', type: 'number' },
+    { key: 'nuevo_limite_credito', label: t('assembly:pf_new_credit_limit', { currency }), help: t('assembly:pf_new_credit_limit_help', { currency }), placeholder: '200', type: 'number' },
+    { key: 'nuevo_limite_debito', label: t('assembly:pf_new_debit_limit', { currency }), help: t('assembly:pf_new_debit_limit_help', { currency }), placeholder: '200', type: 'number' },
   ],
   admission: [
     {
       key: 'usuario',
-      label: 'Usuario a admitir',
-      help: 'Selecciona el usuario que sera admitido como nuevo miembro. Ej: nuevo_miembro.',
-      placeholder: 'ej: nuevo_miembro',
+      label: t('assembly:pf_user_to_admit'),
+      help: t('assembly:pf_user_to_admit_help'),
+      placeholder: t('assembly:pf_example_new_member'),
       type: 'entity',
       endpoint: '/accounts/search',
       valueKey: 'username',
       labelKey: 'username',
       subLabelKey: 'display_name',
-      emptyMessage: 'No se encontraron usuarios',
+      emptyMessage: t('assembly:pf_no_users_found'),
     },
     {
       key: 'nivel',
-      label: 'Nivel',
-      help: 'Selecciona el nivel de miembro que se le asignara. Ej: basic, pleno, etc.',
-      placeholder: 'ej: pleno',
+      label: t('assembly:pf_level'),
+      help: t('assembly:pf_level_help'),
+      placeholder: t('assembly:pf_example_pleno'),
       type: 'entity',
       endpoint: '/member-levels',
       valueKey: 'name',
       labelKey: 'name',
       subLabelKey: 'description',
-      emptyMessage: 'No hay niveles definidos',
+      emptyMessage: t('assembly:pf_no_levels'),
     },
   ],
   expulsion: [
     {
       key: 'usuario',
-      label: 'Usuario a expulsar',
-      help: 'Selecciona el miembro que sera expulsado. Requiere alto quorum.',
-      placeholder: 'ej: usuario',
+      label: t('assembly:pf_user_to_expel'),
+      help: t('assembly:pf_user_to_expel_help'),
+      placeholder: t('assembly:pf_example_user'),
       type: 'entity',
       endpoint: '/accounts/search',
       valueKey: 'username',
       labelKey: 'username',
       subLabelKey: 'display_name',
-      emptyMessage: 'No se encontraron usuarios',
+      emptyMessage: t('assembly:pf_no_users_found'),
     },
-    { key: 'razon', label: 'Razon de expulsion', help: 'Explica el motivo de la expulsion. Ej: fraude comprobado en transacciones.', placeholder: 'Motivo de expulsion', type: 'textarea' },
+    { key: 'razon', label: t('assembly:pf_expulsion_reason'), help: t('assembly:pf_expulsion_reason_help'), placeholder: t('assembly:pf_expulsion_reason_ph'), type: 'textarea' },
   ],
   budget_increase: [
     {
       key: 'organizacion',
-      label: 'Organizacion',
-      help: 'Selecciona la organizacion cuyo presupuesto se aumentara. Ej: coop_norte.',
-      placeholder: 'ej: coop_norte',
+      label: t('assembly:pf_organization'),
+      help: t('assembly:pf_organization_help'),
+      placeholder: t('assembly:pf_example_coop_norte'),
       type: 'entity',
       endpoint: '/organizations',
       valueKey: 'name',
       labelKey: 'name',
       subLabelKey: 'description',
-      emptyMessage: 'No se encontraron organizaciones',
+      emptyMessage: t('assembly:pf_no_orgs_found'),
     },
-    { key: 'monto', label: `Monto (${currency})`, help: `Monto adicional a agregar al presupuesto. Ej: 500 ${currency}.`, placeholder: '500', type: 'number' },
+    { key: 'monto', label: t('assembly:pf_amount', { currency }), help: t('assembly:pf_amount_help', { currency }), placeholder: '500', type: 'number' },
   ],
   federation_config: [
     {
       key: 'nodo',
-      label: 'Nodo federado',
-      help: 'Selecciona el nodo federado con el que se cambiara la configuracion. Ej: nodo-b.org.',
-      placeholder: 'ej: nodo-b.org',
+      label: t('assembly:pf_federated_node'),
+      help: t('assembly:pf_federated_node_help'),
+      placeholder: t('assembly:pf_example_node'),
       type: 'entity',
       endpoint: '/federation/peers',
       valueKey: 'domain',
       labelKey: 'domain',
       subLabelKey: 'node_name',
-      emptyMessage: 'No hay nodos federados',
+      emptyMessage: t('assembly:pf_no_federated_nodes'),
     },
-    { key: 'limite', label: `Nuevo limite (${currency})`, help: `Nuevo limite de credito/debito con el nodo federado. Ej: 1000 ${currency}.`, placeholder: '1000', type: 'number' },
+    { key: 'limite', label: t('assembly:pf_new_limit', { currency }), help: t('assembly:pf_new_limit_help', { currency }), placeholder: '1000', type: 'number' },
   ],
   recovery_config: [
     {
       key: 'modo',
-      label: 'Modo de aprobacion',
-      help: 'Define como se aprueban las recuperaciones de cuenta. Asamblea = votacion de todos. Consejo = junta directiva. Multi-firma = N firmas autorizadas.',
+      label: t('assembly:pf_approval_mode'),
+      help: t('assembly:pf_approval_mode_help'),
       type: 'select',
       options: APPROVAL_MODE_OPTIONS(t),
     },
-    { key: 'aprobaciones', label: 'Numero de aprobaciones', help: 'Cantidad de firmas/aprobaciones necesarias (solo para multi_sig). Ej: 3.', placeholder: '3', type: 'number' },
+    { key: 'aprobaciones', label: t('assembly:pf_num_approvals'), help: t('assembly:pf_num_approvals_help'), placeholder: '3', type: 'number' },
   ],
   tax_change: [
     {
       key: 'aplica_a',
-      label: 'Aplica a',
-      help: 'Selecciona a quien se le aplica el impuesto: todos, un nivel de miembro o un nivel de organizacion.',
+      label: t('assembly:pf_applies_to'),
+      help: t('assembly:pf_applies_to_help'),
       type: 'select',
       options: TAX_APPLIES_OPTIONS(t),
     },
     {
       key: 'nivel',
-      label: 'Nivel de miembro/organizacion',
-      help: 'Selecciona el nivel especifico al que se aplica el impuesto (solo si elegiste un nivel arriba). Ej: pleno.',
-      placeholder: 'ej: pleno',
+      label: t('assembly:pf_member_org_level'),
+      help: t('assembly:pf_member_org_level_help'),
+      placeholder: t('assembly:pf_example_pleno'),
       type: 'entity',
       endpoint: '/member-levels',
       valueKey: 'name',
       labelKey: 'name',
       subLabelKey: 'description',
-      emptyMessage: 'No hay niveles definidos',
+      emptyMessage: t('assembly:pf_no_levels'),
     },
-    { key: 'tasa', label: 'Tasa de impuesto (%)', help: 'Porcentaje que se cobrara sobre las transacciones. Ej: 2 (para 2%).', placeholder: '2', type: 'number' },
+    { key: 'tasa', label: t('assembly:pf_tax_rate'), help: t('assembly:pf_tax_rate_help'), placeholder: '2', type: 'number' },
   ],
   member_level: [
     {
       key: 'nombre_nivel',
-      label: 'Nombre del nivel',
-      help: 'Selecciona el nivel a crear o modificar. Ej: pleno, basic, observador.',
-      placeholder: 'ej: pleno',
+      label: t('assembly:pf_level_name'),
+      help: t('assembly:pf_level_name_help'),
+      placeholder: t('assembly:pf_example_pleno'),
       type: 'entity',
       endpoint: '/member-levels',
       valueKey: 'name',
       labelKey: 'name',
       subLabelKey: 'description',
-      emptyMessage: 'No hay niveles definidos (escribe uno nuevo)',
+      emptyMessage: t('assembly:pf_no_levels_new'),
     },
-    { key: 'descripcion_nivel', label: 'Descripcion', help: 'Describe los permisos y alcances del nivel. Ej: "Miembro pleno con voz, voto y quorum".', placeholder: 'Permisos y alcances', type: 'textarea' },
-    { key: 'limite_credito', label: `Limite de credito (${currency})`, help: `Monto maximo de credito permitido. Ej: 500 ${currency}.`, placeholder: '500', type: 'number' },
-    { key: 'limite_debito', label: `Limite de debito (${currency})`, help: `Monto maximo de debito permitido. Ej: 500 ${currency}.`, placeholder: '500', type: 'number' },
+    { key: 'descripcion_nivel', label: t('assembly:pf_description'), help: t('assembly:pf_description_help'), placeholder: t('assembly:pf_perms_scope'), type: 'textarea' },
+    { key: 'limite_credito', label: t('assembly:pf_credit_limit', { currency }), help: t('assembly:pf_credit_limit_help', { currency }), placeholder: '500', type: 'number' },
+    { key: 'limite_debito', label: t('assembly:pf_debit_limit', { currency }), help: t('assembly:pf_debit_limit_help', { currency }), placeholder: '500', type: 'number' },
   ],
   policy: [
-    { key: 'detalle', label: 'Detalle de la politica', help: 'Describe la decision de politica general. Ej: "Aprobar el reglamento interno version 2".', placeholder: 'Descripcion de la decision', type: 'textarea' },
+    { key: 'detalle', label: t('assembly:pf_policy_detail'), help: t('assembly:pf_policy_detail_help'), placeholder: t('assembly:pf_decision_desc'), type: 'textarea' },
   ],
   create_account: [
-    { key: 'nombre', label: 'Nombre de la cuenta contable', help: 'Nombre identificatorio de la cuenta contable (no es un usuario). Ej: fondo_social, caja_chica, inventario_ferria. Se usara para identificar esta cuenta en la contabilidad del nodo.', placeholder: 'ej: fondo_social', type: 'text' },
+    { key: 'nombre', label: t('assembly:pf_account_name'), help: t('assembly:pf_account_name_help'), placeholder: t('assembly:pf_example_fondo_social'), type: 'text' },
     {
       key: 'tipo',
-      label: 'Tipo de cuenta contable',
-      help: 'Define la naturaleza contable de la cuenta:\n• Activo: Recursos y bienes que el nodo posee (efectivo en caja, inventario de productos, equipos, terrenos).\n• Pasivo: Deudas y obligaciones con terceros (prestamos pendientes, cuentas por pagar a proveedores).\n• Patrimonio: Fondos propios de la comunidad (capital inicial, reservas, acumulacion de excedentes).\n• Ingreso: Entradas de dinero al nodo (ventas, donaciones recibidas, cuotas de miembros, aportes).\n• Egreso: Salidas de dinero del nodo (compras, gastos operativos, pagos a proveedores, mantenimiento).\nLa cuenta se creara con saldo 0. Para asignarle saldo, se debe hacer una transferencia desde otra cuenta o un deposito inicial aprobado por la Asamblea.',
+      label: t('assembly:pf_account_type'),
+      help: t('assembly:pf_account_type_help'),
       type: 'select',
       options: ACCOUNT_TYPE_OPTIONS(t),
     },
-    { key: 'descripcion', label: 'Descripcion de la cuenta', help: 'Describe para que sirve esta cuenta y como se usara. Ej: "Fondo para actividades sociales de la comunidad - se recarga con el 10% de los excedentes mensuales".', placeholder: 'Descripcion de la cuenta contable', type: 'textarea' },
+    { key: 'descripcion', label: t('assembly:pf_account_desc'), help: t('assembly:pf_account_desc_help'), placeholder: t('assembly:pf_account_desc_ph'), type: 'textarea' },
     {
       key: 'responsables',
-      label: 'Responsable de la cuenta',
-      help: 'Persona u organizacion que administrara esta cuenta. El responsable podra ver el saldo y autorizar movimientos. Ej: maria (tesorera) o coop_admin (cooperativa).',
-      placeholder: 'ej: maria',
+      label: t('assembly:pf_account_manager'),
+      help: t('assembly:pf_account_manager_help'),
+      placeholder: t('assembly:pf_example_maria'),
       type: 'entity_toggle',
       entityModes: [
-        { key: 'user', label: 'Buscar Usuario', endpoint: '/accounts/search', valueKey: 'username', labelKey: 'username', subLabelKey: 'display_name', emptyMessage: 'No se encontraron usuarios' },
-        { key: 'org', label: 'Buscar Organizacion', endpoint: '/organizations', valueKey: 'name', labelKey: 'name', subLabelKey: 'description', emptyMessage: 'No se encontraron organizaciones' },
+        { key: 'user', label: t('assembly:pf_search_user'), endpoint: '/accounts/search', valueKey: 'username', labelKey: 'username', subLabelKey: 'display_name', emptyMessage: t('assembly:pf_no_users_found') },
+        { key: 'org', label: t('assembly:pf_search_org'), endpoint: '/organizations', valueKey: 'name', labelKey: 'name', subLabelKey: 'description', emptyMessage: t('assembly:pf_no_orgs_found') },
       ],
     },
   ],
   fund_distribution: [
     {
       key: 'cuenta_destino',
-      label: 'Cuenta destino (organizacion o departamento)',
-      help: 'La asamblea del nodo SOLO puede transferir a organizaciones o departamentos, NUNCA a personas directamente. Ej: coop_norte o depto_pagos.',
-      placeholder: 'ej: coop_norte',
+      label: t('assembly:pf_dest_account'),
+      help: t('assembly:pf_dest_account_help'),
+      placeholder: t('assembly:pf_example_coop_norte'),
       type: 'entity_toggle',
       entityModes: [
-        { key: 'org', label: 'Buscar Organizacion', endpoint: '/organizations', valueKey: 'id', labelKey: 'display_name', subLabelKey: 'username', emptyMessage: 'No se encontraron organizaciones' },
-        { key: 'dept', label: 'Buscar Departamento', endpoint: '/departments', valueKey: 'id', labelKey: 'name', subLabelKey: 'description', emptyMessage: 'No se encontraron departamentos' },
+        { key: 'org', label: t('assembly:pf_search_org'), endpoint: '/organizations', valueKey: 'id', labelKey: 'display_name', subLabelKey: 'username', emptyMessage: t('assembly:pf_no_orgs_found') },
+        { key: 'dept', label: t('assembly:pf_search_dept'), endpoint: '/departments', valueKey: 'id', labelKey: 'name', subLabelKey: 'description', emptyMessage: t('assembly:pf_no_depts_found') },
       ],
     },
-    { key: 'monto', label: `Monto (${currency})`, help: `Monto a distribuir. Ej: 200 ${currency}.`, placeholder: '200', type: 'number' },
-    { key: 'razon', label: 'Razon', help: 'Justifica el motivo de la distribucion. Ej: "Pago de servicios comunitarios del mes".', placeholder: 'Motivo de la distribucion', type: 'textarea' },
+    { key: 'monto', label: t('assembly:pf_amount', { currency }), help: t('assembly:pf_distribute_amount_help', { currency }), placeholder: '200', type: 'number' },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_distribute_reason_help'), placeholder: t('assembly:pf_distribute_reason_ph'), type: 'textarea' },
   ],
   energy_rate_change: [
     {
       key: 'parametro',
-      label: 'Parametro a cambiar',
-      help: 'Selecciona el parametro de la tarifa energetica que se modificara. Ej: precio por kWh.',
+      label: t('assembly:pf_param_change'),
+      help: t('assembly:pf_param_change_help'),
       type: 'select',
       options: ENERGY_PARAM_OPTIONS(t),
     },
-    { key: 'nuevo_valor', label: 'Nuevo valor', help: 'Nuevo valor del parametro seleccionado. Ej: 0.15 para el precio por kWh.', placeholder: '0.15', type: 'number' },
+    { key: 'nuevo_valor', label: t('assembly:pf_new_value'), help: t('assembly:pf_new_value_help'), placeholder: '0.15', type: 'number' },
   ],
   product_modification: [
     {
       key: 'producto',
-      label: 'Producto',
-      help: 'Selecciona el producto a modificar del catalogo existente.',
-      placeholder: 'buscar producto...',
+      label: t('assembly:pf_product'),
+      help: t('assembly:pf_product_help'),
+      placeholder: t('assembly:pf_search_product'),
       type: 'entity',
       endpoint: '/products',
       valueKey: 'id',
       labelKey: 'name',
       subLabelKey: 'category',
-      emptyMessage: 'No se encontraron productos',
+      emptyMessage: t('assembly:pf_no_products'),
     },
-    { key: 'nuevo_precio', label: `Nuevo precio (${currency})`, help: `Nuevo precio del producto. Ej: 5 ${currency}.`, placeholder: '5', type: 'number' },
-    { key: 'razon', label: 'Razon', help: 'Justifica el cambio de precio. Ej: "Aumento del costo de la harina".', placeholder: 'Motivo del cambio', type: 'textarea' },
+    { key: 'nuevo_precio', label: t('assembly:pf_new_price', { currency }), help: t('assembly:pf_new_price_help', { currency }), placeholder: '5', type: 'number' },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_price_change_reason_help'), placeholder: t('assembly:pf_change_reason_ph'), type: 'textarea' },
   ],
   free_proposal: [
-    { key: 'titulo', label: 'Titulo', help: 'Titulo breve de la propuesta. Ej: "Crear comite de bienvenida".', placeholder: 'ej: Crear comite de bienvenida', type: 'text' },
-    { key: 'descripcion', label: 'Descripcion detallada', help: 'Explica la propuesta en detalle para que los miembros puedan votar informados.', placeholder: 'Descripcion completa de la propuesta', type: 'textarea' },
+    { key: 'titulo', label: t('assembly:pf_title'), help: t('assembly:pf_title_help'), placeholder: t('assembly:pf_example_title'), type: 'text' },
+    { key: 'descripcion', label: t('assembly:pf_detailed_desc'), help: t('assembly:pf_detailed_desc_help'), placeholder: t('assembly:pf_full_desc_ph'), type: 'textarea' },
     {
       key: 'categoria',
-      label: 'Categoria',
-      help: 'Clasifica la propuesta en una categoria. Ej: Social, Economico, Gobernanza.',
+      label: t('assembly:pf_category'),
+      help: t('assembly:pf_category_help'),
       type: 'select',
       options: FREE_CATEGORY_OPTIONS(t),
     },
-    { key: 'subcategoria', label: 'Subcategoria', help: 'Subcategoria opcional para mayor detalle. Ej: "bienestar_comunitario".', placeholder: 'ej: bienestar_comunitario', type: 'text' },
+    { key: 'subcategoria', label: t('assembly:pf_subcategory'), help: t('assembly:pf_subcategory_help'), placeholder: t('assembly:pf_example_subcat'), type: 'text' },
+  ],
+  product_approval: [
+    {
+      key: 'product_id',
+      label: t('assembly:pf_product'),
+      help: t('assembly:pf_product_help'),
+      placeholder: t('assembly:pf_search_product'),
+      type: 'entity',
+      endpoint: '/products',
+      valueKey: 'id',
+      labelKey: 'name',
+      subLabelKey: 'category',
+      emptyMessage: t('assembly:pf_no_products'),
+    },
+  ],
+  product_disapproval: [
+    {
+      key: 'product_id',
+      label: t('assembly:pf_product'),
+      help: t('assembly:pf_product_help'),
+      placeholder: t('assembly:pf_search_product'),
+      type: 'entity',
+      endpoint: '/products',
+      valueKey: 'id',
+      labelKey: 'name',
+      subLabelKey: 'category',
+      emptyMessage: t('assembly:pf_no_products'),
+    },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_disapproval_reason_help'), placeholder: t('assembly:pf_change_reason_ph'), type: 'textarea' },
+  ],
+  product_remove: [
+    {
+      key: 'product_id',
+      label: t('assembly:pf_product'),
+      help: t('assembly:pf_product_help'),
+      placeholder: t('assembly:pf_search_product'),
+      type: 'entity',
+      endpoint: '/products',
+      valueKey: 'id',
+      labelKey: 'name',
+      subLabelKey: 'category',
+      emptyMessage: t('assembly:pf_no_products'),
+    },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_remove_reason_help'), placeholder: t('assembly:pf_change_reason_ph'), type: 'textarea' },
+  ],
+  product_import: [
+    { key: 'product_name', label: t('assembly:pf_product_name'), help: t('assembly:pf_product_name_help'), placeholder: t('assembly:pf_example_product_name'), type: 'text' },
+    { key: 'source_node', label: t('assembly:pf_source_node'), help: t('assembly:pf_source_node_help'), placeholder: t('assembly:pf_example_node'), type: 'text' },
+    { key: 'source_product_id', label: t('assembly:pf_source_product_id'), help: t('assembly:pf_source_product_id_help'), placeholder: 'uuid', type: 'text' },
+    { key: 'category', label: t('assembly:pf_parent_category'), help: t('assembly:pf_parent_category_help'), placeholder: t('assembly:pf_example_category'), type: 'text' },
+    { key: 'subcategory', label: t('assembly:pf_subcategory'), help: t('assembly:pf_subcategory_help'), placeholder: t('assembly:pf_example_subcat'), type: 'text' },
+    { key: 'price', label: t('assembly:pf_new_price', { currency }), help: t('assembly:pf_new_price_help', { currency }), placeholder: '5', type: 'number' },
+    { key: 'image_url', label: t('assembly:pf_image_url'), help: t('assembly:pf_image_url_help'), placeholder: 'https://...', type: 'text' },
+  ],
+  product_to_base: [
+    {
+      key: 'product_id',
+      label: t('assembly:pf_product'),
+      help: t('assembly:pf_product_help'),
+      placeholder: t('assembly:pf_search_product'),
+      type: 'entity',
+      endpoint: '/products',
+      valueKey: 'id',
+      labelKey: 'name',
+      subLabelKey: 'category',
+      emptyMessage: t('assembly:pf_no_products'),
+    },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_to_base_reason_help'), placeholder: t('assembly:pf_change_reason_ph'), type: 'textarea' },
+  ],
+  node_config: [
+    { key: 'node_name', label: t('assembly:pf_node_name'), help: t('assembly:pf_node_name_help'), placeholder: t('assembly:pf_example_node_name'), type: 'text' },
+    { key: 'currency_name', label: t('assembly:pf_currency_name'), help: t('assembly:pf_currency_name_help'), placeholder: 'TQ', type: 'text' },
+    { key: 'currency_full_name', label: t('assembly:pf_currency_full_name'), help: t('assembly:pf_currency_full_name_help'), placeholder: t('assembly:pf_example_currency_full'), type: 'text' },
+    { key: 'app_name', label: t('assembly:pf_app_name'), help: t('assembly:pf_app_name_help'), placeholder: t('assembly:pf_example_app_name'), type: 'text' },
+  ],
+  backup_config: [
+    { key: 'interval_hours', label: t('assembly:pf_interval_hours'), help: t('assembly:pf_interval_hours_help'), placeholder: '24', type: 'number' },
+    { key: 'retention_days', label: t('assembly:pf_retention_days'), help: t('assembly:pf_retention_days_help'), placeholder: '30', type: 'number' },
+    {
+      key: 'enabled',
+      label: t('assembly:pf_enabled'),
+      help: t('assembly:pf_enabled_help'),
+      type: 'select',
+      options: BACKUP_ENABLED_OPTIONS(t),
+    },
+  ],
+  cluster_config: [
+    {
+      key: 'mode',
+      label: t('assembly:pf_cluster_mode'),
+      help: t('assembly:pf_cluster_mode_help'),
+      type: 'select',
+      options: CLUSTER_MODE_OPTIONS(t),
+    },
+    { key: 'tablet_limit', label: t('assembly:pf_tablet_limit'), help: t('assembly:pf_tablet_limit_help'), placeholder: '1000', type: 'number' },
+    { key: 'min_nodes', label: t('assembly:pf_min_nodes'), help: t('assembly:pf_min_nodes_help'), placeholder: '3', type: 'number' },
+    { key: 'alert_threshold', label: t('assembly:pf_alert_threshold'), help: t('assembly:pf_alert_threshold_help'), placeholder: '80', type: 'number' },
+  ],
+  permission_assignment: [
+    {
+      key: 'user_id',
+      label: t('assembly:pf_user_to_assign'),
+      help: t('assembly:pf_user_to_assign_help'),
+      placeholder: t('assembly:pf_example_maria'),
+      type: 'entity',
+      endpoint: '/accounts/search',
+      valueKey: 'id',
+      labelKey: 'username',
+      subLabelKey: 'display_name',
+      emptyMessage: t('assembly:pf_no_users_found'),
+    },
+    {
+      key: 'level_id',
+      label: t('assembly:pf_level'),
+      help: t('assembly:pf_level_help'),
+      placeholder: t('assembly:pf_example_pleno'),
+      type: 'entity',
+      endpoint: '/member-levels',
+      valueKey: 'id',
+      labelKey: 'name',
+      subLabelKey: 'description',
+      emptyMessage: t('assembly:pf_no_levels'),
+    },
+    {
+      key: 'action',
+      label: t('assembly:pf_action'),
+      help: t('assembly:pf_action_help'),
+      type: 'select',
+      options: PERMISSION_ACTION_OPTIONS(t),
+    },
+  ],
+  federation_treaty: [
+    {
+      key: 'other_node_domain',
+      label: t('assembly:pf_other_node'),
+      help: t('assembly:pf_other_node_help'),
+      placeholder: t('assembly:pf_example_node'),
+      type: 'entity',
+      endpoint: '/federation/peers',
+      valueKey: 'domain',
+      labelKey: 'domain',
+      subLabelKey: 'node_name',
+      emptyMessage: t('assembly:pf_no_federated_nodes'),
+    },
+    {
+      key: 'action',
+      label: t('assembly:pf_action'),
+      help: t('assembly:pf_treaty_action_help'),
+      type: 'select',
+      options: TREATY_ACTION_OPTIONS(t),
+    },
+  ],
+  budget: [
+    {
+      key: 'cuenta_origen',
+      label: t('assembly:pf_source_account'),
+      help: t('assembly:pf_source_account_help'),
+      placeholder: t('assembly:pf_example_coop_norte'),
+      type: 'entity_toggle',
+      entityModes: [
+        { key: 'org', label: t('assembly:pf_search_org'), endpoint: '/organizations', valueKey: 'id', labelKey: 'display_name', subLabelKey: 'username', emptyMessage: t('assembly:pf_no_orgs_found') },
+        { key: 'dept', label: t('assembly:pf_search_dept'), endpoint: '/departments', valueKey: 'id', labelKey: 'name', subLabelKey: 'description', emptyMessage: t('assembly:pf_no_depts_found') },
+      ],
+    },
+    { key: 'monto', label: t('assembly:pf_amount', { currency }), help: t('assembly:pf_amount_help', { currency }), placeholder: '500', type: 'number' },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_budget_reason_help'), placeholder: t('assembly:pf_distribute_reason_ph'), type: 'textarea' },
+  ],
+  election: [
+    {
+      key: 'cargo',
+      label: t('assembly:pf_board_position'),
+      help: t('assembly:pf_board_position_help'),
+      type: 'select',
+      options: BOARD_POSITIONS(t),
+    },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_election_reason_help'), placeholder: t('assembly:pf_distribute_reason_ph'), type: 'textarea' },
+  ],
+  federation: [
+    {
+      key: 'nodo',
+      label: t('assembly:pf_federated_node'),
+      help: t('assembly:pf_federated_node_help'),
+      placeholder: t('assembly:pf_example_node'),
+      type: 'entity',
+      endpoint: '/federation/peers',
+      valueKey: 'domain',
+      labelKey: 'domain',
+      subLabelKey: 'node_name',
+      emptyMessage: t('assembly:pf_no_federated_nodes'),
+    },
+    { key: 'razon', label: t('assembly:pf_reason'), help: t('assembly:pf_federation_reason_help'), placeholder: t('assembly:pf_distribute_reason_ph'), type: 'textarea' },
   ],
 })
-
-const BOARD_POSITIONS = [
-  { value: 'presidente', label: 'Presidente' },
-  { value: 'vicepresidente', label: 'Vicepresidente' },
-  { value: 'secretario', label: 'Secretario' },
-  { value: 'tesorero', label: 'Tesorero' },
-  { value: 'vocal', label: 'Vocal' },
-  { value: 'fiscal', label: 'Fiscal' },
-]
 
 // Componente reutilizable para lista de departamentos con gestion de roles
 function DeptListWithRoles({
@@ -393,6 +606,7 @@ function DeptListWithRoles({
   setShowRolePerms: (s: string | null) => void
   canManage: boolean
 }) {
+  const { t } = useTranslation(['assembly', 'common'])
   const loadRoles = async (deptId: string) => {
     try {
       const res = await api.get<any[]>(`/departments/${deptId}/roles`)
@@ -422,7 +636,7 @@ function DeptListWithRoles({
       setNewRole({ name: '', description: '' })
       loadRoles(deptId)
     } catch (e: any) {
-      alert(e?.message || 'Error al crear rol')
+      alert(e?.message || t('assembly:error_create_role'))
     }
   }
 
@@ -434,7 +648,7 @@ function DeptListWithRoles({
       setNewMember({ user_id: '', role_id: '' })
       loadMembers(deptId)
     } catch (e: any) {
-      alert(e?.message || 'Error al asignar miembro')
+      alert(e?.message || t('error_assign_member'))
     }
   }
 
@@ -451,7 +665,7 @@ function DeptListWithRoles({
       }
       loadRolePerms(roleId)
     } catch (e: any) {
-      alert(e?.message || 'Error al cambiar permiso')
+      alert(e?.message || t('error_change_perm'))
     }
   }
 
@@ -460,12 +674,12 @@ function DeptListWithRoles({
       await api.delete(`/departments/${deptId}/members/${userId}`)
       loadMembers(deptId)
     } catch (e: any) {
-      alert(e?.message || 'Error al remover miembro')
+      alert(e?.message || t('common:error_generic'))
     }
   }
 
   if (depts.length === 0) {
-    return <p className="text-sm text-gray-500 py-4">{t('assembly_no_depts', 'No hay departamentos en esta categoria.')}</p>
+    return <p className="text-sm text-gray-500 py-4">{t('assembly_no_depts')}</p>
   }
 
   return (
@@ -507,17 +721,17 @@ function DeptListWithRoles({
               {/* Roles */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium">{t('assembly_roles', 'Roles')}</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_roles')}</h4>
                   {canManage && (
                     <button
                       onClick={() => { setShowCreateRole(showCreateRole === d.id ? null : d.id); setShowRolePerms(null); setShowAssignMember(null) }}
                       className="text-xs text-trueque-600 hover:text-trueque-700 flex items-center gap-1"
                     >
-                      <Plus size={12} /> {t('assembly_new_role', 'Nuevo Rol')}
+                      <Plus size={12} /> {t('assembly_new_role')}
                     </button>
                   )}
                 </div>
-                {deptRoles.length === 0 && <p className="text-xs text-gray-400">{t('assembly_no_roles', 'Sin roles')}</p>}
+                {deptRoles.length === 0 && <p className="text-xs text-gray-400">{t('assembly_no_roles')}</p>}
                 <div className="space-y-1">
                   {deptRoles.map((role: any) => (
                     <div key={role.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
@@ -536,7 +750,7 @@ function DeptListWithRoles({
                         }}
                         className="text-xs text-trueque-600"
                       >
-                        {t('assembly_permissions', 'Permisos')}
+                        {t('assembly_permissions')}
                       </button>
                     </div>
                   ))}
@@ -546,7 +760,7 @@ function DeptListWithRoles({
               {/* Panel de permisos del rol */}
               {showRolePerms && deptRoles.some((r: any) => r.id === showRolePerms) && (
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <h4 className="text-sm font-medium">{t('assembly_role_perms', 'Permisos del rol')} "{deptRoles.find((r: any) => r.id === showRolePerms)?.name}"</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_role_perms')} "{deptRoles.find((r: any) => r.id === showRolePerms)?.name}"</h4>
                   {/* Agrupar por categoria */}
                   {(() => {
                     const grouped: Record<string, any[]> = {}
@@ -584,37 +798,37 @@ function DeptListWithRoles({
               {/* Formulario crear rol */}
               {showCreateRole === d.id && (
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <h4 className="text-sm font-medium">{t('assembly_new_role', 'Nuevo Rol')}</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_new_role')}</h4>
                   <input
                     className="input"
-                    placeholder={t('assembly_role_name_ph', 'Nombre del rol (ej: Coordinador)')}
+                    placeholder={t('assembly_role_name_ph')}
                     value={newRole.name}
                     onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
                   />
                   <input
                     className="input"
-                    placeholder={t('assembly_role_desc_ph', 'Descripcion (opcional)')}
+                    placeholder={t('assembly_role_desc_ph')}
                     value={newRole.description}
                     onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
                   />
-                  <button onClick={() => createRole(d.id)} className="btn-primary text-sm">{t('assembly_create_role', 'Crear Rol')}</button>
+                  <button onClick={() => createRole(d.id)} className="btn-primary text-sm">{t('assembly_create_role')}</button>
                 </div>
               )}
 
               {/* Miembros del departamento */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium">{t('assembly_members_count', 'Miembros')} ({deptMembers.length})</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_members_count')} ({deptMembers.length})</h4>
                   {canManage && (
                     <button
                       onClick={() => { setShowAssignMember(showAssignMember === d.id ? null : d.id); setShowCreateRole(null); setShowRolePerms(null) }}
                       className="text-xs text-trueque-600 hover:text-trueque-700 flex items-center gap-1"
                     >
-                      <Plus size={12} /> {t('assembly_assign_member', 'Asignar Miembro')}
+                      <Plus size={12} /> {t('assembly_assign_member')}
                     </button>
                   )}
                 </div>
-                {deptMembers.length === 0 && <p className="text-xs text-gray-400">{t('assembly_no_members', 'Sin miembros asignados')}</p>}
+                {deptMembers.length === 0 && <p className="text-xs text-gray-400">{t('assembly_no_members')}</p>}
                 <div className="space-y-1">
                   {deptMembers.map((m: any) => (
                     <div key={m.user_id || m.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
@@ -638,13 +852,13 @@ function DeptListWithRoles({
               {/* Formulario asignar miembro */}
               {showAssignMember === d.id && (
                 <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <h4 className="text-sm font-medium">{t('assembly_assign_member', 'Asignar Miembro')}</h4>
+                  <h4 className="text-sm font-medium">{t('assembly_assign_member')}</h4>
                   <select
                     className="input"
                     value={newMember.user_id}
                     onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })}
                   >
-                    <option value="">{t('assembly_select_member', 'Seleccionar miembro...')}</option>
+                    <option value="">{t('assembly_select_member')}</option>
                     {allMembers.map((m: any) => (
                       <option key={m.id} value={m.id}>{m.display_name || m.username} (@{m.username})</option>
                     ))}
@@ -654,12 +868,12 @@ function DeptListWithRoles({
                     value={newMember.role_id}
                     onChange={(e) => setNewMember({ ...newMember, role_id: e.target.value })}
                   >
-                    <option value="">{t('assembly_select_role', 'Seleccionar rol...')}</option>
+                    <option value="">{t('assembly_select_role')}</option>
                     {deptRoles.map((r: any) => (
                       <option key={r.id} value={r.id}>{r.name}</option>
                     ))}
                   </select>
-                  <button onClick={() => assignMember(d.id)} className="btn-primary text-sm">{t('assembly_assign', 'Asignar')}</button>
+                  <button onClick={() => assignMember(d.id)} className="btn-primary text-sm">{t('assembly_assign')}</button>
                 </div>
               )}
             </div>
@@ -701,17 +915,17 @@ function MemberSearchAndPerms({
     <>
       {/* Buscador de miembros */}
       <div className="card">
-        <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />{t('assembly_search_members', 'Buscar Miembros')} ({members.length})</h3>
+        <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />{t('assembly_search_members')} ({members.length})</h3>
         <input
           type="text"
           className="input mb-3"
-          placeholder={t('assembly_search_ph', 'Buscar por nombre o usuario...')}
+          placeholder={t('assembly_search_ph')}
           value={memberSearch}
           onChange={(e) => setMemberSearch(e.target.value)}
         />
 
         {members.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4">{t('assembly_no_members_cat', 'No hay miembros en esta categoria.')}</p>
+          <p className="text-sm text-gray-500 py-4">{t('assembly_no_members_cat')}</p>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto">
             {members
@@ -734,11 +948,11 @@ function MemberSearchAndPerms({
                   </div>
                   <div className="flex items-center gap-2">
                     {m.is_super_admin && m.super_admin_enabled && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{t('assembly_super_admin', 'Super Admin')}</span>
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{t('assembly_super_admin')}</span>
                     )}
                     <span className={`text-xs px-2 py-0.5 rounded ${getBadgeColor(m)}`}>{getBadgeLabel(m)}</span>
                     {m.permissions && m.permissions.length > 0 && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{m.permissions.length} {t('assembly_perms', 'permisos')}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{m.permissions.length} {t('assembly_perms')}</span>
                     )}
                   </div>
                 </div>
@@ -753,7 +967,7 @@ function MemberSearchAndPerms({
           <div className="flex items-center justify-between">
             <h3 className="font-medium flex items-center gap-2">
               <KeyRound size={16} />
-              {t('assembly_perms_of', 'Permisos de')} {selectedMember.display_name || selectedMember.username}
+              {t('assembly_perms_of')} {selectedMember.display_name || selectedMember.username}
             </h3>
             <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common:close')}</button>
           </div>
@@ -780,10 +994,10 @@ function MemberSearchAndPerms({
                           try {
                             await api.delete(`/users/${selectedMember.id}/permissions/${encodeURIComponent(p)}`)
                             setMemberPerms(memberPerms.filter(x => x !== p))
-                            setPermMsg({ type: 'success', text: `Permiso "${p}" removido` })
+                            setPermMsg({ type: 'success', text: t('perm_removed', { perm: p }) })
                             setAllMembers((prev: any[]) => prev.map(m => m.id === selectedMember.id ? { ...m, permissions: m.permissions.filter((x: string) => x !== p) } : m))
                           } catch (e: any) {
-                            setPermMsg({ type: 'error', text: e?.message || 'Error al remover permiso' })
+                            setPermMsg({ type: 'error', text: e?.message || t('error_remove_perm') })
                           }
                         }}
                         className="text-red-500 hover:text-red-700"
@@ -816,15 +1030,15 @@ function MemberSearchAndPerms({
                           try {
                             await api.post(`/users/${selectedMember.id}/permissions/grant`, { permission_name: p.name })
                             setMemberPerms([...memberPerms, p.name])
-                            setPermMsg({ type: 'success', text: `Permiso "${p.name}" asignado` })
+                            setPermMsg({ type: 'success', text: t('perm_assigned', { perm: p.name }) })
                             setAllMembers((prev: any[]) => prev.map(m => m.id === selectedMember.id ? { ...m, permissions: [...(m.permissions || []), p.name] } : m))
                           } catch (e: any) {
-                            setPermMsg({ type: 'error', text: e?.message || 'Error al asignar permiso' })
+                            setPermMsg({ type: 'error', text: e?.message || t('error_assign_perm') })
                           }
                         }}
                         className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
                       >
-                        + {t('assembly_assign', 'Asignar')}
+                        + {t('assembly_assign')}
                       </button>
                     </div>
                   ))}
@@ -864,9 +1078,9 @@ export default function Assembly() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet' | 'departments') || 'proposals'
   const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet' | 'departments'>(initialTab)
-  const changeTab = (t: 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet' | 'departments') => {
-    setTab(t)
-    setSearchParams({ tab: t })
+  const changeTab = (newTab: 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet' | 'departments') => {
+    setTab(newTab)
+    setSearchParams({ tab: newTab })
   }
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
@@ -974,7 +1188,7 @@ export default function Assembly() {
 
   const load = () => {
     api.get('/assembly/voting-members').then((d: any) => setVotingMembers(Array.isArray(d) ? d : [])).catch(() => {})
-    api.get('/member-levels').then((d: any) => setMemberLevels(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get(`/member-levels?lang=${getCurrentLanguage()}`).then((d: any) => setMemberLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/assembly/board').then((d: any) => setBoard(Array.isArray(d) ? d : [])).catch(() => {})
     api.get(`/assembly/sessions?filter=${sessionFilter}&meeting_type=${meetingType}`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/assembly/proposals').then((d: any) => setProposals(Array.isArray(d) ? d : [])).catch(() => {})
@@ -1035,7 +1249,7 @@ export default function Assembly() {
       setEntityModes({})
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('error_create_proposal', 'Error al crear propuesta'))
+      setError(err instanceof Error ? err.message : t('error_create_proposal'))
     }
   }
 
@@ -1044,7 +1258,7 @@ export default function Assembly() {
       await api.post(`/assembly/proposals/${id}/vote`, { vote })
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('error_vote', 'Error al votar'))
+      setError(err instanceof Error ? err.message : t('error_vote'))
     }
   }
 
@@ -1053,7 +1267,7 @@ export default function Assembly() {
       await api.post(`/assembly/proposals/${id}/execute`, {})
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al ejecutar')
+      setError(err instanceof Error ? err.message : t('error_execute'))
     }
   }
 
@@ -1070,7 +1284,7 @@ export default function Assembly() {
       setVotingModal(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al abrir votacion')
+      setError(err instanceof Error ? err.message : t('error_open_voting'))
     }
   }
 
@@ -1094,7 +1308,7 @@ export default function Assembly() {
         total_voting_members: data.total_voting_members,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar informes')
+      setError(err instanceof Error ? err.message : t('error_load_reports'))
     }
   }
 
@@ -1103,7 +1317,7 @@ export default function Assembly() {
       const data: any = await api.get(`/assembly/proposals/${id}/report`)
       setSelectedReport(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar informe')
+      setError(err instanceof Error ? err.message : t('error_load_report'))
     }
   }
 
@@ -1112,7 +1326,7 @@ export default function Assembly() {
       const data: any = await api.get(`/assembly/sessions/${sessionId}/attendance`)
       setAttendanceList(Array.isArray(data) ? data : [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar asistencia')
+      setError(err instanceof Error ? err.message : t('error_load_attendance'))
     }
   }
 
@@ -1127,7 +1341,7 @@ export default function Assembly() {
       }
       loadAttendance(selectedSessionForAttendance)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar asistencia')
+      setError(err instanceof Error ? err.message : t('error_update_attendance'))
     }
   }
 
@@ -1137,7 +1351,7 @@ export default function Assembly() {
       setSelectedSessionForMinutes(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar minuta')
+      setError(err instanceof Error ? err.message : t('error_save_minutes'))
     }
   }
 
@@ -1146,7 +1360,7 @@ export default function Assembly() {
       const data: any = await api.get('/assembly/quorum-config')
       setQuorumConfigs(Array.isArray(data) ? data : [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar config de quorum')
+      setError(err instanceof Error ? err.message : t('error_load_quorum_config'))
     }
   }
 
@@ -1171,18 +1385,18 @@ export default function Assembly() {
       setFreqEditing(false)
       setFreqSaving(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar frecuencia')
+      setError(err instanceof Error ? err.message : t('error_save_frequency'))
       setFreqSaving(false)
     }
   }
 
   const closeAssemblySession = async (sessionId: string) => {
-    if (!confirm('Cerrar esta asamblea? Se convocara automaticamente la siguiente asamblea ordinaria si esta configurado.')) return
+    if (!confirm(t('confirm_close_session'))) return
     try {
       await api.post(`/assembly/sessions/${sessionId}/close`, {})
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cerrar asamblea')
+      setError(err instanceof Error ? err.message : t('error_close_session'))
     }
   }
 
@@ -1192,7 +1406,7 @@ export default function Assembly() {
       await api.put(`/assembly/quorum-config/${sessionType}?meeting_type=${mt}`, data)
       loadQuorumConfigs()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar quorum')
+      setError(err instanceof Error ? err.message : t('error_update_quorum'))
     }
   }
 
@@ -1202,13 +1416,13 @@ export default function Assembly() {
       setQuorumResult(data)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al verificar quorum')
+      setError(err instanceof Error ? err.message : t('error_verify_quorum'))
     }
   }
 
   const doReschedule = async (sessionId: string) => {
     if (!rescheduleDate || !rescheduleTime) {
-      setError('Debes seleccionar fecha y hora')
+      setError(t('error_select_date_time'))
       return
     }
     try {
@@ -1219,7 +1433,7 @@ export default function Assembly() {
       setRescheduleTime('')
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al reprogramar')
+      setError(err instanceof Error ? err.message : t('error_reschedule'))
     }
   }
 
@@ -1227,16 +1441,16 @@ export default function Assembly() {
     try {
       await api.post(`/assembly/sessions/${sessionId}/self-checkin`, {})
       setError('')
-      alert('Presencia confirmada. Gracias por validar tu asistencia.')
+      alert(t('presence_confirmed'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al confirmar presencia')
+      setError(err instanceof Error ? err.message : t('error_confirm_presence'))
     }
   }
 
   const saveSessionEdit = async (sessionId: string) => {
     setError('')
     if (!editTitle.trim()) {
-      setError('El titulo no puede estar vacio')
+      setError(t('error_title_empty'))
       return
     }
     try {
@@ -1246,7 +1460,7 @@ export default function Assembly() {
       setEditTitle('')
       setEditDescription('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar sesion')
+      setError(err instanceof Error ? err.message : t('error_update_session'))
     }
   }
 
@@ -1259,15 +1473,15 @@ export default function Assembly() {
   const createSession = async () => {
     setError('')
     if (!newSession.title) {
-      setError('El titulo es obligatorio')
+      setError(t('error_title_required'))
       return
     }
     if (!sessionDate) {
-      setError('Debes seleccionar la fecha de la asamblea')
+      setError(t('error_select_date'))
       return
     }
     if (!sessionTime) {
-      setError('Debes seleccionar la hora de la asamblea')
+      setError(t('error_select_time'))
       return
     }
     // Combinar fecha y hora en ISO 8601
@@ -1280,14 +1494,14 @@ export default function Assembly() {
       setSessionTime('15:00')
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear sesion')
+      setError(err instanceof Error ? err.message : t('error_create_session'))
     }
   }
 
   const addBoard = async () => {
     setError('')
     if (!newBoard.user_id || !newBoard.position) {
-      setError('Usuario y cargo son obligatorios')
+      setError(t('error_user_position_required'))
       return
     }
     try {
@@ -1296,7 +1510,7 @@ export default function Assembly() {
       setNewBoard({ user_id: '', position: 'presidente' })
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al asignar')
+      setError(err instanceof Error ? err.message : t('error_assign'))
     }
   }
 
@@ -1305,7 +1519,7 @@ export default function Assembly() {
       await api.delete(`/assembly/board/${id}`)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setError(err instanceof Error ? err.message : t('error_save_config'))
     }
   }
 
@@ -1470,14 +1684,14 @@ export default function Assembly() {
                     {fundData?.balance != null ? `${fundData.balance >= 0 ? '+' : ''}${fmtTQ(fundData.balance)}` : '...'} {currency}
                   </p>
                   <p className="text-amber-200 text-xs mt-2">
-                    Cuenta: @{fundData?.username || t('assembly_asamblea', 'asamblea')}
+                    Cuenta: @{translateAlias(fundData?.username || 'asamblea')}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@asamblea</span>
-                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@impuestos</span>
-                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@fondo_comunitario</span>
+                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@{translateAlias('asamblea')}</span>
+                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@{translateAlias('impuestos')}</span>
+                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@{translateAlias('fondo_comunitario')}</span>
                   </div>
-                  <p className="text-amber-100 text-xs mt-2">{t('fund_aliases_note', 'Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.')}</p>
+                  <p className="text-amber-100 text-xs mt-2">{t('fund_aliases_note')}</p>
                 </div>
                 <DollarSign size={48} className="text-amber-200" />
               </div>
@@ -1616,7 +1830,7 @@ export default function Assembly() {
                                 await api.post(`/assembly/proposals/${p.id}/direct-approve`, {})
                                 load()
                               } catch (e: any) {
-                                setError(e?.message || t('assembly_error_direct_approve', 'Error al aprobar directamente'))
+                                setError(e?.message || t('assembly_error_direct_approve'))
                               }
                             }}
                             className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700"
@@ -1895,10 +2109,10 @@ export default function Assembly() {
                 <div className="p-4 space-y-4 text-sm">
                   {/* Datos generales */}
                   <div className="space-y-1">
-                    <div className="flex justify-between"><span className="text-gray-500">{t('report.proposal_type', 'Tipo de propuesta')}:</span><span className="font-medium">{String(t(PROPOSAL_LABEL_KEYS[selectedReport.proposal_type as ProposalType] || '', selectedReport.proposal_type))}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">{t('report.status', 'Estado')}:</span><span className="font-medium">{selectedReport.result}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">{t('report.created_at', 'Fecha de creacion')}:</span><span className="font-medium">{selectedReport.created_at?.replace('T', ' ').slice(0, 19)}</span></div>
-                    {selectedReport.executed_at && <div className="flex justify-between"><span className="text-gray-500">{t('report.executed_at', 'Fecha de ejecucion')}:</span><span className="font-medium">{selectedReport.executed_at?.replace('T', ' ').slice(0, 19)}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-500">{t('report_proposal_type')}:</span><span className="font-medium">{String(t(PROPOSAL_LABEL_KEYS[selectedReport.proposal_type as ProposalType] || '', selectedReport.proposal_type))}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('report_status')}:</span><span className="font-medium">{selectedReport.result}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('report_created_at')}:</span><span className="font-medium">{selectedReport.created_at?.replace('T', ' ').slice(0, 19)}</span></div>
+                    {selectedReport.executed_at && <div className="flex justify-between"><span className="text-gray-500">{t('report_executed_at')}:</span><span className="font-medium">{selectedReport.executed_at?.replace('T', ' ').slice(0, 19)}</span></div>}
                     <div className="flex justify-between"><span className="text-gray-500">{t('assembly_configured_time', 'Tiempo configurado:')}:</span><span className="font-medium">{selectedReport.configured_duration}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">{t('assembly_actual_voting_duration', 'Duracion real de votacion:')}:</span><span className="font-medium">{selectedReport.actual_voting_duration || t('assembly_no_votes', 'sin votos')}</span></div>
                     {selectedReport.first_vote_at && <div className="flex justify-between"><span className="text-gray-500">{t('assembly_first_vote', 'Primer voto:')}:</span><span className="font-medium">{selectedReport.first_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
@@ -2080,7 +2294,7 @@ export default function Assembly() {
                 <input
                   type="text"
                   className="input mb-3"
-                  placeholder={t('assembly_search_ph', 'Buscar por nombre o usuario...')}
+                  placeholder={t('assembly_search_ph')}
                   value={orgSearch}
                   onChange={(e) => setOrgSearch(e.target.value)}
                 />
@@ -2109,7 +2323,7 @@ export default function Assembly() {
                           <div className="flex items-center gap-2">
                             {o.is_assembly_owned && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{t('assembly_assembly_owned', 'Asamblea')}</span>}
                             {o.permissions && o.permissions.length > 0 && (
-                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{o.permissions.length} {t('assembly_perms', 'permisos')}</span>
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{o.permissions.length} {t('assembly_perms')}</span>
                             )}
                           </div>
                         </div>
@@ -2124,7 +2338,7 @@ export default function Assembly() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium flex items-center gap-2">
                       <KeyRound size={16} />
-                      {t('assembly_perms_of', 'Permisos de')} {selectedOrg.display_name || selectedOrg.username}
+                      {t('assembly_perms_of')} {selectedOrg.display_name || selectedOrg.username}
                     </h3>
                     <button onClick={() => setSelectedOrg(null)} className="text-gray-400 hover:text-gray-600 text-sm">{t('common:close')}</button>
                   </div>
@@ -2145,10 +2359,10 @@ export default function Assembly() {
                                   try {
                                     await api.delete(`/users/${selectedOrg.id}/permissions/${encodeURIComponent(p)}`)
                                     setOrgPerms(orgPerms.filter(x => x !== p))
-                                    setOrgPermMsg({ type: 'success', text: `Permiso "${p}" removido` })
+                                    setOrgPermMsg({ type: 'success', text: t('perm_removed', { perm: p }) })
                                     setAllOrgs(allOrgs.map(o => o.id === selectedOrg.id ? { ...o, permissions: o.permissions.filter((x: string) => x !== p) } : o))
                                   } catch (e: any) {
-                                    setOrgPermMsg({ type: 'error', text: e?.message || 'Error al remover permiso' })
+                                    setOrgPermMsg({ type: 'error', text: e?.message || t('error_remove_perm') })
                                   }
                                 }}
                                 className="text-red-500 hover:text-red-700"
@@ -2180,15 +2394,15 @@ export default function Assembly() {
                                   try {
                                     await api.post(`/users/${selectedOrg.id}/permissions/grant`, { permission_name: p.name })
                                     setOrgPerms([...orgPerms, p.name])
-                                    setOrgPermMsg({ type: 'success', text: `Permiso "${p.name}" asignado` })
+                                    setOrgPermMsg({ type: 'success', text: t('perm_assigned', { perm: p.name }) })
                                     setAllOrgs(allOrgs.map(o => o.id === selectedOrg.id ? { ...o, permissions: [...(o.permissions || []), p.name] } : o))
                                   } catch (e: any) {
-                                    setOrgPermMsg({ type: 'error', text: e?.message || 'Error al asignar permiso' })
+                                    setOrgPermMsg({ type: 'error', text: e?.message || t('error_assign_perm') })
                                   }
                                 }}
                                 className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
                               >
-                                + {t('assembly_assign', 'Asignar')}
+                                + {t('assembly_assign')}
                               </button>
                             </div>
                           ))}
@@ -2214,7 +2428,7 @@ export default function Assembly() {
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><Crown size={18} />{t('assembly_board_title', 'Junta Directiva')}</h2>
             {canManageBoard && (
-              <button onClick={() => setShowAddBoard(!showAddBoard)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('assembly_assign_member', 'Asignar Miembro')}</button>
+              <button onClick={() => setShowAddBoard(!showAddBoard)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('assembly_assign_member')}</button>
             )}
           </div>
 
@@ -2228,7 +2442,7 @@ export default function Assembly() {
               <div>
                 <label className="label">{t('assembly_user', 'Usuario')}</label>
                 <select className="input" value={newBoard.user_id} onChange={(e) => setNewBoard({ ...newBoard, user_id: e.target.value })}>
-                  <option value="">{t('assembly_select_member', 'Seleccionar miembro...')}</option>
+                  <option value="">{t('assembly_select_member')}</option>
                   {votingMembers.map((m: any) => (
                     <option key={m.user_id || m.id} value={m.user_id || m.id}>
                       {m.display_name || m.username} {m.level_name ? `(${m.level_name})` : ''}
@@ -2240,12 +2454,12 @@ export default function Assembly() {
               <div>
                 <label className="label">{t('assembly_position', 'Cargo')}</label>
                 <select className="input" value={newBoard.position} onChange={(e) => setNewBoard({ ...newBoard, position: e.target.value })}>
-                  {BOARD_POSITIONS.map((p) => (
+                  {BOARD_POSITIONS(t).map((p) => (
                     <option key={p.value} value={p.value}>{p.label}</option>
                   ))}
                 </select>
               </div>
-              <button onClick={addBoard} className="btn-primary">{t('assembly_assign', 'Asignar')}</button>
+              <button onClick={addBoard} className="btn-primary">{t('assembly_assign')}</button>
             </div>
           )}
 
@@ -2262,7 +2476,7 @@ export default function Assembly() {
                     <Crown size={20} className="text-amber-500" />
                     <div>
                       <span className="font-medium">{b.display_name || b.username}</span>
-                      <p className="text-xs text-gray-500">{BOARD_POSITIONS.find((p) => p.value === b.position)?.label || b.position}</p>
+                      <p className="text-xs text-gray-500">{BOARD_POSITIONS(t).find((p) => p.value === b.position)?.label || b.position}</p>
                     </div>
                   </div>
                   {canManageBoard && (
@@ -2793,18 +3007,18 @@ export default function Assembly() {
           {/* Cuenta de la Asamblea */}
           {taxAccount && (
             <div className="card">
-              <h3 className="font-medium mb-3">{t('assembly_tax_account_title', 'Cuenta de la Asamblea (donde llegan los impuestos)')}</h3>
+              <h3 className="font-medium mb-3">{t('assembly_tax_account_title')}</h3>
               {taxAccount.tax_account ? (
                 <div className="text-sm">
-                  <p><span className="text-gray-500">{t('assembly_account_label', 'Cuenta:')}:</span> <b>{taxAccount.tax_account_display || taxAccount.tax_account_name || taxAccount.tax_account}</b></p>
-                  <p className="mt-1"><span className="text-gray-500">{t('assembly_balance', 'Balance:')}:</span> <b className="text-trueque-700">{fmtTQ(taxAccount.balance)} {currency}</b></p>
+                  <p><span className="text-gray-500">{t('assembly_account_label')}:</span> <b>{translateAccountName(taxAccount.tax_account_display || taxAccount.tax_account_name || taxAccount.tax_account, taxAccount.tax_account_name)}</b></p>
+                  <p className="mt-1"><span className="text-gray-500">{t('assembly_balance')}:</span> <b className="text-trueque-700">{fmtTQ(taxAccount.balance)} {currency}</b></p>
                   <p className="mt-2 text-xs text-gray-500">
-                    {t('assembly_tax_account_desc', 'Los impuestos llegan automaticamente a esta cuenta. Es la misma cuenta de la Asamblea General y del Fondo Comunitario. Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.')}
+                    {t('assembly_tax_account_desc')}
                   </p>
                 </div>
               ) : (
                 <p className="text-sm text-amber-600">
-                  {t('assembly_tax_account_not_found', 'No se encontro la cuenta de la Asamblea. Los impuestos se envian a la cuenta de la Asamblea General (@asamblea). Si no aparece, verifica que la Asamblea General exista en el sistema.')}
+                  {t('assembly_tax_account_not_found')}
                 </p>
               )}
             </div>
@@ -2841,7 +3055,7 @@ export default function Assembly() {
                 <p>{t('assembly_depts_assembly_desc', 'Departamentos de la Asamblea. La Asamblea no aparece en la pagina de Organizaciones, por eso sus departamentos se gestionan aqui.')}</p>
               </div>
               <DeptListWithRoles
-                depts={allDepts.filter((d: any) => !d.parent_organization_id || d.org_name === 'Asamblea General')}
+                depts={allDepts.filter((d: any) => !d.parent_organization_id || d.org_name === t('assembly_general_assembly'))}
                 expandedDept={expandedDept}
                 setExpandedDept={setExpandedDept}
                 deptRoles={deptRoles}
@@ -2876,11 +3090,11 @@ export default function Assembly() {
 
               {/* Agrupar por organizacion */}
               {(() => {
-                const orgDepts = allDepts.filter((d: any) => d.parent_organization_id && d.org_name !== 'Asamblea General')
+                const orgDepts = allDepts.filter((d: any) => d.parent_organization_id && d.org_name !== t('assembly_general_assembly'))
                 // Agrupar por org_name
                 const grouped: Record<string, any[]> = {}
                 orgDepts.forEach((d: any) => {
-                  const key = d.org_name || 'Sin organizacion'
+                  const key = d.org_name || t('assembly_no_organization')
                   if (!grouped[key]) grouped[key] = []
                   grouped[key].push(d)
                 })
@@ -2905,7 +3119,7 @@ export default function Assembly() {
                           <div className="flex items-center gap-2">
                             <Building2 size={16} className="text-gray-500" />
                             <span className="font-medium text-sm">{orgName}</span>
-                            <span className="text-xs text-gray-500">({grouped[orgName].length} {t('assembly_deptos', 'deptos')})</span>
+                            <span className="text-xs text-gray-500">({grouped[orgName].length} {t('assembly_deptos')})</span>
                           </div>
                           <span className="text-gray-400 text-xs">{expandedDept === `org:${orgName}` ? '▼' : '▶'}</span>
                         </div>
@@ -3616,7 +3830,7 @@ export default function Assembly() {
                               setNewSignerId('')
                               load()
                             } catch (err) {
-                              setError(err instanceof Error ? err.message : 'Error')
+                              setError(err instanceof Error ? err.message : t('error_save_config'))
                             }
                           }}
                           className="btn-primary text-sm"
@@ -3865,7 +4079,7 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
 
   const isBoard = config.meeting_type === 'board'
   const prefix = isBoard ? t('assembly_board_prefix', 'Junta ') : t('assembly_assembly_prefix', 'Asamblea ')
-  const label = (sessionTypeLabel[config.session_type] || config.session_type).replace('Asamblea ', prefix)
+  const label = (sessionTypeLabel[config.session_type] || config.session_type).replace(t('assembly_assembly_prefix'), prefix)
 
   return (
     <div className={`card ${isBoard ? 'border-purple-200' : ''}`}>

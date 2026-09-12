@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"context"
@@ -259,6 +259,9 @@ func (h *ScopedAssemblyHandler) listSessions(w http.ResponseWriter, r *http.Requ
 	}
 	if sessions == nil {
 		sessions = []map[string]interface{}{}
+	} else {
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+		localizeEntityMaps(r.Context(), h.Pool, sessions, "assembly_session_scoped", lang, fallbackLang, "title", "description", "minutes")
 	}
 	writeJSON(w, 200, sessions)
 }
@@ -273,11 +276,12 @@ func (h *ScopedAssemblyHandler) createSession(w http.ResponseWriter, r *http.Req
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var req struct {
-		SessionType  string `json:"session_type"`
-		Title        string `json:"title"`
-		Description  string `json:"description"`
-		StartTimeStr string `json:"start_time"`
-		IsPresential bool   `json:"is_presential"`
+		SessionType  string                       `json:"session_type"`
+		Title        string                       `json:"title"`
+		Description  string                       `json:"description"`
+		StartTimeStr string                       `json:"start_time"`
+		IsPresential bool                         `json:"is_presential"`
+		Translations map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -330,6 +334,16 @@ func (h *ScopedAssemblyHandler) createSession(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
+	}
+
+	sessionFields := map[string]string{
+		"title":       req.Title,
+		"description": req.Description,
+	}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "assembly_session_scoped", id.String(), sessionFields, map[string]interface{}{"scope": scope, "meeting_type": meetingType})
+	if len(req.Translations) > 0 {
+		userID, _ := h.Auth.GetUserID(r)
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "assembly_session_scoped", id.String(), sessionFields, req.Translations, userID)
 	}
 
 	writeJSON(w, 201, map[string]interface{}{
@@ -516,6 +530,9 @@ func (h *ScopedAssemblyHandler) listProposals(w http.ResponseWriter, r *http.Req
 	}
 	if proposals == nil {
 		proposals = []map[string]interface{}{}
+	} else {
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+		localizeEntityMaps(r.Context(), h.Pool, proposals, "assembly_decision_scoped", lang, fallbackLang, "description")
 	}
 	writeJSON(w, 200, proposals)
 }
@@ -530,11 +547,12 @@ func (h *ScopedAssemblyHandler) createProposal(w http.ResponseWriter, r *http.Re
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var req struct {
-		SessionID             string                 `json:"session_id"`
-		ProposalType          string                 `json:"proposal_type"`
-		Description           string                 `json:"description"`
-		Parameters            map[string]interface{} `json:"parameters"`
-		VotingDurationMinutes int                    `json:"voting_duration_minutes"`
+		SessionID             string                       `json:"session_id"`
+		ProposalType          string                       `json:"proposal_type"`
+		Description           string                       `json:"description"`
+		Parameters            map[string]interface{}       `json:"parameters"`
+		VotingDurationMinutes int                          `json:"voting_duration_minutes"`
+		Translations          map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -594,6 +612,15 @@ func (h *ScopedAssemblyHandler) createProposal(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
+	}
+
+	decisionFields := map[string]string{
+		"description": req.Description,
+	}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "assembly_decision_scoped", id.String(), decisionFields, map[string]interface{}{"proposal_type": req.ProposalType})
+	if len(req.Translations) > 0 {
+		userID, _ := h.Auth.GetUserID(r)
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "assembly_decision_scoped", id.String(), decisionFields, req.Translations, userID)
 	}
 
 	// Auto-agregar a la minuta
@@ -1137,6 +1164,10 @@ func (h *ScopedAssemblyHandler) getProposalTypes(w http.ResponseWriter, r *http.
 	}
 	if types == nil {
 		types = []map[string]interface{}{}
+	} else {
+		nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+		localizeEntityMaps(r.Context(), h.Pool, types, "assembly_proposal_type", lang, fallbackLang, "label", "description")
 	}
 	writeJSON(w, 200, types)
 }

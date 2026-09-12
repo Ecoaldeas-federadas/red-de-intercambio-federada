@@ -1,4 +1,4 @@
-﻿import { SiteBlock } from '../../types/publicSite'
+import { SiteBlock } from '../../types/publicSite'
 
 export interface PreconfiguredPageTemplate {
   slug: string
@@ -181,6 +181,18 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         secondary_text: 'Preguntas Frecuentes',
         secondary_link: '/p/faq',
         theme: 'forest',
+      },
+      {
+        type: 'cta_banner',
+        badge: '🖥️ Prueba el Sistema',
+        title: '¿Quieres ver cómo funciona un nodo por dentro?',
+        subtitle:
+          'Inicia un nodo demo y explora la plataforma completa: catálogo, calculadora, asambleas, gobernanza, tarjetas NFC y más. Sin registro, sin compromiso.',
+        button_text: 'Ir al Nodo de Prueba',
+        button_link: '/p/federacion',
+        secondary_text: 'Ver Página de Federación',
+        secondary_link: '/p/federacion',
+        theme: 'primary',
       },
     ],
   },
@@ -2929,3 +2941,397 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
     ],
   },
 ]
+
+export const FERIA_CONUQUERA_TEMPLATES_EN: PreconfiguredPageTemplate[] = [
+  {
+    slug: 'inicio',
+    title: 'Home',
+    subtitle: 'Open-Air Market and Food Sovereignty Network',
+    icon: 'home',
+    menu_order: 1,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🌱 Open-Air Market',
+        title: 'Our Community',
+        subtitle: 'Fresh harvest, healthy food and peasant knowledge for the entire community.',
+        description:
+          'We open our open-air market to the general public in local currency. A self-managed space where you buy directly from the producer without intermediaries or agrochemicals, and where network members also trade in barter and mutual credit.',
+        image_url: '/placeholder.svg',
+        primary_cta: {
+          text: 'View Products Catalog',
+          link: '/p/productos',
+        },
+        secondary_cta: {
+          text: 'Hours and Location',
+          link: '/p/contacto',
+        },
+        style: 'split',
+      },
+      {
+        type: 'event_schedule',
+        badge: '📍 Market Open to the General Public',
+        title: 'Monthly Gathering',
+        date_text: '',
+        time_text: '',
+        location_name: '',
+        address: '',
+        guidelines: [
+          'Open sale to the general public in local currency (no membership required to purchase).',
+          'No single-use plastic bags allowed: bring your backpack, cloth bag or basket.',
+          'Open barter of native and heritage seeds among farmers and neighbors.',
+          'Donate and adopt a book area for free reading exchange.',
+          'Live learning workshops (vermicomposting, bio-inputs, botanical health).',
+          'Folk music, cultural activities and games for children.',
+          'Barter and mutual credit system available for registered members.',
+        ],
+        cta_text: 'Apply for Membership as Producer or Member',
+        cta_link: '/p/unirse',
+      },
+      {
+        type: 'stats',
+        title: 'Building Popular Sovereignty',
+        subtitle: 'Real figures of an autonomous community movement.',
+        bg_theme: 'primary',
+        items: [
+          {
+            value: '+10 Years',
+            label: 'Continuous Gathering',
+            description: 'Monthly open-air market since our beginnings',
+          },
+          {
+            value: '+45 Collectives',
+            label: 'Producer Families',
+            description: 'Diverse producing communities',
+          },
+          {
+            value: '0% Agrochemicals',
+            label: '100% Clean Production',
+            description: 'Living soils, organic fertilizers and ancestral seeds',
+          },
+          {
+            value: 'Open Sales',
+            label: 'Local Currency & Barter',
+            description: 'Open to everyone with barter option for network members',
+          },
+        ],
+      },
+      {
+        type: 'carousel',
+        title: 'Living Gallery of Our Gatherings',
+        subtitle: 'Moments from our market days, workshops, culture and solidarity barter in every edition.',
+        autoplay: true,
+        items: [
+          {
+            image_url: '/placeholder.svg',
+            title: 'Fresh Vegetables and Ancestral Crops',
+            caption: 'Harvested at dawn for direct sale in local currency.',
+            tag: 'Daily Harvest',
+          },
+          {
+            image_url: '/placeholder.svg',
+            title: 'Community Apothecary and Traditional Medicine',
+            caption: 'Propolis tinctures, botanical ointments, essential oils and medicinal herbs.',
+            tag: 'Botanical Health',
+          },
+          {
+            image_url: '/placeholder.svg',
+            title: 'Artisanal and Ancestral Gastronomy',
+            caption: 'Traditional Cafunga, gluten-free flours, pure cocoa and mountain coffee.',
+            tag: 'Sovereign Flavors',
+          },
+          {
+            image_url: '/placeholder.svg',
+            title: 'Live Workshops & Seed Barter',
+            caption: 'Solidarity exchange of knowledge, native seeds and books for the whole community.',
+            tag: 'Popular Education',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Network Dynamics and Organization',
+        subtitle: 'How our community works both at the monthly market and in its internal democratic life.',
+        columns: 3,
+        items: [
+          {
+            icon: 'shopping-cart',
+            title: 'Monthly Open-Air Market',
+            description:
+              'Direct sale to the general public in local currency at every monthly meeting. No middlemen or usury.',
+            badge: 'Public Sales',
+          },
+          {
+            icon: 'scale',
+            title: 'Barter & Mutual Credit',
+            description:
+              'Network members can exchange products and labor through the zero-sum accounting system (1 TQ = 1 kWh).',
+            badge: 'For Members',
+          },
+          {
+            icon: 'users',
+            title: 'Quarterly Assemblies',
+            description:
+              'Governance meetings every 3 months where members decide on admissions, taxes, fund distribution, and policies.',
+            badge: 'Governance',
+          },
+          {
+            icon: 'leaf',
+            title: 'Workshops & Popular Education',
+            description:
+              'Open educational spaces during the fair and field visits to conucos on vermiculture, bio-inputs, and agroecology.',
+            badge: 'Education',
+          },
+          {
+            icon: 'heart',
+            title: 'Culture, Music & Community',
+            description:
+              'Musical performances, folk poetry, children activities, and community meals at each edition.',
+            badge: 'Living Culture',
+          },
+          {
+            icon: 'home',
+            title: 'Work Commissions & Field Cayapas',
+            description:
+              'Collective labor outside the park: thematic working groups, technical conuco visits, and ecovillage networking.',
+            badge: 'Community',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🤝 Join the Network',
+        title: 'Are you an agroecological producer or looking to join?',
+        subtitle:
+          'Anyone can buy at the fair. If you wish to join as a producer or take part in assemblies and barter, submit your application to the assembly.',
+        button_text: 'Complete Admission Application',
+        button_link: '/p/unirse',
+        secondary_text: 'Frequently Asked Questions',
+        secondary_link: '/p/faq',
+        theme: 'forest',
+      },
+      {
+        type: 'cta_banner',
+        badge: '🖥️ Try the System',
+        title: 'Want to see how a node works from the inside?',
+        subtitle:
+          'Start a demo node and explore the full platform: catalog, calculator, assemblies, governance, NFC cards and more. No registration, no commitment.',
+        button_text: 'Go to Demo Node',
+        button_link: '/p/federacion',
+        secondary_text: 'View Federation Page',
+        secondary_link: '/p/federacion',
+        theme: 'primary',
+      },
+    ],
+  },
+  {
+    slug: 'federacion',
+    title: 'Federation',
+    subtitle: 'Add your ecovillage to the network',
+    icon: 'globe',
+    menu_order: 95,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🌐 Open Platform for Ecovillages and Communities',
+        title: 'Federated Exchange Network',
+        subtitle:
+          'A free, configurable system that allows each ecovillage to manage its economy, governance, and exchanges, and federate with other communities in a fair trade network without inflation or intermediaries.',
+        description:
+          'Each community maintains its autonomy, rules, and governance, while trading fairly with other federated communities.',
+        image_url: '/placeholder.svg',
+        primary_cta: {
+          text: 'Learn More',
+          link: '/p/filosofia',
+        },
+        secondary_cta: {
+          text: 'Apply for Membership',
+          link: '/p/unirse',
+        },
+        style: 'split',
+        bg_gradient: true,
+      },
+      {
+        type: 'features_grid',
+        title: 'What is the Ecovillage Federation?',
+        subtitle:
+          'Imagine what Visa and Mastercard do for merchants: connecting them in a network that enables borderless exchange. Now imagine that for ecovillages, self-managed communities, and barter networks.',
+        columns: 3,
+        items: [
+          {
+            icon: 'scale',
+            title: 'Configurable Governance',
+            description:
+              'Each community defines its own rules, assemblies, quorum, member tiers, and admission processes.',
+          },
+          {
+            icon: 'leaf',
+            title: 'Sovereign Economy',
+            description:
+              'Community currency (TQ) based on real energy (kWh/Joule), not bank fiat. No inflation, no interest.',
+          },
+          {
+            icon: 'network',
+            title: 'Inter-Node Federation',
+            description:
+              'Trade with other federated ecovillages. Each node respects the internal rules of others.',
+          },
+          {
+            icon: 'users',
+            title: 'Self-Managed Community',
+            description:
+              'Organizations, working groups, assemblies, voting, member admission, and account recovery.',
+          },
+          {
+            icon: 'globe',
+            title: 'Public Website',
+            description:
+              'Each node has its own configurable website to showcase products, philosophy, and contact info.',
+          },
+          {
+            icon: 'heart',
+            title: 'Free and Open',
+            description:
+              'The platform is 100% free with onboarding included. Open to contributions and enhancements from real experience.',
+          },
+        ],
+      },
+      {
+        type: 'richtext',
+        title: 'Benefits of Federating',
+        subtitle: 'Why joining the network of federated communities is worthwhile',
+        content:
+          '<p>The more ecovillages federate, the more versatile and resilient the network becomes. Each ecovillage operates its own trading system, but can exchange with all others.</p><ul><li><strong>No inflation:</strong> Community currency TQ is backed by real energy consumption (kWh/Joule), not arbitrary issuance.</li><li><strong>Total autonomy:</strong> Each community maintains its norms, governance, and autonomy. The federation does not interfere in internal node decisions.</li><li><strong>Fair trade:</strong> Direct exchange without middlemen. Prices are calculated based on energy, not speculation.</li><li><strong>Federated identity:</strong> Each member is identified by their documents. When federating two nodes, duplicates are detected and both assemblies decide how to resolve them.</li><li><strong>Free with advisory:</strong> The platform is free and includes guidance to implement the system in your ecovillage.</li></ul>',
+      },
+      {
+        type: 'richtext',
+        title: 'Three Levels of Governance',
+        subtitle: 'The system has three levels of governance, each internally independent but subject to the higher tier',
+        content:
+          '<h3>1. Federation (Worldwide)</h3><p>Decisions affecting <strong>ALL nodes in the world</strong>. Decided by equal voting among all federated nodes: basic TQ basket, global credit limits, node expulsion, communication protocol, barter currency metric, cryptographic NFC protocol.</p><h3>2. Village / Node (Local)</h3><p>Decisions affecting <strong>the entire local community</strong>. Decided by node assembly. Each node is sovereign: working hours, product catalog, internal governance rules, member admission, schedules, fees, public website, cultural adaptations.</p><h3>3. Organizations (Within the Village)</h3><p>Decisions affecting <strong>only within the organization</strong>. Decided by the organization assembly. A node can have multiple organizations: internal rules, departments, organization assemblies, internal roles, and permissions.</p><p><strong>Federated consensus:</strong> A node proposes a change. All federated nodes review and approve or reject it. By default 100% (unanimous) consensus is required so no one imposes rules unilaterally.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Global Pool vs Bilateral Pools',
+        subtitle: 'Two ways to manage balances between federated nodes',
+        content:
+          '<h3>Global Pool (Multilateral)</h3><p>A shared balance between <strong>all federated nodes</strong>. If you trade with Node B and earn a credit, you can spend it with Node C. It is not tied to a single node. The limit depends on the node tier.</p><h3>Bilateral Pools</h3><p>Specific agreements between <strong>two nodes</strong>. The bilateral balance only applies between those two nodes and <strong>does not affect the global pool</strong>. Useful when two nodes desire a higher limit than normal for mutual commerce.</p><p><strong>How it is routed:</strong> If an active bilateral agreement exists between the two nodes, the transaction goes to the bilateral pool. If there is no bilateral agreement, it routes to the global pool. Bilateral transactions never affect the global pool and vice versa.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Federated Node Tiers',
+        subtitle: 'Federation nodes have tiers determining their permissions, limits, and rights',
+        content:
+          '<h3>Tier 1: New Node (Limit: 1,000 TQ)</h3><p>Newly joined node. Has voice but <strong>no vote</strong> in federated proposals and <strong>cannot sponsor</strong> new nodes. Must stay at least 90 days before requesting tier elevation.</p><h3>Tier 2: Accepted Node (Limit: 5,000 TQ)</h3><p>Node approved by federated assembly. <strong>Has voting rights</strong> in federated proposals and <strong>can sponsor</strong> new nodes. Must stay at least 180 days before advancing to tier 3.</p><h3>Tier 3: Full Node (Limit: 20,000 TQ)</h3><p>Full trust node. <strong>Automatic</strong> upgrade from tier 2 upon meeting: minimum 180 days in tier 2, reciprocity (both providing and receiving), and average limit higher than half the current limit.</p><p><strong>Tier elevation:</strong> Tier 1 to 2 requires federated vote. Tier 2 to 3 is automatic upon meeting reciprocity + average limit criteria.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Sponsor (Godparent) System',
+        subtitle: 'When a new node wants to enter the federation, it needs a sponsor: a tier 2+ node that endorses it',
+        content:
+          '<p>A tier 2+ node accepts sponsorship of the new node. The new node enters tier 1 with its limit (e.g., 1,000 TQ). The sponsor limit is <strong>reduced</strong> by the same amount. The sponsor is <strong>liable</strong> for the new node. If the new node defaults, the <strong>debt transfers to the sponsor</strong>. When the node reaches tier 2, the sponsor limit is <strong>released</strong>.</p><p><strong>Example:</strong> Node A (tier 2, limit 5,000 TQ) sponsors Node B (new, 1,000 TQ). Effective limit of A: 4,000 TQ. A can sponsor up to 4 nodes. If B rises to tier 2, A regains its 1,000 TQ. If B defaults, A assumes the debt of B.</p><p><strong>Why the sponsor system:</strong> It prevents any node from entering the federation without accountability. The sponsor risks its own limit and vouches for the new node.</p>',
+      },
+      {
+        type: 'richtext',
+        title: '4-Option Verification',
+        subtitle: 'To join the federation or pair a POS terminal, we use a system requiring out-of-band communication',
+        content:
+          '<p>1. The new node generates a 6-digit code.<br>2. On the sponsor screen, 4 codes appear. Only one is correct.<br>3. The new node conveys the correct code to the sponsor via phone, message, or in person.<br>4. If the sponsor chooses correctly, the node enters the federation. If incorrect, it is rejected. The code expires in 60 seconds.</p><p><strong>Why 4 options:</strong> If both sides see the same code on screen, an attacker in the middle could intercept the connection. With 4 options, the attacker must guess (25% chance). Forcing communication through an external channel prevents MITM attacks.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Distributed Integrity',
+        subtitle: 'How we guarantee that inter-node transactions are valid and fraud-proof',
+        content:
+          '<h3>Dual Signature</h3><p>Every inter-node transaction must be signed by <strong>BOTH nodes</strong> using their cryptographic keys. Node A creates and signs the transaction. Node B verifies A signature, signs as well, and returns the dual-signed transaction. A transaction without both signatures <strong>is invalid</strong>.</p><h3>Chained Hash</h3><p>Every transaction includes the cryptographic hash of the previous transaction (like a lightweight blockchain). If anyone attempts to insert, modify, or delete a transaction, the chain breaks and is immediately detected.</p><p><strong>Reconciliation upon reconnecting:</strong> When an offline node reconnects, it compares its chain hashes with the other node. If matching, they are in sync. If not, they exchange divergent transactions, verify signatures and hashes, and incorporate valid ones.</p>',
+      },
+      {
+        type: 'features_grid',
+        title: 'What does the system currently include?',
+        subtitle: 'Complete features available on the platform',
+        columns: 3,
+        items: [
+          { icon: 'check', title: 'Member Management', description: 'Tiers, document-based admission, multisig account recovery.' },
+          { icon: 'check', title: 'Assemblies & Voting', description: 'Proposals, debates, configurable quorum, transparent voting.' },
+          { icon: 'check', title: 'TQ Exchanges', description: 'Energy-based mutual credit. Zero inflation, zero interest.' },
+          { icon: 'check', title: 'Product Catalog', description: 'Objective energy pricing calculated by kWh/Joule.' },
+          { icon: 'check', title: 'Android POS App', description: 'QR + NFC checkout. Web POS for iPhone and PCs.' },
+          { icon: 'check', title: 'Inter-Node Federation', description: 'Multilateral global pool + bilateral pools.' },
+          { icon: 'check', title: 'Federated Node Tiers', description: 'New, Accepted, Full. Accountable sponsor system.' },
+          { icon: 'check', title: 'Distributed Security', description: 'Dual signatures + chained hashes. Anti-MITM 4-option verification.' },
+          { icon: 'check', title: 'Public Website', description: 'Configurable with live visual editor. Configurable per-node governance.' },
+          { icon: 'check', title: 'Foreign Trade', description: 'Conversion with 20 local fiat currencies. Configurable conversion factor.' },
+          { icon: 'check', title: 'Parallel Internet', description: 'WireGuard encryption. Local off-grid intranet with OpenWrt.' },
+          { icon: 'check', title: 'Federated Services', description: 'Matrix, Nextcloud, VoIP and more with one click.' },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Frequently Asked Questions about Federation',
+        subtitle: 'Common questions on how the network of federated communities functions',
+        items: [
+          {
+            question: 'Why federate? Is it not better for each community to run on its own?',
+            answer:
+              'Each community remains autonomous and makes its own internal decisions. But federating has strong advantages: you can trade with members of other communities, expand what you can provide and receive, and support each other. A lone community is fragile; a federated network is resilient.',
+          },
+          {
+            question: 'Do I need to contribute something to join a federated community?',
+            answer:
+              'Yes. To join you need something to contribute: goods, labor, skills, services, or knowledge. If you only wish to receive without contributing, mutual credit cannot function.',
+          },
+          {
+            question: 'Why is the ideal balance zero?',
+            answer:
+              'If your balance is zero, it means you have given to the community exactly as much as you have received. That is true equilibrium. A very negative balance means receiving a lot without contributing enough. A very positive balance means contributing without benefiting from what others offer.',
+          },
+          {
+            question: 'Can I use my TQ balance in another community in the federation?',
+            answer:
+              'Yes. If you visit another federated community, you can use your NFC card or account to exchange. The federation does not create artificial money; it expands what you can access.',
+          },
+          {
+            question: 'Does the TQ currency suffer from inflation?',
+            answer:
+              'No. TQ has zero inflation because it is not pegged to fiat currency or gold. It is pegged to energy: 1 TQ = 1 kWh. Energy does not devalue. An hour of labor today holds the same objective energy value 10 years from now.',
+          },
+          {
+            question: 'Does my community need to pay to use the software?',
+            answer:
+              'No. The software is 100% free and open-source. Any community can install, run, and customize it without paying license fees.',
+          },
+          {
+            question: 'Does the federation work without internet?',
+            answer:
+              'Yes. The federation operates over the public Internet or via community intranets using WireGuard tunnels. Communities without Internet access can federate using OpenWrt routers.',
+          },
+          {
+            question: 'Who governs the federation?',
+            answer:
+              'The federation is governed through votes by all federated nodes. Each community (node) has one vote. Decisions affecting the whole federation are made collectively. No node can impose rules on others.',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🌾 Join the Network',
+        title: 'Have an ecovillage or looking to found one?',
+        subtitle:
+          'The platform is under active development and we want it to adapt to each community needs. Reach out to share your experience and explore federation.',
+        button_text: 'Apply for Membership',
+        button_link: '/p/unirse',
+        secondary_text: 'View Philosophy',
+        secondary_link: '/p/filosofia',
+        theme: 'forest',
+      },
+    ],
+  },
+]
+
+export function getPreconfiguredTemplate(slug: string, lang = 'es'): PreconfiguredPageTemplate | undefined {
+  if (lang && lang.toLowerCase().startsWith('en')) {
+    const enTmpl = FERIA_CONUQUERA_TEMPLATES_EN.find((t) => t.slug === slug)
+    if (enTmpl) return enTmpl
+  }
+  return FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === slug)
+}

@@ -607,6 +607,18 @@ func serveFrontendFile(w http.ResponseWriter, r *http.Request, frontendDir strin
 		return
 	}
 
+	// Si es un asset (JS/CSS con hash) que ya no existe tras una actualizacion,
+	// devolver 404 en lugar de index.html. El navegador interpretara que el
+	// archivo ya no es valido y recargara la pagina para obtener el index.html
+	// actualizado con los hashes correctos. Si devolvemos index.html (HTML)
+	// cuando el navegador espera JavaScript, se produce un error MIME y la
+	// pagina queda en blanco.
+	if strings.HasPrefix(urlPath, "/assets/") {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		http.NotFound(w, r)
+		return
+	}
+
 	// No es archivo: servir index.html (SPA routing)
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
@@ -782,54 +794,88 @@ func GenerateStaticHTMLFiles(pool *pgxpool.Pool) {
 	}
 	os.MkdirAll(htmlDir, 0755)
 
-	// Obtener todas las paginas publicas
-	rows, err := pool.Query(context.Background(), `
-		SELECT slug, title, subtitle, content, icon, menu_order
-		FROM public_pages
-		WHERE is_published = true
-		ORDER BY menu_order`)
+	ctx := context.Background()
+	rows, err := pool.Query(ctx, `SELECT code FROM languages WHERE enabled = true ORDER BY is_default DESC, code`)
 	if err != nil {
-		log.Printf("GenerateStaticHTMLFiles: error querying pages: %v", err)
+		log.Printf("GenerateStaticHTMLFiles: error querying languages: %v", err)
 		return
 	}
 	defer rows.Close()
-
-	var pages []pageInfo
+	languages := []string{}
 	for rows.Next() {
-		var p pageInfo
-		_ = rows.Scan(&p.slug, &p.title, &p.subtitle, &p.content, &p.icon, new(int))
-		pages = append(pages, p)
-	}
-
-	// 1. Generar index.html (indice de todas las paginas)
-	indexHTML := generateHTMLIndex(pages)
-	indexPath := filepath.Join(htmlDir, "index.html")
-	if err := os.WriteFile(indexPath, []byte(indexHTML), 0644); err != nil {
-		log.Printf("GenerateStaticHTMLFiles: error writing index: %v", err)
-	} else {
-		log.Printf("GenerateStaticHTMLFiles: index.html generado (%d paginas)", len(pages))
-	}
-
-	// 2. Generar cada pagina individual como {slug}.html
-	for _, p := range pages {
-		pageHTML := generateHTMLPage(pool, p.slug, p.title, p.subtitle, p.content, pages)
-		pagePath := filepath.Join(htmlDir, p.slug+".html")
-		if err := os.WriteFile(pagePath, []byte(pageHTML), 0644); err != nil {
-			log.Printf("GenerateStaticHTMLFiles: error writing %s: %v", p.slug, err)
+		var lang string
+		if rows.Scan(&lang) == nil && lang != "" {
+			languages = append(languages, lang)
 		}
 	}
+	if len(languages) == 0 {
+		languages = []string{"es"}
+	}
 
-	// 3. Generar sitemap.html (mapa del sitio completo)
-	sitemapHTML := generateSitemapHTML(pages)
-	sitemapPath := filepath.Join(htmlDir, "sitemap.html")
-	os.WriteFile(sitemapPath, []byte(sitemapHTML), 0644)
+	for index, lang := range languages {
+		pages, err := staticPagesForLanguage(ctx, pool, lang)
+		if err != nil {
+			log.Printf("GenerateStaticHTMLFiles: error querying pages for %s: %v", lang, err)
+			continue
+		}
+		langDir := filepath.Join(htmlDir, lang)
+		if err := os.MkdirAll(langDir, 0755); err != nil {
+			continue
+		}
+		if err := os.WriteFile(filepath.Join(langDir, "index.html"), []byte(generateHTMLIndex(pages, lang)), 0644); err != nil {
+			log.Printf("GenerateStaticHTMLFiles: error writing %s index: %v", lang, err)
+		}
+		for _, p := range pages {
+			pageHTML := generateHTMLPage(pool, p.slug, p.title, p.subtitle, p.content, pages, lang, languages)
+			if err := os.WriteFile(filepath.Join(langDir, p.slug+".html"), []byte(pageHTML), 0644); err != nil {
+				log.Printf("GenerateStaticHTMLFiles: error writing %s/%s: %v", lang, p.slug, err)
+			}
+		}
+		if index == 0 {
+			// Conserva las rutas antiguas para instalaciones y enlaces existentes.
+			_ = os.WriteFile(filepath.Join(htmlDir, "index.html"), []byte(generateHTMLIndex(pages, lang)), 0644)
+			for _, p := range pages {
+				_ = os.WriteFile(filepath.Join(htmlDir, p.slug+".html"), []byte(generateHTMLPage(pool, p.slug, p.title, p.subtitle, p.content, pages, lang, languages)), 0644)
+			}
+			_ = os.WriteFile(filepath.Join(htmlDir, "sitemap.html"), []byte(generateSitemapHTML(pages, lang)), 0644)
+		}
+	}
+}
+
+func staticPagesForLanguage(ctx context.Context, pool *pgxpool.Pool, lang string) ([]pageInfo, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT p.slug,
+		       COALESCE(NULLIF(tt.value, ''), p.title),
+		       COALESCE(NULLIF(st.value, ''), p.subtitle),
+		       COALESCE(NULLIF(ct.value, ''), p.content), p.icon, p.menu_order
+		FROM public_pages p
+		LEFT JOIN content_translation_sources ts ON ts.translation_key = 'public_page:' || p.id::text || ':title'
+		LEFT JOIN content_translations tt ON tt.translation_key = ts.translation_key AND LOWER(tt.language) = LOWER($1) AND tt.source_hash = ts.source_hash
+		LEFT JOIN content_translation_sources ss ON ss.translation_key = 'public_page:' || p.id::text || ':subtitle'
+		LEFT JOIN content_translations st ON st.translation_key = ss.translation_key AND LOWER(st.language) = LOWER($1) AND st.source_hash = ss.source_hash
+		LEFT JOIN content_translation_sources cs ON cs.translation_key = 'public_page:' || p.id::text || ':content'
+		LEFT JOIN content_translations ct ON ct.translation_key = cs.translation_key AND LOWER(ct.language) = LOWER($1) AND ct.source_hash = cs.source_hash
+		WHERE p.is_published = true ORDER BY p.menu_order`, lang)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	pages := []pageInfo{}
+	for rows.Next() {
+		var p pageInfo
+		if err := rows.Scan(&p.slug, &p.title, &p.subtitle, &p.content, &p.icon, new(int)); err != nil {
+			return nil, err
+		}
+		pages = append(pages, p)
+	}
+	return pages, rows.Err()
 }
 
 // generateHTMLIndex genera el HTML del indice de paginas
-func generateHTMLIndex(pages []pageInfo) string {
+func generateHTMLIndex(pages []pageInfo, lang string) string {
 	var sb strings.Builder
 	sb.WriteString(`<!DOCTYPE html>
-<html lang="es">
+<html lang="` + htmlEscape(lang) + `">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -865,7 +911,7 @@ li a:hover { text-decoration: underline; }
 }
 
 // generateHTMLPage genera el HTML completo de una pagina individual
-func generateHTMLPage(pool *pgxpool.Pool, slug, title string, subtitle *string, content string, allPages []pageInfo) string {
+func generateHTMLPage(pool *pgxpool.Pool, slug, title string, subtitle *string, content string, allPages []pageInfo, lang string, languages []string) string {
 	_ = pool // pool se usa en otras funciones del mismo archivo
 	subtitleStr := ""
 	if subtitle != nil {
@@ -883,13 +929,18 @@ func generateHTMLPage(pool *pgxpool.Pool, slug, title string, subtitle *string, 
 		navSB.WriteString(fmt.Sprintf("  <li><a href=\"%s.html\">%s</a></li>\n", p.slug, htmlEscape(p.title)))
 	}
 
+	hreflang := ""
+	for _, alternate := range languages {
+		hreflang += fmt.Sprintf("<link rel=\"alternate\" hreflang=\"%s\" href=\"../%s/%s.html\">\n", htmlEscape(alternate), htmlEscape(alternate), htmlEscape(slug))
+	}
 	return fmt.Sprintf(`<!DOCTYPE html>
-<html lang="es">
+<html lang="%s">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>%s - %s</title>
 <meta name="description" content="%s">
+%s
 <meta name="robots" content="index, follow">
 <style>
 body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
@@ -921,16 +972,15 @@ nav a:hover { text-decoration: underline; }
 </nav>
 </body>
 </html>
-`, htmlEscape(title), htmlEscape(subtitleStr), htmlEscape(subtitleStr),
-		htmlEscape(title), htmlEscape(subtitleStr),
-		htmlContent, navSB.String())
+	`, htmlEscape(lang), htmlEscape(title), htmlEscape(subtitleStr), htmlEscape(subtitleStr), hreflang,
+		htmlEscape(title), htmlEscape(subtitleStr), htmlContent, navSB.String())
 }
 
 // generateSitemapHTML genera un mapa del sitio en HTML
-func generateSitemapHTML(pages []pageInfo) string {
+func generateSitemapHTML(pages []pageInfo, lang string) string {
 	var sb strings.Builder
 	sb.WriteString(`<!DOCTYPE html>
-<html lang="es">
+<html lang="` + htmlEscape(lang) + `">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

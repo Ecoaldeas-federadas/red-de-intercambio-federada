@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Globe, Plus, Check, X, RefreshCw, Users, Vote, Lock, Info, Ban, Network, AlertTriangle } from 'lucide-react'
+import { Globe, Plus, Check, X, RefreshCw, Users, Vote, Lock, Info, Ban, Network, AlertTriangle, HelpCircle } from 'lucide-react'
 import { fmtDate } from '../lib/format'
 
 interface FederationProposal {
@@ -36,6 +36,7 @@ export default function FederationGov() {
   const { t } = useTranslation(['federation', 'common'])
   const { currency } = useConfig()
   const [constants, setConstants] = useState<FederationConstant[]>([])
+  const [showHelp, setShowHelp] = useState(false)
   const [proposals, setProposals] = useState<FederationProposal[]>([])
   const [selectedProposal, setSelectedProposal] = useState<FederationProposal | null>(null)
   const [knownNodes, setKnownNodes] = useState<any[]>([])
@@ -193,8 +194,22 @@ export default function FederationGov() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} /> {t('gov_title', 'Federacion')}</h1>
-        <button onClick={loadAll} className="text-gray-500 hover:text-gray-700"><RefreshCw size={18} /></button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700"><HelpCircle size={20} /></button>
+          <button onClick={loadAll} className="text-gray-500 hover:text-gray-700"><RefreshCw size={18} /></button>
+        </div>
       </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+          <p><strong>{t('gov_help_title')}</strong></p>
+          <p><strong>{t('gov_help_what_label')}</strong> {t('gov_help_what')}</p>
+          <p><strong>{t('gov_help_proposals_label')}</strong> {t('gov_help_proposals')}</p>
+          <p><strong>{t('gov_help_constants_label')}</strong> {t('gov_help_constants')}</p>
+          <p><strong>{t('gov_help_expel_label')}</strong> {t('gov_help_expel')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', { ns: 'common' })}</button>
+        </div>
+      )}
 
       <div className="card bg-blue-50 p-3 text-sm text-blue-700 flex items-start gap-2">
         <Info size={16} className="flex-shrink-0 mt-0.5" />

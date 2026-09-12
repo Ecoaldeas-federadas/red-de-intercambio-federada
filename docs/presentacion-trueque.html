@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cómo funciona el Trueque Federado - Presentación Interactiva</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#020617;--bg2:#0f172a;--bg3:#1e293b;--bg4:#334155;
+  --border:#1e293b;--border2:#334155;
+  --txt:#f1f5f9;--txt2:#cbd5e1;--txt3:#94a3b8;--txt4:#64748b;
+  --emerald:#10b981;--emerald-l:#34d399;--emerald-d:#059669;
+  --teal:#14b8a6;--teal-l:#2dd4bf;
+  --cyan:#06b6d4;--cyan-l:#22d3ee;
+  --blue:#3b82f6;--blue-l:#60a5fa;--blue-d:#2563eb;
+  --amber:#f59e0b;--amber-l:#fbbf24;--amber-d:#d97706;
+  --rose:#f43f5e;--rose-l:#fb7185;
+  --glow:0 0 20px rgba(16,185,129,.3);
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);overflow:hidden;height:100vh;width:100vw}
+
+/* SCENE */
+#scene{width:100vw;height:100vh;position:relative;display:flex;flex-direction:column;
+  background:radial-gradient(ellipse at 30% 20%,#0f2027 0%,#020617 50%,#000 100%);
+  transition:opacity .4s ease;min-height:0}
+#scene.hidden{opacity:0;pointer-events:none;position:absolute}
+.scene-header{display:flex;align-items:center;justify-content:space-between;padding:6px 20px;flex-shrink:0;
+  background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border2);z-index:10}
+.scene-header .logo{display:flex;align-items:center;gap:10px}
+.scene-header .badge{width:30px;height:30px;border-radius:10px;
+  background:linear-gradient(135deg,var(--emerald),var(--teal));display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:13px;color:#fff;box-shadow:var(--glow)}
+.scene-header h1{font-size:12px;font-weight:700;color:var(--emerald-l);letter-spacing:-.02em}
+.scene-header p{font-size:9px;color:var(--txt4)}
+.scene-header .hint{font-size:10px;color:var(--txt3);background:var(--bg3);padding:5px 12px;border-radius:16px;border:1px solid var(--border2)}
+.scene-body{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0;overflow:hidden}
+.scene-body svg{width:100%;height:100%;max-width:100%;max-height:100%}
+
+.hotspot{cursor:pointer;transition:all .25s}
+.hotspot:hover{filter:brightness(1.2) drop-shadow(0 0 12px rgba(52,211,153,.6))}
+.hot-label{font-size:9px;fill:#64748b;text-anchor:middle;pointer-events:none;opacity:0;transition:opacity .25s}
+.hotspot:hover .hot-label{opacity:1;fill:#34d399}
+
+/* DETAIL */
+#detail{width:100vw;height:100vh;position:fixed;top:0;left:0;display:none;flex-direction:column;z-index:100;
+  background:radial-gradient(ellipse at 50% 0%,#0f2027 0%,#020617 60%,#000 100%)}
+#detail.active{display:flex;animation:dFade .4s ease}
+@keyframes dFade{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.d-header{display:flex;align-items:center;justify-content:space-between;padding:6px 20px;flex-shrink:0;
+  background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border2)}
+.d-header .back-btn{padding:5px 14px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--bg3);color:var(--txt2);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s}
+.d-header .back-btn:hover{background:var(--emerald-d);border-color:var(--emerald);color:#fff}
+.d-header h2{font-size:14px;font-weight:700;color:var(--txt)}
+.d-header .num{font-size:11px;color:var(--txt4);background:var(--bg3);padding:4px 12px;border-radius:16px;border:1px solid var(--border2)}
+.d-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;align-items:center;min-height:0}
+.d-body::-webkit-scrollbar{width:6px}
+.d-body::-webkit-scrollbar-track{background:var(--bg2)}
+.d-body::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+.d-card{background:rgba(15,23,42,.6);border:1px solid var(--border2);border-radius:20px;
+  padding:24px;max-width:860px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,.4);backdrop-filter:blur(8px)}
+.d-card svg{width:100%;height:auto;border-radius:12px}
+.d-card .txt{text-align:center;margin-top:16px}
+.d-card .txt h3{font-size:20px;font-weight:800;color:var(--txt);margin-bottom:8px;letter-spacing:-.02em}
+.d-card .txt p{font-size:14px;line-height:1.7;color:var(--txt2);margin-bottom:8px}
+.d-card .txt .key{font-size:15px;font-weight:700;color:var(--emerald-l);
+  background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);
+  padding:10px 20px;border-radius:12px;margin:12px 0}
+.d-card .badge{display:inline-block;padding:6px 16px;border-radius:20px;
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
+.badge-emerald{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:var(--emerald-l)}
+.badge-teal{background:rgba(20,184,166,.1);border:1px solid rgba(20,184,166,.2);color:var(--teal-l)}
+.badge-cyan{background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);color:var(--cyan-l)}
+.badge-amber{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);color:var(--amber-l)}
+.badge-blue{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:var(--blue-l)}
+.badge-rose{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.2);color:var(--rose-l)}
+.d-nav{display:flex;align-items:center;justify-content:space-between;padding:6px 20px;flex-shrink:0;
+  background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-top:1px solid var(--border2)}
+.d-nav button{padding:6px 16px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--bg3);color:var(--txt2);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s}
+.d-nav button:hover{background:var(--emerald-d);border-color:var(--emerald);color:#fff;box-shadow:var(--glow)}
+.d-nav .dots{display:flex;gap:6px}
+.d-nav .dot{width:8px;height:8px;border-radius:50%;background:var(--bg4);transition:all .3s}
+.d-nav .dot.visited{background:var(--emerald)}
+.d-nav .dot.current{background:var(--emerald-l);transform:scale(1.4);box-shadow:var(--glow)}
+
+/* ANIMATIONS */
+@keyframes flowR{0%{opacity:0;transform:translateX(-15px)}50%{opacity:1}100%{opacity:0;transform:translateX(15px)}}
+@keyframes flowL{0%{opacity:0;transform:translateX(15px)}50%{opacity:1}100%{opacity:0;transform:translateX(-15px)}}
+@keyframes flowD{0%{opacity:0;transform:translateY(-15px)}50%{opacity:1}100%{opacity:0;transform:translateY(15px)}}
+@keyframes flowU{0%{opacity:0;transform:translateY(15px)}50%{opacity:1}100%{opacity:0;transform:translateY(-15px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes draw{from{stroke-dashoffset:400}to{stroke-dashoffset:0}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+.a-flow{animation:flowR 1.5s ease-in-out infinite}
+.a-flow-r{animation:flowL 1.5s ease-in-out infinite}
+.a-flow-d{animation:flowD 1.5s ease-in-out infinite}
+.a-flow-u{animation:flowU 1.5s ease-in-out infinite}
+.a-pulse{animation:pulse 1.5s ease-in-out infinite}
+.a-draw{stroke-dasharray:400;animation:draw 1.5s ease-out forwards}
+.a-fade{animation:fadeUp .6s ease-out forwards}
+
+@media(max-width:768px){.d-body{padding:12px}.d-card{padding:16px;border-radius:14px}.d-card .txt h3{font-size:16px}.d-card .txt p{font-size:12px}.d-card .txt .key{font-size:13px;padding:8px 14px}.d-header{padding:5px 12px}.d-header h2{font-size:12px}.d-header .back-btn{padding:4px 10px;font-size:11px}.d-header .num{font-size:10px;padding:3px 8px}.d-nav{padding:5px 12px}.d-nav button{padding:5px 12px;font-size:11px}.scene-header{padding:4px 12px}.scene-header .badge{width:26px;height:26px;font-size:11px;border-radius:8px}.scene-header h1{font-size:10px}.scene-header p{font-size:8px}.scene-header .hint{font-size:9px;padding:4px 8px}.d-card .badge{font-size:9px;padding:4px 10px}}
+</style>
+</head>
+<body>
+
+<!-- ESCENA COMPLETA -->
+<div id="scene">
+<div class="scene-header">
+  <div class="logo">
+    <div class="badge">TQ</div>
+    <div><h1>Federación de Ecoaldeas</h1><p>Presentación Visual Interactiva</p></div>
+  </div>
+  <div class="hint">Haz clic en cualquier parte del diagrama para explorar</div>
+</div>
+<div class="scene-body">
+<svg viewBox="0 0 1400 850" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="ecoG" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#064e3b" stop-opacity=".4"/><stop offset="60%" stop-color="#065f46" stop-opacity=".15"/><stop offset="100%" stop-color="#020617" stop-opacity="0"/></radialGradient>
+  <radialGradient id="ecoFill" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#10b981" stop-opacity=".08"/><stop offset="100%" stop-color="#10b981" stop-opacity=".02"/></radialGradient>
+  <radialGradient id="poolG" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#34d399" stop-opacity=".3"/><stop offset="70%" stop-color="#10b981" stop-opacity=".15"/><stop offset="100%" stop-color="#059669" stop-opacity=".05"/></radialGradient>
+  <radialGradient id="fedG" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#3b82f6" stop-opacity=".25"/><stop offset="60%" stop-color="#2563eb" stop-opacity=".1"/><stop offset="100%" stop-color="#1e293b" stop-opacity="0"/></radialGradient>
+  <radialGradient id="poolFedG" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#60a5fa" stop-opacity=".3"/><stop offset="70%" stop-color="#3b82f6" stop-opacity=".15"/><stop offset="100%" stop-color="#2563eb" stop-opacity=".05"/></radialGradient>
+  <linearGradient id="connG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <marker id="aG" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker>
+  <marker id="aB" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker>
+</defs>
+
+<!-- ZONA 2: El problema -->
+<g class="hotspot" data-s="2">
+  <rect x="30" y="60" width="200" height="130" rx="16" fill="rgba(244,63,94,.05)" stroke="rgba(244,63,94,.15)" stroke-width="1"/>
+  <circle cx="90" cy="110" r="18" fill="#f43f5e" opacity=".8" filter="url(#glow)"/>
+  <text x="90" y="114" font-size="9" fill="#fff" text-anchor="middle" font-weight="600">Ana</text>
+  <text x="90" y="140" font-size="8" fill="#94a3b8" text-anchor="middle">🍊 Naranjas</text>
+  <circle cx="190" cy="110" r="18" fill="#f43f5e" opacity=".8" filter="url(#glow)"/>
+  <text x="190" y="114" font-size="9" fill="#fff" text-anchor="middle" font-weight="600">Bob</text>
+  <text x="190" y="140" font-size="8" fill="#94a3b8" text-anchor="middle">🧵 Tela</text>
+  <line x1="108" y1="110" x2="172" y2="110" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="4,3" opacity=".5"/>
+  <text x="140" y="102" font-size="14" fill="#f43f5e" text-anchor="middle">✗</text>
+  <text x="140" y="165" font-size="9" fill="#64748b" text-anchor="middle" font-weight="500">Trueque directo</text>
+  <text class="hot-label" x="140" y="180">El problema del trueque directo</text>
+</g>
+
+<!-- ECOALDEA LOCAL -->
+<circle cx="380" cy="400" r="160" fill="url(#ecoG)"/>
+<circle cx="380" cy="400" r="130" fill="url(#ecoFill)" stroke="#10b981" stroke-width="1.5" opacity=".3"/>
+<text x="380" y="260" font-size="13" fill="#34d399" text-anchor="middle" font-weight="700" letter-spacing="2">ECOALDEA LOCAL</text>
+
+<!-- Piscina local - ZONA 4 -->
+<g class="hotspot" data-s="4">
+  <circle cx="380" cy="400" r="60" fill="url(#poolG)" stroke="#10b981" stroke-width="2" filter="url(#glow)"/>
+  <text x="380" y="395" font-size="10" fill="#34d399" text-anchor="middle" font-weight="700" letter-spacing="1">PISCINA</text>
+  <text x="380" y="415" font-size="18" fill="#34d399" text-anchor="middle" font-weight="800" class="a-pulse">Σ = 0</text>
+  <text class="hot-label" x="380" y="480">Piscina de la ecoaldea</text>
+</g>
+
+<!-- Miembros -->
+<g class="hotspot" data-s="3">
+  <circle cx="290" cy="320" r="18" fill="#f59e0b" opacity=".85" filter="url(#glow)"/>
+  <text x="290" y="324" font-size="8" fill="#fff" text-anchor="middle" font-weight="600">Ana</text>
+  <text x="290" y="350" font-size="9" fill="#fb7185" text-anchor="middle" font-weight="700">-5</text>
+  <text class="hot-label" x="290" y="365">Ecoaldea intermediaria</text>
+</g>
+<g class="hotspot" data-s="5">
+  <circle cx="470" cy="320" r="18" fill="#f59e0b" opacity=".85" filter="url(#glow)"/>
+  <text x="470" y="324" font-size="8" fill="#fff" text-anchor="middle" font-weight="600">Bob</text>
+  <text x="470" y="350" font-size="9" fill="#34d399" text-anchor="middle" font-weight="700">+5</text>
+  <text class="hot-label" x="470" y="365">¿Le debes a Bob?</text>
+</g>
+<g class="hotspot" data-s="6">
+  <circle cx="290" cy="480" r="18" fill="#f59e0b" opacity=".85" filter="url(#glow)"/>
+  <text x="290" y="484" font-size="8" fill="#fff" text-anchor="middle" font-weight="600">Cala</text>
+  <text x="290" y="510" font-size="9" fill="#34d399" text-anchor="middle" font-weight="700">+3</text>
+  <text class="hot-label" x="290" y="525">Pagar a quien quieras</text>
+</g>
+<circle cx="470" cy="480" r="18" fill="#f59e0b" opacity=".85" filter="url(#glow)"/>
+<text x="470" y="484" font-size="8" fill="#fff" text-anchor="middle" font-weight="600">Dan</text>
+<text x="470" y="510" font-size="9" fill="#fb7185" text-anchor="middle" font-weight="700">-3</text>
+
+<line x1="308" y1="330" x2="330" y2="370" stroke="#10b981" stroke-width="1.5" opacity=".25" marker-end="url(#aG)"/>
+<line x1="430" y1="370" x2="452" y2="330" stroke="#10b981" stroke-width="1.5" opacity=".25" marker-end="url(#aG)"/>
+<line x1="330" y1="430" x2="308" y2="470" stroke="#10b981" stroke-width="1.5" opacity=".25" marker-end="url(#aG)"/>
+<line x1="430" y1="430" x2="452" y2="470" stroke="#10b981" stroke-width="1.5" opacity=".25" marker-end="url(#aG)"/>
+
+<!-- Insignia límites - ZONA 8 -->
+<g class="hotspot" data-s="8">
+  <rect x="335" y="580" width="90" height="24" rx="8" fill="rgba(245,158,11,.1)" stroke="#f59e0b" stroke-width="1"/>
+  <text x="380" y="596" font-size="9" fill="#fbbf24" text-anchor="middle" font-weight="600">Límites ±500</text>
+  <text class="hot-label" x="380" y="620">Límites simétricos</text>
+</g>
+
+<!-- 4 PASOS - ZONA 7 -->
+<g class="hotspot" data-s="7">
+  <circle cx="280" cy="660" r="15" fill="rgba(59,130,246,.15)" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="280" y="664" font-size="10" fill="#60a5fa" text-anchor="middle" font-weight="700">1</text>
+  <circle cx="330" cy="660" r="15" fill="rgba(245,158,11,.15)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="330" y="664" font-size="10" fill="#fbbf24" text-anchor="middle" font-weight="700">2</text>
+  <circle cx="380" cy="660" r="15" fill="rgba(16,185,129,.15)" stroke="#10b981" stroke-width="1.5"/>
+  <text x="380" y="664" font-size="10" fill="#34d399" text-anchor="middle" font-weight="700">3</text>
+  <circle cx="430" cy="660" r="15" fill="rgba(59,130,246,.15)" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="430" y="664" font-size="10" fill="#60a5fa" text-anchor="middle" font-weight="700">4</text>
+  <line x1="295" y1="660" x2="315" y2="660" stroke="#334155" stroke-width="1" marker-end="url(#aG)"/>
+  <line x1="345" y1="660" x2="365" y2="660" stroke="#334155" stroke-width="1" marker-end="url(#aG)"/>
+  <line x1="395" y1="660" x2="415" y2="660" stroke="#334155" stroke-width="1" marker-end="url(#aG)"/>
+  <text class="hot-label" x="355" y="690">Los 4 pasos del crédito mutuo</text>
+</g>
+
+<!-- CONEXIÓN Local → Federación - ZONA 9 -->
+<g class="hotspot" data-s="9">
+  <line x1="510" y1="400" x2="660" y2="400" stroke="url(#connG)" stroke-width="3" opacity=".3"/>
+  <circle cx="540" cy="400" r="5" fill="#10b981" class="a-flow" filter="url(#glow)"/>
+  <circle cx="585" cy="400" r="5" fill="#3b82f6" class="a-flow" style="animation-delay:.4s" filter="url(#glow)"/>
+  <circle cx="630" cy="400" r="5" fill="#10b981" class="a-flow" style="animation-delay:.8s" filter="url(#glow)"/>
+  <rect x="530" y="355" width="110" height="22" rx="8" fill="rgba(15,23,42,.9)" stroke="#10b981" stroke-width="1"/>
+  <text x="585" y="370" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Cuatro brincos →</text>
+  <text class="hot-label" x="585" y="430">Transacción entre ecoaldeas</text>
+</g>
+
+<!-- FEDERACIÓN - ZONA 10 -->
+<g class="hotspot" data-s="10">
+  <circle cx="740" cy="400" r="90" fill="url(#fedG)"/>
+  <circle cx="740" cy="400" r="70" fill="rgba(59,130,246,.05)" stroke="#3b82f6" stroke-width="1.5" opacity=".3"/>
+  <circle cx="740" cy="400" r="55" fill="url(#poolFedG)" stroke="#3b82f6" stroke-width="2" filter="url(#glow)"/>
+  <text x="740" y="392" font-size="11" fill="#60a5fa" text-anchor="middle" font-weight="700" letter-spacing="1">FEDERACIÓN</text>
+  <text x="740" y="408" font-size="8" fill="#60a5fa" text-anchor="middle">Piscina Global</text>
+  <text x="740" y="422" font-size="7" fill="#93c5fd" text-anchor="middle">Multilateral</text>
+  <text class="hot-label" x="740" y="500">Piscina de la federación</text>
+</g>
+
+<!-- Candado - ZONA 13 -->
+<g class="hotspot" data-s="13">
+  <rect x="715" y="285" width="50" height="38" rx="10" fill="rgba(59,130,246,.1)" stroke="#3b82f6" stroke-width="1.5" filter="url(#glow)"/>
+  <text x="740" y="305" font-size="16" text-anchor="middle">🔒</text>
+  <text x="740" y="316" font-size="6" fill="#60a5fa" text-anchor="middle">Firma dual</text>
+  <text class="hot-label" x="740" y="340">Seguridad distribuida</text>
+</g>
+
+<!-- ECOALDEA REMOTA -->
+<circle cx="1100" cy="400" r="140" fill="url(#ecoG)"/>
+<circle cx="1100" cy="400" r="110" fill="url(#ecoFill)" stroke="#10b981" stroke-width="1.5" opacity=".3"/>
+<text x="1100" y="290" font-size="12" fill="#34d399" text-anchor="middle" font-weight="700" letter-spacing="2">ECOALDEA REMOTA</text>
+<circle cx="1100" cy="400" r="45" fill="url(#poolG)" stroke="#10b981" stroke-width="1.5" opacity=".5" filter="url(#glow)"/>
+<text x="1100" y="397" font-size="8" fill="#34d399" text-anchor="middle" font-weight="600">Piscina</text>
+<text x="1100" y="410" font-size="12" fill="#34d399" text-anchor="middle" font-weight="700" class="a-pulse">Σ=0</text>
+<circle cx="1040" cy="340" r="15" fill="#f59e0b" opacity=".8" filter="url(#glow)"/>
+<text x="1040" y="344" font-size="7" fill="#fff" text-anchor="middle">Eva</text>
+<text x="1040" y="365" font-size="7" fill="#fb7185" text-anchor="middle" font-weight="700">-3</text>
+<circle cx="1160" cy="340" r="15" fill="#f59e0b" opacity=".8" filter="url(#glow)"/>
+<text x="1160" y="344" font-size="7" fill="#fff" text-anchor="middle">Fox</text>
+<text x="1160" y="365" font-size="7" fill="#34d399" text-anchor="middle" font-weight="700">+3</text>
+<circle cx="1040" cy="460" r="15" fill="#f59e0b" opacity=".8" filter="url(#glow)"/>
+<text x="1040" y="464" font-size="7" fill="#fff" text-anchor="middle">Gus</text>
+<circle cx="1160" cy="460" r="15" fill="#f59e0b" opacity=".8" filter="url(#glow)"/>
+<text x="1160" y="464" font-size="7" fill="#fff" text-anchor="middle">Hil</text>
+<line x1="1055" y1="350" x2="1075" y2="380" stroke="#10b981" stroke-width="1" opacity=".25" marker-end="url(#aG)"/>
+<line x1="1125" y1="380" x2="1145" y2="350" stroke="#10b981" stroke-width="1" opacity=".25" marker-end="url(#aG)"/>
+
+<!-- Insignia nivel remoto - ZONA 12 -->
+<g class="hotspot" data-s="12">
+  <rect x="1060" y="540" width="80" height="24" rx="8" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="1"/>
+  <text x="1100" y="556" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Nivel 2 ✓</text>
+  <text class="hot-label" x="1100" y="580">Niveles + padrino</text>
+</g>
+
+<!-- CONEXIÓN Federación → Remota -->
+<line x1="830" y1="400" x2="960" y2="400" stroke="url(#connG)" stroke-width="3" opacity=".3"/>
+<circle cx="860" cy="400" r="5" fill="#3b82f6" class="a-flow" style="animation-delay:.2s" filter="url(#glow)"/>
+<circle cx="900" cy="400" r="5" fill="#10b981" class="a-flow" style="animation-delay:.6s" filter="url(#glow)"/>
+<circle cx="940" cy="400" r="5" fill="#3b82f6" class="a-flow" style="animation-delay:1s" filter="url(#glow)"/>
+
+<!-- OTRAS ECOALDEAS -->
+<circle cx="740" cy="150" r="55" fill="url(#ecoG)"/>
+<circle cx="740" cy="150" r="40" fill="url(#ecoFill)" stroke="#10b981" stroke-width="1" opacity=".2"/>
+<text x="740" y="145" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea C</text>
+<text x="740" y="160" font-size="7" fill="#64748b" text-anchor="middle">Nivel 1</text>
+<line x1="740" y1="205" x2="740" y2="310" stroke="#3b82f6" stroke-width="1.5" opacity=".2" stroke-dasharray="4,3"/>
+<circle cx="740" cy="240" r="4" fill="#3b82f6" class="a-flow-d" style="animation-delay:.3s" filter="url(#glow)"/>
+
+<circle cx="740" cy="640" r="55" fill="url(#ecoG)"/>
+<circle cx="740" cy="640" r="40" fill="url(#ecoFill)" stroke="#10b981" stroke-width="1" opacity=".2"/>
+<text x="740" y="635" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea D</text>
+<text x="740" y="650" font-size="7" fill="#64748b" text-anchor="middle">Nivel 3</text>
+<line x1="740" y1="490" x2="740" y2="585" stroke="#3b82f6" stroke-width="1.5" opacity=".2" stroke-dasharray="4,3"/>
+<circle cx="740" cy="530" r="4" fill="#3b82f6" class="a-flow-u" style="animation-delay:.5s" filter="url(#glow)"/>
+
+<circle cx="1330" cy="400" r="45" fill="url(#ecoG)"/>
+<circle cx="1330" cy="400" r="32" fill="url(#ecoFill)" stroke="#10b981" stroke-width="1" opacity=".15"/>
+<text x="1330" y="397" font-size="8" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea E</text>
+<text x="1330" y="410" font-size="6" fill="#64748b" text-anchor="middle">Nivel 1</text>
+<line x1="1240" y1="400" x2="1285" y2="400" stroke="#3b82f6" stroke-width="1.5" opacity=".15" stroke-dasharray="4,3"/>
+
+<!-- ACUERDO BILATERAL - ZONA 11 (directo entre C y D, sin Federación, lado derecho) -->
+<g class="hotspot" data-s="11">
+  <path d="M 740,150 Q 870,400 740,640" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="6,4" opacity=".4"/>
+  <circle cx="870" cy="480" r="28" fill="rgba(245,158,11,.08)" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" opacity=".5" filter="url(#glow)"/>
+  <text x="870" y="477" font-size="7" fill="#fbbf24" text-anchor="middle" font-weight="600">Piscina</text>
+  <text x="870" y="488" font-size="7" fill="#fbbf24" text-anchor="middle" font-weight="600">Bilateral</text>
+  <circle cx="830" cy="275" r="4" fill="#f59e0b" class="a-flow-d" style="animation-delay:.3s" filter="url(#glow)"/>
+  <circle cx="830" cy="525" r="4" fill="#f59e0b" class="a-flow-u" style="animation-delay:.7s" filter="url(#glow)"/>
+  <text x="870" y="505" font-size="7" fill="#d97706" text-anchor="middle">C ↔ D directo</text>
+  <text class="hot-label" x="870" y="525">Acuerdo bilateral (sin Federación)</text>
+</g>
+
+<!-- TQ = kWh - ZONA 14 -->
+<g class="hotspot" data-s="14">
+  <rect x="40" y="730" width="140" height="55" rx="14" fill="rgba(245,158,11,.08)" stroke="#f59e0b" stroke-width="1.5" filter="url(#glow)"/>
+  <text x="110" y="752" font-size="12" fill="#fbbf24" text-anchor="middle" font-weight="800">1 TQ = 1 kWh</text>
+  <text x="110" y="770" font-size="9" fill="#d97706" text-anchor="middle">= 3.6 MJ energía</text>
+  <text class="hot-label" x="110" y="800">Resumen</text>
+</g>
+
+<!-- LEYENDA -->
+<text x="700" y="770" font-size="10" fill="#475569" text-anchor="middle">Verde = Ecoaldea · Azul = Federación · Ámbar = Personas/Bilateral · 🔒 = Seguridad</text>
+<text x="700" y="790" font-size="9" fill="#334155" text-anchor="middle">Las flechas muestran cómo fluyen las transacciones: Persona → Ecoaldea → Federación → Ecoaldea Remota → Persona</text>
+<text x="700" y="815" font-size="9" fill="#1e293b" text-anchor="middle">↑ Cada parte de este diagrama es clickeable ↑</text>
+</svg>
+</div>
+</div>
+
+<!-- DETALLE -->
+<div id="detail">
+  <div class="d-header">
+    <button class="back-btn" onclick="back()">← Mapa</button>
+    <h2 id="d-title">Detalle</h2>
+    <span class="num" id="d-num">1/13</span>
+  </div>
+  <div class="d-body" id="d-body"></div>
+  <div class="d-nav">
+    <button onclick="nav(-1)">← Anterior</button>
+    <div class="dots" id="dots"></div>
+    <button onclick="nav(1)">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+const SECTIONS=[
+  {id:1,title:'Portada',num:'1/14',badge:'badge-emerald'},
+  {id:2,title:'El problema del trueque directo',num:'2/14',badge:'badge-rose'},
+  {id:3,title:'La ecoaldea como intermediario',num:'3/14',badge:'badge-emerald'},
+  {id:4,title:'La piscina de la ecoaldea',num:'4/14',badge:'badge-teal'},
+  {id:5,title:'No le debes a una persona',num:'5/14',badge:'badge-amber'},
+  {id:6,title:'Puedes pagar a quien quieras',num:'6/14',badge:'badge-cyan'},
+  {id:7,title:'Los 4 pasos del crédito mutuo',num:'7/14',badge:'badge-blue'},
+  {id:8,title:'Límites simétricos',num:'8/14',badge:'badge-amber'},
+  {id:9,title:'Los cuatro brincos entre ecoaldeas',num:'9/14',badge:'badge-emerald'},
+  {id:10,title:'La piscina global de la federación',num:'10/14',badge:'badge-blue'},
+  {id:11,title:'Acuerdos bilaterales',num:'11/14',badge:'badge-amber'},
+  {id:12,title:'Niveles de nodo + padrino',num:'12/14',badge:'badge-teal'},
+  {id:13,title:'Seguridad distribuida',num:'13/14',badge:'badge-blue'},
+  {id:14,title:'Resumen',num:'14/14',badge:'badge-emerald'},
+];
+let cur=0;const vis=new Set();
+function back(){document.getElementById('detail').classList.remove('active');document.getElementById('scene').classList.remove('hidden')}
+function show(i){cur=i;vis.add(i);const s=SECTIONS[i];document.getElementById('d-title').textContent=s.title;document.getElementById('d-num').textContent=s.num;document.getElementById('d-body').innerHTML='<div class="d-card">'+content(s.id,s.badge)+'</div>';document.getElementById('scene').classList.add('hidden');document.getElementById('detail').classList.add('active');updateDots();setTimeout(()=>{document.querySelectorAll('#d-body .a-draw').forEach(e=>{e.style.animation='none';e.offsetHeight;e.style.animation=''})},50)}
+function nav(d){const n=cur+d;if(n>=0&&n<SECTIONS.length)show(n)}
+function updateDots(){document.getElementById('dots').innerHTML=SECTIONS.map((_,i)=>{let c='dot';if(vis.has(i))c+=' visited';if(i===cur)c+=' current';return `<div class="${c}"></div>`}).join('')}
+
+function content(id,badge){
+const G='<defs><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+const C={
+1:`<div class="badge ${badge}">Bienvenido</div><h3 style="font-size:30px;font-weight:800;color:#f1f5f9;margin-bottom:8px;letter-spacing:-.02em">Cómo funciona el Trueque Federado</h3><p style="font-size:16px;color:#94a3b8;margin-bottom:32px">Presentación interactiva</p><p style="font-size:15px;color:#cbd5e1;line-height:1.8;margin-bottom:12px">El diagrama muestra <strong style="color:#34d399">todo el sistema de trueque federado</strong> en una sola imagen interconectada.</p><p style="font-size:15px;color:#cbd5e1;line-height:1.8;margin-bottom:12px">Cada parte es clickeable: personas, ecoaldeas, piscinas, federación, conexiones, candados de seguridad.</p><div class="key">Haz clic en cualquier parte del diagrama para explorarla en detalle</div><p style="margin-top:16px;font-size:13px;color:#64748b">Tecla F = pantalla completa · Escape = volver al diagrama</p><button style="padding:12px 32px;border-radius:12px;border:none;background:linear-gradient(135deg,#10b981,#14b8a6);color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:20px;box-shadow:0 0 20px rgba(16,185,129,.3)" onclick="show(1)">Comenzar →</button>`,
+
+2:`<div class="badge ${badge}">Fundamento</div><h3>El problema: doble coincidencia de necesidades</h3><svg viewBox="0 0 600 360" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b">${G}<g class="a-fade"><circle cx="150" cy="140" r="30" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="150" y="145" font-size="14" fill="#fff" text-anchor="middle" font-weight="600">Ana</text><text x="150" y="195" font-size="11" fill="#94a3b8" text-anchor="middle">Tiene: 🍊 Naranjas</text><text x="150" y="210" font-size="11" fill="#94a3b8" text-anchor="middle">Necesita: 🧵 Tela</text></g><g class="a-fade" style="animation-delay:.3s"><circle cx="450" cy="140" r="30" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="450" y="145" font-size="14" fill="#fff" text-anchor="middle" font-weight="600">Bob</text><text x="450" y="195" font-size="11" fill="#94a3b8" text-anchor="middle">Tiene: 🧵 Tela</text><text x="450" y="210" font-size="11" fill="#94a3b8" text-anchor="middle">Necesita: 🌾 Harina</text></g><g class="a-fade" style="animation-delay:.5s"><line x1="180" y1="140" x2="420" y2="140" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="6,4"/><text x="300" y="130" font-size="28" fill="#f43f5e" text-anchor="middle">✗</text><text x="300" y="165" font-size="12" fill="#f43f5e" text-anchor="middle">No coinciden</text></g><g class="a-fade" style="animation-delay:.7s"><rect x="100" y="240" width="400" height="80" rx="12" fill="rgba(244,63,94,.08)" stroke="#f43f5e" stroke-width="1.5"/><text x="300" y="270" font-size="13" fill="#fb7185" text-anchor="middle" font-weight="600">El trueque directo requiere que ambas personas</text><text x="300" y="290" font-size="13" fill="#fb7185" text-anchor="middle">tengan lo que la otra necesita, al mismo tiempo.</text><text x="300" y="308" font-size="11" fill="#f43f5e" text-anchor="middle" opacity=".7">Esto casi nunca ocurre → el trueque directo no funciona</text></g></svg><div class="txt"><div class="key">La solución: la ecoaldea como intermediario →</div></div>`,
+
+3:`<div class="badge ${badge}">Dinámica Local</div><h3>La ecoaldea está de por medio en todo intercambio</h3><svg viewBox="0 0 600 350" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><radialGradient id="ecoD3" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#065f46" stop-opacity=".3"/><stop offset="100%" stop-color="#020617" stop-opacity="0"/></radialGradient><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aD3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker></defs><g class="a-fade"><circle cx="100" cy="180" r="28" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="100" y="185" font-size="13" fill="#fff" text-anchor="middle" font-weight="600">Ana</text></g><g class="a-fade" style="animation-delay:.3s"><circle cx="300" cy="180" r="50" fill="url(#ecoD3)" stroke="#10b981" stroke-width="2.5" filter="url(#gD)"/><text x="300" y="175" font-size="12" fill="#34d399" text-anchor="middle" font-weight="700">ECOALDEA</text><text x="300" y="192" font-size="10" fill="#34d399" text-anchor="middle">Intermediaria</text></g><g class="a-fade" style="animation-delay:.5s"><circle cx="500" cy="180" r="28" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="500" y="185" font-size="13" fill="#fff" text-anchor="middle" font-weight="600">Bob</text></g><g class="a-flow" style="animation-delay:.7s"><line x1="128" y1="180" x2="250" y2="180" stroke="#10b981" stroke-width="2.5" marker-end="url(#aD3)"/><text x="190" y="170" font-size="10" fill="#34d399" text-anchor="middle">le compra a</text></g><g class="a-flow-r" style="animation-delay:.9s"><line x1="350" y1="180" x2="472" y2="180" stroke="#10b981" stroke-width="2.5" marker-end="url(#aD3)"/><text x="410" y="170" font-size="10" fill="#34d399" text-anchor="middle">le vende a</text></g><g class="a-fade" style="animation-delay:1.1s"><rect x="80" y="250" width="440" height="70" rx="12" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1.5"/><text x="300" y="280" font-size="14" fill="#34d399" text-anchor="middle" font-weight="700">Ana NO le compra a Bob. Ana le compra a la ecoaldea.</text><text x="300" y="300" font-size="14" fill="#34d399" text-anchor="middle" font-weight="700">Bob NO le vende a Ana. Bob le vende a la ecoaldea.</text></g></svg><div class="txt"><p>La ecoaldea es el intermediario en todo intercambio. No hay trato directo entre personas.</p><div class="key">No le compras a una persona, le compras a la ecoaldea</div></div>`,
+
+4:`<div class="badge ${badge}">Dinámica Local</div><h3>La piscina de la ecoaldea: todos los saldos suman cero</h3><svg viewBox="0 0 600 400" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><radialGradient id="poolD4" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#34d399" stop-opacity=".3"/><stop offset="70%" stop-color="#10b981" stop-opacity=".15"/><stop offset="100%" stop-color="#059669" stop-opacity=".05"/></radialGradient><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><circle cx="300" cy="200" r="100" fill="url(#poolD4)" stroke="#10b981" stroke-width="2" opacity=".3" filter="url(#gD)"/><circle cx="300" cy="200" r="70" fill="rgba(16,185,129,.05)" stroke="#10b981" stroke-width="1.5" opacity=".4"/><text x="300" y="195" font-size="14" fill="#34d399" text-anchor="middle" font-weight="700">PISCINA</text><text x="300" y="215" font-size="20" fill="#34d399" text-anchor="middle" font-weight="800" class="a-pulse">Σ = 0</text><g class="a-fade"><circle cx="200" cy="120" r="22" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="200" y="125" font-size="10" fill="#fff" text-anchor="middle">Ana</text><text x="200" y="155" font-size="11" fill="#fb7185" text-anchor="middle" font-weight="700">-5 TQ</text></g><g class="a-fade" style="animation-delay:.2s"><circle cx="400" cy="120" r="22" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="400" y="125" font-size="10" fill="#fff" text-anchor="middle">Bob</text><text x="400" y="155" font-size="11" fill="#34d399" text-anchor="middle" font-weight="700">+3 TQ</text></g><g class="a-fade" style="animation-delay:.4s"><circle cx="200" cy="280" r="22" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="200" y="285" font-size="10" fill="#fff" text-anchor="middle">Cala</text><text x="200" y="315" font-size="11" fill="#34d399" text-anchor="middle" font-weight="700">+2 TQ</text></g><g class="a-fade" style="animation-delay:.6s"><circle cx="400" cy="280" r="22" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="400" y="285" font-size="10" fill="#fff" text-anchor="middle">Dan</text><text x="400" y="315" font-size="11" fill="#fb7185" text-anchor="middle" font-weight="700">0 TQ</text></g><g class="a-fade" style="animation-delay:.8s"><rect x="150" y="350" width="300" height="40" rx="10" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1.5"/><text x="300" y="375" font-size="14" fill="#34d399" text-anchor="middle" font-weight="700">-5 + 3 + 2 + 0 = 0 ✓</text></g></svg><div class="txt"><p>La ecoaldea mantiene una "piscina" donde se registran todos los saldos.</p><div class="key">La suma de todos los saldos siempre es cero. No se crea ni se destruye TQ.</div></div>`,
+
+5:`<div class="badge ${badge}">Concepto Clave</div><h3>No le debes a una persona: le debes a la ecoaldea</h3><svg viewBox="0 0 600 380" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aRD5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f43f5e"/></marker><marker id="aGD5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker></defs><g class="a-fade"><circle cx="120" cy="160" r="25" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="120" y="165" font-size="11" fill="#fff" text-anchor="middle">Ana</text><text x="120" y="200" font-size="11" fill="#fb7185" text-anchor="middle" font-weight="700">-5 TQ</text></g><g class="a-fade" style="animation-delay:.2s"><circle cx="480" cy="160" r="25" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="480" y="165" font-size="11" fill="#fff" text-anchor="middle">Bob</text><text x="480" y="200" font-size="11" fill="#34d399" text-anchor="middle" font-weight="700">+5 TQ</text></g><g class="a-fade" style="animation-delay:.4s"><circle cx="300" cy="160" r="40" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="300" y="155" font-size="10" fill="#34d399" text-anchor="middle" font-weight="700">ECOALDEA</text><text x="300" y="170" font-size="9" fill="#34d399" text-anchor="middle">Ledger</text></g><g class="a-flow" style="animation-delay:.6s"><line x1="145" y1="160" x2="260" y2="160" stroke="#f43f5e" stroke-width="2" marker-end="url(#aRD5)"/><text x="200" y="150" font-size="9" fill="#fb7185" text-anchor="middle">deuda con</text></g><g class="a-flow" style="animation-delay:.8s"><line x1="340" y1="160" x2="455" y2="160" stroke="#10b981" stroke-width="2" marker-end="url(#aGD5)"/><text x="400" y="150" font-size="9" fill="#34d399" text-anchor="middle">crédito con</text></g><g class="a-fade" style="animation-delay:1s"><line x1="120" y1="220" x2="480" y2="220" stroke="#f43f5e" stroke-width="2" stroke-dasharray="5,3" opacity=".5"/><text x="300" y="212" font-size="11" fill="#f43f5e" text-anchor="middle">✗ NO hay deuda directa entre Ana y Bob</text></g><g class="a-fade" style="animation-delay:1.2s"><rect x="80" y="260" width="440" height="90" rx="12" fill="rgba(245,158,11,.08)" stroke="#f59e0b" stroke-width="1.5"/><text x="300" y="290" font-size="13" fill="#fbbf24" text-anchor="middle" font-weight="600">Ana le debe a la ecoaldea, no a Bob.</text><text x="300" y="310" font-size="13" fill="#fbbf24" text-anchor="middle" font-weight="600">Bob tiene crédito con la ecoaldea, no con Ana.</text><text x="300" y="335" font-size="11" fill="#d97706" text-anchor="middle">Por eso Ana puede pagarle a quien quiera, no solo a Bob.</text></g></svg><div class="txt"><div class="key">Tu deuda es con la ecoaldea, no con la persona que te vendió.</div><p>Por eso puedes pagarle a cualquier miembro, no solo a quien te dio el producto.</p></div>`,
+
+6:`<div class="badge ${badge}">Dinámica Asíncrona</div><h3>Puedes pagar a quien quieras</h3><svg viewBox="0 0 600 380" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aGD6" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker></defs><g class="a-fade"><circle cx="300" cy="200" r="30" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="300" y="205" font-size="13" fill="#fff" text-anchor="middle" font-weight="600">Ana</text><text x="300" y="250" font-size="11" fill="#fb7185" text-anchor="middle" font-weight="700">-5 TQ (debe)</text></g><g class="a-fade" style="animation-delay:.2s"><circle cx="120" cy="100" r="22" fill="#10b981" opacity=".7" filter="url(#gD)"/><text x="120" y="105" font-size="10" fill="#fff" text-anchor="middle">Bob</text><text x="120" y="135" font-size="9" fill="#34d399" text-anchor="middle">+3 TQ</text></g><g class="a-fade" style="animation-delay:.4s"><circle cx="480" cy="100" r="22" fill="#10b981" opacity=".7" filter="url(#gD)"/><text x="480" y="105" font-size="10" fill="#fff" text-anchor="middle">Cala</text><text x="480" y="135" font-size="9" fill="#34d399" text-anchor="middle">+2 TQ</text></g><g class="a-fade" style="animation-delay:.6s"><circle cx="120" cy="300" r="22" fill="#10b981" opacity=".7" filter="url(#gD)"/><text x="120" y="305" font-size="10" fill="#fff" text-anchor="middle">Dan</text><text x="120" y="335" font-size="9" fill="#34d399" text-anchor="middle">0 TQ</text></g><g class="a-fade" style="animation-delay:.8s"><circle cx="480" cy="300" r="22" fill="#10b981" opacity=".7" filter="url(#gD)"/><text x="480" y="305" font-size="10" fill="#fff" text-anchor="middle">Eva</text><text x="480" y="335" font-size="9" fill="#34d399" text-anchor="middle">0 TQ</text></g><g class="a-flow" style="animation-delay:1s"><line x1="280" y1="180" x2="140" y2="115" stroke="#10b981" stroke-width="2" marker-end="url(#aGD6)"/></g><g class="a-flow" style="animation-delay:1.2s"><line x1="320" y1="180" x2="460" y2="115" stroke="#10b981" stroke-width="2" marker-end="url(#aGD6)"/></g><g class="a-flow" style="animation-delay:1.4s"><line x1="280" y1="220" x2="140" y2="285" stroke="#10b981" stroke-width="2" marker-end="url(#aGD6)"/></g><g class="a-flow" style="animation-delay:1.6s"><line x1="320" y1="220" x2="460" y2="285" stroke="#10b981" stroke-width="2" marker-end="url(#aGD6)"/></g><g class="a-fade" style="animation-delay:1.8s"><rect x="100" y="350" width="400" height="25" rx="8" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1"/><text x="300" y="367" font-size="12" fill="#34d399" text-anchor="middle" font-weight="600">Ana puede pagar a Bob, Cala, Dan o Eva — ¡a quien quiera!</text></g></svg><div class="txt"><p>Como tu deuda es con la ecoaldea, no importa a quién le pagues.</p><div class="key">Puedes pagarle a quien quieras. La ecoaldea ajusta los saldos.</div></div>`,
+
+7:`<div class="badge ${badge}">Flujo del Crédito</div><h3>Los 4 pasos del crédito mutuo</h3><svg viewBox="0 0 600 400" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aGD7" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker></defs><g class="a-fade"><circle cx="120" cy="120" r="35" fill="rgba(59,130,246,.15)" stroke="#3b82f6" stroke-width="2" filter="url(#gD)"/><text x="120" y="115" font-size="16" fill="#60a5fa" text-anchor="middle" font-weight="700">1</text><text x="120" y="135" font-size="9" fill="#60a5fa" text-anchor="middle">Inicio</text><text x="120" y="175" font-size="14" fill="#60a5fa" text-anchor="middle" font-weight="700">0 TQ</text><text x="120" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">Empiezas en cero</text></g><g class="a-fade" style="animation-delay:.3s"><circle cx="480" cy="120" r="35" fill="rgba(245,158,11,.15)" stroke="#f59e0b" stroke-width="2" filter="url(#gD)"/><text x="480" y="115" font-size="16" fill="#fbbf24" text-anchor="middle" font-weight="700">2</text><text x="480" y="135" font-size="9" fill="#fbbf24" text-anchor="middle">Compras</text><text x="480" y="175" font-size="14" fill="#fbbf24" text-anchor="middle" font-weight="700">-5 TQ</text><text x="480" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">Compraste productos</text></g><g class="a-fade" style="animation-delay:.6s"><circle cx="480" cy="280" r="35" fill="rgba(16,185,129,.15)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="480" y="275" font-size="16" fill="#34d399" text-anchor="middle" font-weight="700">3</text><text x="480" y="295" font-size="9" fill="#34d399" text-anchor="middle">Vendes</text><text x="480" y="335" font-size="14" fill="#34d399" text-anchor="middle" font-weight="700">+5 TQ</text><text x="480" y="355" font-size="10" fill="#94a3b8" text-anchor="middle">Vendiste tu cosecha</text></g><g class="a-fade" style="animation-delay:.9s"><circle cx="120" cy="280" r="35" fill="rgba(59,130,246,.15)" stroke="#3b82f6" stroke-width="2" filter="url(#gD)"/><text x="120" y="275" font-size="16" fill="#60a5fa" text-anchor="middle" font-weight="700">4</text><text x="120" y="295" font-size="9" fill="#60a5fa" text-anchor="middle">Equilibrio</text><text x="120" y="335" font-size="14" fill="#60a5fa" text-anchor="middle" font-weight="700">0 TQ</text><text x="120" y="355" font-size="10" fill="#94a3b8" text-anchor="middle">Vuelves a cero: -5 + 5 = 0</text></g><g class="a-draw" style="animation-delay:1.2s"><path d="M155,120 L445,120" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#aGD7)"/></g><g class="a-draw" style="animation-delay:1.4s"><path d="M480,155 L480,245" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#aGD7)"/></g><g class="a-draw" style="animation-delay:1.6s"><path d="M445,280 L155,280" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#aGD7)"/></g></svg><div class="txt"><p>No necesitas dinero para empezar. Tu saldo inicial es cero.</p><p>Compras productos → bajas a -5 TQ. Vendes tu cosecha → subes a +5 TQ. Vuelves a cero: <strong>-5 + 5 = 0</strong>.</p><div class="key">Tu saldo vuelve a cero cuando aportas lo mismo que recibiste. Y la suma de todos los saldos en la ecoaldea siempre es cero.</div></div>`,
+
+8:`<div class="badge ${badge}">Control de Riesgo</div><h3>Límites simétricos: lo que puedes recibir = lo que puedes aportar</h3><svg viewBox="0 0 600 400" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g class="a-fade"><line x1="300" y1="80" x2="300" y2="320" stroke="#334155" stroke-width="3"/><text x="300" y="200" font-size="12" fill="#64748b" text-anchor="middle" font-weight="600">0</text></g><g class="a-fade" style="animation-delay:.2s"><rect x="230" y="90" width="140" height="50" rx="10" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="300" y="115" font-size="14" fill="#34d399" text-anchor="middle" font-weight="700">+500 TQ</text><text x="300" y="132" font-size="10" fill="#34d399" text-anchor="middle">Techo positivo</text></g><g class="a-fade" style="animation-delay:.4s"><rect x="230" y="260" width="140" height="50" rx="10" fill="rgba(245,158,11,.1)" stroke="#f59e0b" stroke-width="2" filter="url(#gD)"/><text x="300" y="285" font-size="14" fill="#fbbf24" text-anchor="middle" font-weight="700">-500 TQ</text><text x="300" y="302" font-size="10" fill="#fbbf24" text-anchor="middle">Piso negativo</text></g><g class="a-fade" style="animation-delay:.6s"><text x="400" y="115" font-size="10" fill="#64748b">← No puedes acumular más</text><text x="400" y="285" font-size="10" fill="#64748b">← No puedes deber más</text></g><g class="a-fade" style="animation-delay:.8s"><rect x="50" y="350" width="500" height="45" rx="10" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1.5"/><text x="300" y="378" font-size="12" fill="#34d399" text-anchor="middle" font-weight="600">Los límites son simétricos: |piso| = |techo|. Suben con el tiempo y la confianza.</text></g></svg><div class="txt"><p>El sistema tiene un piso (cuánto puedes deber) y un techo (cuánto puedes acumular).</p><div class="key">Lo que puedes recibir equivale a lo que puedes aportar.</div></div>`,
+
+9:`<div class="badge ${badge}">Federación Cross-Node</div><h3>Los cuatro brincos: transacción entre ecoaldeas</h3><svg viewBox="0 0 760 400" style="background:rgba(2,6,23,.5);border-radius:12px;border:1px solid #1e293b"><defs><radialGradient id="ecoD9" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#065f46" stop-opacity=".3"/><stop offset="100%" stop-color="#020617" stop-opacity="0"/></radialGradient><radialGradient id="fedD9" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2563eb" stop-opacity=".2"/><stop offset="100%" stop-color="#020617" stop-opacity="0"/></radialGradient><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aGD9" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker><marker id="aBD9" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker><marker id="aYD9" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker></defs><text x="380" y="18" font-size="11" fill="#fbbf24" text-anchor="middle" font-weight="700">FLUJO FÍSICO (directo, persona a persona)</text><g class="a-fade"><circle cx="40" cy="55" r="18" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="40" y="59" font-size="8" fill="#fff" text-anchor="middle">Pers. A</text><text x="40" y="82" font-size="7" fill="#fbbf24" text-anchor="middle">compra (recibe)</text></g><g class="a-fade" style="animation-delay:.3s"><circle cx="720" cy="55" r="18" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="720" y="59" font-size="8" fill="#fff" text-anchor="middle">Pers. B</text><text x="720" y="82" font-size="7" fill="#fbbf24" text-anchor="middle">vende (entrega)</text></g><g class="a-fade" style="animation-delay:.5s"><line x1="700" y1="55" x2="62" y2="55" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#aYD9)"/><text x="380" y="47" font-size="9" fill="#fbbf24" text-anchor="middle">Producto: Persona B → Persona A (directo)</text></g><text x="380" y="110" font-size="11" fill="#60a5fa" text-anchor="middle" font-weight="700">REGISTRO CONTABLE — el TQ se transfiere en 4 brincos (transparente)</text><g class="a-fade" style="animation-delay:.7s"><circle cx="40" cy="160" r="18" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="40" y="164" font-size="8" fill="#fff" text-anchor="middle">Pers. A</text><text x="40" y="187" font-size="7" fill="#fb7185" text-anchor="middle">entrega TQ (o debe)</text></g><g class="a-fade" style="animation-delay:.9s"><circle cx="180" cy="160" r="28" fill="url(#ecoD9)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="180" y="157" font-size="8" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea</text><text x="180" y="168" font-size="8" fill="#34d399" text-anchor="middle">Local</text></g><g class="a-fade" style="animation-delay:1.1s"><circle cx="380" cy="160" r="28" fill="url(#fedD9)" stroke="#3b82f6" stroke-width="2" filter="url(#gD)"/><text x="380" y="157" font-size="8" fill="#60a5fa" text-anchor="middle" font-weight="600">Federación</text><text x="380" y="168" font-size="8" fill="#60a5fa" text-anchor="middle">(Piscina)</text></g><g class="a-fade" style="animation-delay:1.3s"><circle cx="580" cy="160" r="28" fill="url(#ecoD9)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="580" y="157" font-size="8" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea</text><text x="580" y="168" font-size="8" fill="#34d399" text-anchor="middle">Remota</text></g><g class="a-fade" style="animation-delay:1.5s"><circle cx="720" cy="160" r="18" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="720" y="164" font-size="8" fill="#fff" text-anchor="middle">Pers. B</text><text x="720" y="187" font-size="7" fill="#34d399" text-anchor="middle">recibe TQ (crédito)</text></g><g class="a-flow" style="animation-delay:1.7s"><line x1="58" y1="160" x2="152" y2="160" stroke="#10b981" stroke-width="2.5" marker-end="url(#aGD9)"/><text x="105" y="150" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Brinco 1</text></g><g class="a-flow" style="animation-delay:1.9s"><line x1="208" y1="160" x2="352" y2="160" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#aBD9)"/><text x="280" y="150" font-size="9" fill="#60a5fa" text-anchor="middle" font-weight="600">Brinco 2</text></g><g class="a-flow" style="animation-delay:2.1s"><line x1="408" y1="160" x2="552" y2="160" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#aGD9)"/><text x="480" y="150" font-size="9" fill="#60a5fa" text-anchor="middle" font-weight="600">Brinco 3</text></g><g class="a-flow" style="animation-delay:2.3s"><line x1="608" y1="160" x2="702" y2="160" stroke="#10b981" stroke-width="2.5" marker-end="url(#aGD9)"/><text x="655" y="150" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Brinco 4</text></g><g class="a-fade" style="animation-delay:2.5s"><rect x="30" y="210" width="700" height="180" rx="10" fill="rgba(245,158,11,.08)" stroke="#f59e0b" stroke-width="1.5"/><text x="380" y="232" font-size="12" fill="#fbbf24" text-anchor="middle" font-weight="600">El producto va directo: Persona B (vende) → Persona A (compra)</text><text x="380" y="250" font-size="12" fill="#fbbf24" text-anchor="middle" font-weight="600">El TQ se transfiere en 4 brincos por detrás:</text><text x="380" y="270" font-size="11" fill="#fbbf24" text-anchor="middle">Brinco 1: Persona A entrega TQ a su Ecoaldea Local (o queda en deuda)</text><text x="380" y="288" font-size="11" fill="#fbbf24" text-anchor="middle">Brinco 2: Ecoaldea Local entrega TQ a la Federación (o queda en deuda)</text><text x="380" y="306" font-size="11" fill="#fbbf24" text-anchor="middle">Brinco 3: Federación entrega TQ a la Ecoaldea Remota (o queda en deuda)</text><text x="380" y="324" font-size="11" fill="#fbbf24" text-anchor="middle">Brinco 4: Ecoaldea Remota acredita TQ a Persona B</text><text x="380" y="344" font-size="10" fill="#d97706" text-anchor="middle">Cada intermediario registra débito o crédito según su propio estado.</text><text x="380" y="360" font-size="10" fill="#d97706" text-anchor="middle">Si no hay deuda, no queda en deuda. La transferencia es automática.</text><text x="380" y="376" font-size="10" fill="#d97706" text-anchor="middle">Al final: débito a quien compra (A), crédito a quien vende (B).</text></g></svg><div class="txt"><p>El <strong style="color:#fbbf24">producto físico</strong> va directo de Persona B (vende) → Persona A (compra).</p><p>El <strong style="color:#60a5fa">TQ se transfiere</strong> en 4 brincos por detrás, de forma transparente:</p><p><strong>Brinco 1:</strong> Persona A entrega TQ a su Ecoaldea Local (o queda en deuda si no tiene saldo).</p><p><strong>Brinco 2:</strong> Ecoaldea Local entrega TQ a la Federación (o queda en deuda).</p><p><strong>Brinco 3:</strong> Federación entrega TQ a la Ecoaldea Remota (o queda en deuda).</p><p><strong>Brinco 4:</strong> Ecoaldea Remota acredita TQ a Persona B.</p><p style="font-size:13px;color:#94a3b8;margin-top:8px">Cada intermediario (ecocaldea o federación) registra débito o crédito según su propio estado. Si no hay deuda, no queda en deuda. La transferencia es automática.</p><div class="key">Al final: débito a quien compra (A), crédito a quien vende (B). Las personas solo ven su saldo cambiar.</div></div>`,
+
+10:`<div class="badge ${badge}">Federación</div><h3>La piscina global de la federación</h3><svg viewBox="0 0 600 400" style="background:rgba(2,6,23,.5);border-radius:12px;border:1px solid #1e293b"><defs><radialGradient id="poolD10" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#60a5fa" stop-opacity=".3"/><stop offset="70%" stop-color="#3b82f6" stop-opacity=".15"/><stop offset="100%" stop-color="#2563eb" stop-opacity=".05"/></radialGradient><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g class="a-fade"><circle cx="300" cy="200" r="60" fill="url(#poolD10)" stroke="#3b82f6" stroke-width="2.5" filter="url(#gD)"/><text x="300" y="195" font-size="12" fill="#60a5fa" text-anchor="middle" font-weight="700">PISCINA</text><text x="300" y="210" font-size="12" fill="#60a5fa" text-anchor="middle" font-weight="700">GLOBAL</text><text x="300" y="225" font-size="9" fill="#93c5fd" text-anchor="middle">Multilateral</text></g><g class="a-fade" style="animation-delay:.2s"><circle cx="120" cy="120" r="25" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="120" y="118" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea A</text></g><g class="a-fade" style="animation-delay:.4s"><circle cx="480" cy="120" r="25" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="480" y="118" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea B</text></g><g class="a-fade" style="animation-delay:.6s"><circle cx="120" cy="280" r="25" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="120" y="278" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea C</text></g><g class="a-fade" style="animation-delay:.8s"><circle cx="480" cy="280" r="25" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="480" y="278" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea D</text></g><g class="a-flow" style="animation-delay:1s"><line x1="145" y1="120" x2="250" y2="180" stroke="#3b82f6" stroke-width="1.5" opacity=".5"/></g><g class="a-flow" style="animation-delay:1.2s"><line x1="455" y1="120" x2="350" y2="180" stroke="#3b82f6" stroke-width="1.5" opacity=".5"/></g><g class="a-flow" style="animation-delay:1.4s"><line x1="145" y1="280" x2="250" y2="220" stroke="#3b82f6" stroke-width="1.5" opacity=".5"/></g><g class="a-flow" style="animation-delay:1.6s"><line x1="455" y1="280" x2="350" y2="220" stroke="#3b82f6" stroke-width="1.5" opacity=".5"/></g><g class="a-fade" style="animation-delay:1.8s"><rect x="50" y="340" width="500" height="50" rx="10" fill="rgba(59,130,246,.08)" stroke="#3b82f6" stroke-width="1.5"/><text x="300" y="362" font-size="12" fill="#60a5fa" text-anchor="middle" font-weight="600">Saldo ganado con B → se puede gastar con C o D</text><text x="300" y="380" font-size="10" fill="#93c5fd" text-anchor="middle">No estás atado a un solo nodo. La piscina es compartida.</text></g></svg><div class="txt"><p><strong>Piscina global (multilateral):</strong> compartida entre todos los nodos federados.</p><p>Lo que ganas con un nodo, lo gastas con cualquier otro.</p><div class="key">Ganaste con el Nodo B → puedes gastar con el Nodo C. No estás atado a un solo nodo.</div></div>`,
+
+11:`<div class="badge ${badge}">Acuerdos Bilaterales</div><h3>Acuerdos bilaterales: piscina propia entre 2 ecoaldeas</h3><svg viewBox="0 0 600 400" style="background:rgba(2,6,23,.5);border-radius:12px;border:1px solid #1e293b"><defs><radialGradient id="bilatD11" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fbbf24" stop-opacity=".2"/><stop offset="100%" stop-color="#f59e0b" stop-opacity=".05"/></radialGradient><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aYD11" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker></defs><g class="a-fade"><circle cx="120" cy="200" r="28" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="120" y="198" font-size="10" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea A</text><text x="120" y="212" font-size="8" fill="#34d399" text-anchor="middle">Nivel 2</text></g><g class="a-fade" style="animation-delay:.3s"><circle cx="480" cy="200" r="28" fill="rgba(16,185,129,.1)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="480" y="198" font-size="10" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea B</text><text x="480" y="212" font-size="8" fill="#34d399" text-anchor="middle">Nivel 2</text></g><g class="a-fade" style="animation-delay:.5s"><ellipse cx="300" cy="200" rx="70" ry="35" fill="url(#bilatD11)" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,3" filter="url(#gD)"/><text x="300" y="197" font-size="10" fill="#fbbf24" text-anchor="middle" font-weight="700">PISCINA</text><text x="300" y="210" font-size="10" fill="#fbbf24" text-anchor="middle" font-weight="700">BILATERAL</text></g><g class="a-flow" style="animation-delay:.7s"><line x1="148" y1="200" x2="230" y2="200" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#aYD11)"/></g><g class="a-flow" style="animation-delay:.9s"><line x1="370" y1="200" x2="452" y2="200" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#aYD11)"/></g><g class="a-fade" style="animation-delay:1.1s"><text x="300" y="260" font-size="11" fill="#fbbf24" text-anchor="middle" font-weight="600">Acuerdo directo entre A y B</text><text x="300" y="278" font-size="10" fill="#d97706" text-anchor="middle">No pasa por la Federación</text></g><g class="a-fade" style="animation-delay:1.3s"><rect x="50" y="300" width="500" height="90" rx="10" fill="rgba(245,158,11,.08)" stroke="#f59e0b" stroke-width="1.5"/><text x="300" y="322" font-size="11" fill="#fbbf24" text-anchor="middle" font-weight="600">Características del acuerdo bilateral:</text><text x="300" y="340" font-size="10" fill="#fbbf24" text-anchor="middle">• Límites acordados por ambas partes (no por la Federación)</text><text x="300" y="356" font-size="10" fill="#fbbf24" text-anchor="middle">• Piscina propia separada de la global</text><text x="300" y="372" font-size="10" fill="#fbbf24" text-anchor="middle">• Ambas ecoaldeas deben aprobar el acuerdo</text><text x="300" y="388" font-size="10" fill="#d97706" text-anchor="middle">Puede coexistir con la piscina global</text></g></svg><div class="txt"><p>Un <strong style="color:#fbbf24">acuerdo bilateral</strong> es un acuerdo directo entre 2 ecoaldeas, sin pasar por la Federación.</p><p>Tienen su propia piscina con límites acordados por ambas partes.</p><p>Ambas ecoaldeas deben aprobar el acuerdo. Puede coexistir con la piscina global.</p><div class="key">Bilateral = piscina propia entre 2 ecoaldeas. Global = piscina compartida entre todos los nodos.</div></div>`,
+
+12:`<div class="badge ${badge}">Gobernanza</div><h3>Niveles de nodo federado + sistema de padrino</h3><svg viewBox="0 0 600 400" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aGD11" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker><marker id="aBD11" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker></defs><g class="a-fade"><rect x="50" y="80" width="140" height="80" rx="12" fill="rgba(245,158,11,.08)" stroke="#f59e0b" stroke-width="2" filter="url(#gD)"/><text x="120" y="105" font-size="13" fill="#fbbf24" text-anchor="middle" font-weight="700">Nivel 1</text><text x="120" y="122" font-size="10" fill="#fbbf24" text-anchor="middle">Nodo Nuevo</text><text x="120" y="140" font-size="10" fill="#fbbf24" text-anchor="middle">Límite: 1.000 TQ</text><text x="120" y="155" font-size="9" fill="#d97706" text-anchor="middle">Sin voto · No apadrina</text></g><g class="a-fade" style="animation-delay:.3s"><rect x="230" y="80" width="140" height="80" rx="12" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="300" y="105" font-size="13" fill="#34d399" text-anchor="middle" font-weight="700">Nivel 2</text><text x="300" y="122" font-size="10" fill="#34d399" text-anchor="middle">Nodo Aceptado</text><text x="300" y="140" font-size="10" fill="#34d399" text-anchor="middle">Límite: 5.000 TQ</text><text x="300" y="155" font-size="9" fill="#059669" text-anchor="middle">Con voto · Puede apadrinar</text></g><g class="a-fade" style="animation-delay:.6s"><rect x="410" y="80" width="140" height="80" rx="12" fill="rgba(59,130,246,.08)" stroke="#3b82f6" stroke-width="2" filter="url(#gD)"/><text x="480" y="105" font-size="13" fill="#60a5fa" text-anchor="middle" font-weight="700">Nivel 3</text><text x="480" y="122" font-size="10" fill="#60a5fa" text-anchor="middle">Nodo Pleno</text><text x="480" y="140" font-size="10" fill="#60a5fa" text-anchor="middle">Límite: 20.000 TQ</text><text x="480" y="155" font-size="9" fill="#2563eb" text-anchor="middle">Confianza plena</text></g><g class="a-draw" style="animation-delay:.9s"><path d="M190,120 L230,120" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#aGD11)"/></g><g class="a-draw" style="animation-delay:1.1s"><path d="M370,120 L410,120" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#aBD11)"/></g><g class="a-fade" style="animation-delay:1.3s"><rect x="50" y="200" width="500" height="120" rx="12" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1.5"/><text x="300" y="225" font-size="14" fill="#34d399" text-anchor="middle" font-weight="700">Sistema de Padrino (Godparent)</text><text x="300" y="250" font-size="12" fill="#cbd5e1" text-anchor="middle">Un nodo nuevo necesita un padrino (Nivel 2+) para entrar</text><text x="300" y="270" font-size="12" fill="#cbd5e1" text-anchor="middle">El padrino retiene parte de su límite como garantía</text><text x="300" y="290" font-size="12" fill="#cbd5e1" text-anchor="middle">Si el nuevo nodo cumple, el padrino recupera su límite</text><text x="300" y="310" font-size="11" fill="#64748b" text-anchor="middle">Si el nuevo nodo falla, el padrino asume la deuda</text></g></svg><div class="txt"><p>Los nodos federados suben de nivel con el tiempo y la confianza.</p><div class="key">Nadie entra sin responsabilidad. El padrino garantiza con su límite.</div></div>`,
+
+13:`<div class="badge ${badge}">Seguridad</div><h3>Seguridad distribuida: firma dual + hash encadenado</h3><svg viewBox="0 0 600 400" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aBD12" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker><marker id="aGD12" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker></defs><g class="a-fade"><rect x="50" y="70" width="180" height="80" rx="12" fill="rgba(59,130,246,.08)" stroke="#3b82f6" stroke-width="2" filter="url(#gD)"/><text x="140" y="95" font-size="13" fill="#60a5fa" text-anchor="middle" font-weight="700">Nodo A</text><text x="140" y="115" font-size="10" fill="#60a5fa" text-anchor="middle">Crea la transacción</text><text x="140" y="132" font-size="10" fill="#60a5fa" text-anchor="middle">Firma con su clave</text></g><g class="a-fade" style="animation-delay:.3s"><rect x="370" y="70" width="180" height="80" rx="12" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="460" y="95" font-size="13" fill="#34d399" text-anchor="middle" font-weight="700">Nodo B</text><text x="460" y="115" font-size="10" fill="#34d399" text-anchor="middle">Verifica firma de A</text><text x="460" y="132" font-size="10" fill="#34d399" text-anchor="middle">Firma también</text></g><g class="a-flow" style="animation-delay:.5s"><line x1="230" y1="110" x2="370" y2="110" stroke="#3b82f6" stroke-width="2" marker-end="url(#aBD12)"/><text x="300" y="100" font-size="9" fill="#60a5fa" text-anchor="middle">TX firmada</text></g><g class="a-flow" style="animation-delay:.7s"><line x1="370" y1="130" x2="230" y2="130" stroke="#10b981" stroke-width="2" marker-end="url(#aGD12)"/><text x="300" y="145" font-size="9" fill="#34d399" text-anchor="middle">TX dual-firmada ✓</text></g><g class="a-fade" style="animation-delay:.9s"><rect x="50" y="200" width="500" height="60" rx="10" fill="rgba(245,158,11,.08)" stroke="#f59e0b" stroke-width="1.5"/><text x="300" y="225" font-size="13" fill="#fbbf24" text-anchor="middle" font-weight="600">Una transacción sin AMBAS firmas no es válida</text><text x="300" y="245" font-size="11" fill="#d97706" text-anchor="middle">Cada nodo tiene su propia clave Ed25519. No hay clave compartida.</text></g><g class="a-fade" style="animation-delay:1.1s"><text x="300" y="290" font-size="14" fill="#cbd5e1" text-anchor="middle" font-weight="600">Hash encadenado (blockchain ligero)</text></g><g class="a-fade" style="animation-delay:1.3s"><rect x="80" y="305" width="100" height="40" rx="8" fill="#1e293b" stroke="#334155"/><text x="130" y="330" font-size="10" fill="#cbd5e1" text-anchor="middle">TX₁ → hash₁</text></g><g class="a-fade" style="animation-delay:1.5s"><rect x="220" y="305" width="100" height="40" rx="8" fill="#1e293b" stroke="#334155"/><text x="270" y="330" font-size="10" fill="#cbd5e1" text-anchor="middle">TX₂ → hash₂</text></g><g class="a-fade" style="animation-delay:1.7s"><rect x="360" y="305" width="100" height="40" rx="8" fill="#1e293b" stroke="#334155"/><text x="410" y="330" font-size="10" fill="#cbd5e1" text-anchor="middle">TX₃ → hash₃</text></g><g class="a-draw" style="animation-delay:1.9s"><line x1="180" y1="325" x2="220" y2="325" stroke="#64748b" stroke-width="1.5" marker-end="url(#aGD12)"/></g><g class="a-draw" style="animation-delay:2.1s"><line x1="320" y1="325" x2="360" y2="325" stroke="#64748b" stroke-width="1.5" marker-end="url(#aGD12)"/></g><g class="a-fade" style="animation-delay:2.3s"><text x="300" y="370" font-size="10" fill="#64748b" text-anchor="middle">Si alguien modifica una TX, la cadena se rompe y se detecta</text></g></svg><div class="txt"><p>Cada transacción entre nodos debe ser firmada por AMBOS nodos.</p><div class="key">Sin ambas firmas, la transacción no es válida. Si alguien manipula, la cadena se rompe.</div></div>`,
+
+14:`<div class="badge ${badge}">Resumen</div><h3>Todo el flujo del Trueque Federado</h3><svg viewBox="0 0 700 450" style="background:rgba(2,6,23,.5);border-radius:16px;border:1px solid #1e293b"><defs><radialGradient id="ecoD13" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#065f46" stop-opacity=".3"/><stop offset="100%" stop-color="#020617" stop-opacity="0"/></radialGradient><radialGradient id="poolD13" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#34d399" stop-opacity=".3"/><stop offset="100%" stop-color="#059669" stop-opacity=".05"/></radialGradient><radialGradient id="fedD13" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#3b82f6" stop-opacity=".2"/><stop offset="100%" stop-color="#020617" stop-opacity="0"/></radialGradient><linearGradient id="connD13" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient><filter id="gD"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="aGD13" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#10b981"/></marker><marker id="aBD13" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker></defs><g class="a-fade"><circle cx="80" cy="100" r="20" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="80" y="105" font-size="9" fill="#fff" text-anchor="middle">Persona</text></g><g class="a-fade" style="animation-delay:.2s"><circle cx="220" cy="100" r="30" fill="url(#ecoD13)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="220" y="97" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea</text><text x="220" y="110" font-size="9" fill="#34d399" text-anchor="middle">Local</text></g><g class="a-fade" style="animation-delay:.4s"><circle cx="220" cy="220" r="25" fill="url(#poolD13)" stroke="#10b981" stroke-width="1.5" opacity=".6"/><text x="220" y="218" font-size="8" fill="#34d399" text-anchor="middle">Piscina</text><text x="220" y="230" font-size="8" fill="#34d399" text-anchor="middle">Σ=0</text></g><g class="a-fade" style="animation-delay:.6s"><circle cx="420" cy="160" r="35" fill="url(#fedD13)" stroke="#3b82f6" stroke-width="2" filter="url(#gD)"/><text x="420" y="155" font-size="10" fill="#60a5fa" text-anchor="middle" font-weight="600">Federación</text><text x="420" y="170" font-size="9" fill="#60a5fa" text-anchor="middle">Piscina Global</text></g><g class="a-fade" style="animation-delay:.8s"><circle cx="620" cy="100" r="30" fill="url(#ecoD13)" stroke="#10b981" stroke-width="2" filter="url(#gD)"/><text x="620" y="97" font-size="9" fill="#34d399" text-anchor="middle" font-weight="600">Ecoaldea</text><text x="620" y="110" font-size="9" fill="#34d399" text-anchor="middle">Remota</text></g><g class="a-fade" style="animation-delay:1s"><circle cx="620" cy="220" r="20" fill="#f59e0b" opacity=".85" filter="url(#gD)"/><text x="620" y="225" font-size="9" fill="#fff" text-anchor="middle">Persona</text></g><g class="a-draw" style="animation-delay:1.2s"><path d="M100,100 L190,100" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#aGD13)"/></g><g class="a-draw" style="animation-delay:1.4s"><path d="M220,130 L220,195" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#aGD13)"/></g><g class="a-draw" style="animation-delay:1.6s"><path d="M250,100 L385,150" stroke="url(#connD13)" stroke-width="2" fill="none" marker-end="url(#aBD13)"/></g><g class="a-draw" style="animation-delay:1.8s"><path d="M455,150 L590,100" stroke="url(#connD13)" stroke-width="2" fill="none" marker-end="url(#aGD13)"/></g><g class="a-draw" style="animation-delay:2s"><path d="M620,130 L620,200" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#aGD13)"/></g><g class="a-fade" style="animation-delay:2.2s"><rect x="50" y="290" width="600" height="140" rx="12" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1.5"/><text x="350" y="315" font-size="13" fill="#34d399" text-anchor="middle" font-weight="700">Conceptos clave</text><text x="350" y="340" font-size="11" fill="#cbd5e1" text-anchor="middle">1. La ecoaldea es intermediaria — no hay trato directo entre personas</text><text x="350" y="358" font-size="11" fill="#cbd5e1" text-anchor="middle">2. Le debes a la ecoaldea, no a una persona → puedes pagar a quien quieras</text><text x="350" y="376" font-size="11" fill="#cbd5e1" text-anchor="middle">3. La piscina local suma cero — no hay inflación, no hay emisión</text><text x="350" y="394" font-size="11" fill="#cbd5e1" text-anchor="middle">4. Cuatro brincos: Persona → Ecoaldea → Federación → Ecoaldea Remota → Persona</text><text x="350" y="412" font-size="11" fill="#cbd5e1" text-anchor="middle">5. 1 TQ = 1 kWh = 3.6 MJ — respaldo en energía física real</text></g></svg><div class="txt"><button style="padding:12px 32px;border-radius:12px;border:none;background:linear-gradient(135deg,#10b981,#14b8a6);color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:16px;box-shadow:0 0 20px rgba(16,185,129,.3)" onclick="back()">← Volver al diagrama</button></div>`,
+};
+return C[id]||'<p>No disponible</p>';
+}
+
+document.querySelectorAll('.hotspot').forEach(el=>{el.addEventListener('click',()=>{const s=parseInt(el.dataset.s);show(s-1)})});
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('detail').classList.contains('active')){
+    if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();nav(1)}
+    if(e.key==='ArrowLeft'){e.preventDefault();nav(-1)}
+    if(e.key==='Escape'){e.preventDefault();back()}
+  }else{if(e.key==='Enter'){e.preventDefault();show(0)}}
+  if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()}
+});
+</script>
+</body>
+</html>

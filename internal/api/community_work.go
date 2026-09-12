@@ -6,7 +6,10 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"federated-credit-node/internal/db"
 )
 
 // CommunityWorkHandler maneja el registro de trabajo comunitario (cayapa/minga).
@@ -104,6 +107,12 @@ func (h *CommunityWorkHandler) listSessions(w http.ResponseWriter, r *http.Reque
 			"created_at":        createdAt,
 		})
 	}
+	if sessions == nil {
+		sessions = []map[string]interface{}{}
+	} else {
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+		localizeEntityMaps(r.Context(), h.Pool, sessions, "community_work_session", lang, fallbackLang, "name", "description", "location", "outputs")
+	}
 	writeJSON(w, 200, map[string]interface{}{"sessions": sessions})
 }
 
@@ -129,7 +138,7 @@ func (h *CommunityWorkHandler) getSession(w http.ResponseWriter, r *http.Request
 		writeError(w, 404, "session not found")
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{
+	singleSession := []map[string]interface{}{{
 		"id":                id,
 		"name":              name,
 		"description":       description,
@@ -147,7 +156,11 @@ func (h *CommunityWorkHandler) getSession(w http.ResponseWriter, r *http.Request
 		"requires_approval": requiresApproval,
 		"outputs":           outputs,
 		"created_at":        createdAt,
-	})
+	}}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), h.Pool, singleSession, "community_work_session", lang, fallbackLang, "name", "description", "location", "outputs")
+	writeJSON(w, 200, singleSession[0])
 }
 
 func (h *CommunityWorkHandler) createSession(w http.ResponseWriter, r *http.Request) {
@@ -157,17 +170,18 @@ func (h *CommunityWorkHandler) createSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	var req struct {
-		Name             string  `json:"name"`
-		Description      string  `json:"description"`
-		WorkType         string  `json:"work_type"`
-		SessionDate      string  `json:"session_date"`
-		EndDate          *string `json:"end_date"`
-		DurationHours    float64 `json:"duration_hours"`
-		Location         *string `json:"location"`
-		ValuationType    string  `json:"valuation_type"`
-		TqPerHour        float64 `json:"tq_per_hour"`
-		RequiresApproval bool    `json:"requires_approval"`
-		DepartmentID     *string `json:"department_id"`
+		Name             string                       `json:"name"`
+		Description      string                       `json:"description"`
+		WorkType         string                       `json:"work_type"`
+		SessionDate      string                       `json:"session_date"`
+		EndDate          *string                      `json:"end_date"`
+		DurationHours    float64                      `json:"duration_hours"`
+		Location         *string                      `json:"location"`
+		ValuationType    string                       `json:"valuation_type"`
+		TqPerHour        float64                      `json:"tq_per_hour"`
+		RequiresApproval bool                         `json:"requires_approval"`
+		DepartmentID     *string                      `json:"department_id"`
+		Translations     map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -200,17 +214,32 @@ func (h *CommunityWorkHandler) createSession(w http.ResponseWriter, r *http.Requ
 		writeError(w, 500, "error creating session: "+err.Error())
 		return
 	}
+
+	sessionFields := map[string]string{
+		"name":        req.Name,
+		"description": req.Description,
+	}
+	if req.Location != nil && *req.Location != "" {
+		sessionFields["location"] = *req.Location
+	}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "community_work_session", id, sessionFields, map[string]interface{}{"work_type": req.WorkType})
+	if len(req.Translations) > 0 {
+		userUUID, _ := uuid.Parse(userID)
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "community_work_session", id, sessionFields, req.Translations, userUUID)
+	}
+
 	writeJSON(w, 200, map[string]interface{}{"id": id, "success": true})
 }
 
 func (h *CommunityWorkHandler) updateSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var req struct {
-		Name          string  `json:"name"`
-		Description   string  `json:"description"`
-		Status        string  `json:"status"`
-		DurationHours float64 `json:"duration_hours"`
-		Outputs       *string `json:"outputs"`
+		Name          string                       `json:"name"`
+		Description   string                       `json:"description"`
+		Status        string                       `json:"status"`
+		DurationHours float64                      `json:"duration_hours"`
+		Outputs       *string                      `json:"outputs"`
+		Translations  map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -230,6 +259,27 @@ func (h *CommunityWorkHandler) updateSession(w http.ResponseWriter, r *http.Requ
 		writeError(w, 500, "error updating session")
 		return
 	}
+
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
+	updatedFields := make(map[string]string)
+	if req.Name != "" {
+		updatedFields["name"] = req.Name
+	}
+	if req.Description != "" {
+		updatedFields["description"] = req.Description
+	}
+	if req.Outputs != nil && *req.Outputs != "" {
+		updatedFields["outputs"] = *req.Outputs
+	}
+	if len(updatedFields) > 0 {
+		registerEntityFields(r.Context(), h.Pool, nodeDomain, "community_work_session", id, updatedFields, nil)
+		if len(req.Translations) > 0 {
+			userID, _ := r.Context().Value("user_id").(string)
+			userUUID, _ := uuid.Parse(userID)
+			saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "community_work_session", id, updatedFields, req.Translations, userUUID)
+		}
+	}
+
 	writeJSON(w, 200, map[string]interface{}{"success": true})
 }
 
@@ -278,17 +328,25 @@ func (h *CommunityWorkHandler) listTasks(w http.ResponseWriter, r *http.Request)
 			"created_at":     createdAt,
 		})
 	}
+	if tasks == nil {
+		tasks = []map[string]interface{}{}
+	} else {
+		nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
+		lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+		localizeEntityMaps(r.Context(), h.Pool, tasks, "community_work_task", lang, fallbackLang, "name", "description")
+	}
 	writeJSON(w, 200, map[string]interface{}{"tasks": tasks})
 }
 
 func (h *CommunityWorkHandler) createTask(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "id")
 	var req struct {
-		Name           string  `json:"name"`
-		Description    string  `json:"description"`
-		RequiredSkill  *string `json:"required_skill"`
-		PeopleNeeded   int     `json:"people_needed"`
-		EstimatedHours float64 `json:"estimated_hours"`
+		Name           string                       `json:"name"`
+		Description    string                       `json:"description"`
+		RequiredSkill  *string                      `json:"required_skill"`
+		PeopleNeeded   int                          `json:"people_needed"`
+		EstimatedHours float64                      `json:"estimated_hours"`
+		Translations   map[string]map[string]string `json:"translations,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -312,6 +370,19 @@ func (h *CommunityWorkHandler) createTask(w http.ResponseWriter, r *http.Request
 		writeError(w, 500, "error creating task: "+err.Error())
 		return
 	}
+
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
+	taskFields := map[string]string{
+		"name":        req.Name,
+		"description": req.Description,
+	}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "community_work_task", id, taskFields, map[string]interface{}{"session_id": sessionID})
+	if len(req.Translations) > 0 {
+		userID, _ := r.Context().Value("user_id").(string)
+		userUUID, _ := uuid.Parse(userID)
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "community_work_task", id, taskFields, req.Translations, userUUID)
+	}
+
 	writeJSON(w, 200, map[string]interface{}{"id": id, "success": true})
 }
 

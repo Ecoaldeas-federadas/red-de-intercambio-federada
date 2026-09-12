@@ -14,6 +14,7 @@ export interface FormatSettings {
   time_format: '24h' | '12h'
   first_day_of_week: number
   timezone: string
+  language?: string
 }
 
 // Store a nivel de modulo (actualizado por PreferencesProvider)

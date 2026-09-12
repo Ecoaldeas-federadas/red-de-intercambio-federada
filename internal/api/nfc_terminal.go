@@ -585,7 +585,7 @@ func (h *NFCTerminalHandler) updateTerminal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	setParts = append(setParts, fmt.Sprintf("updated_at = NOW()"))
+	setParts = append(setParts, "updated_at = NOW()")
 	args = append(args, terminalID)
 
 	query := fmt.Sprintf("UPDATE nfc_terminals SET %s WHERE terminal_id = $%d",
@@ -959,7 +959,7 @@ func (h *NFCTerminalHandler) listAllCards(w http.ResponseWriter, r *http.Request
 		argIdx++
 	}
 	if activeOnly {
-		query += fmt.Sprintf(` AND c.is_active = true`)
+		query += ` AND c.is_active = true`
 	}
 	query += ` ORDER BY c.issued_at DESC LIMIT 200`
 
@@ -1444,11 +1444,12 @@ func (h *NFCTerminalHandler) assignTerminalToOrg(w http.ResponseWriter, r *http.
 	}
 
 	// Determinar si es persona u organizacion segun account_type real
-	if accountType == "individual" {
+	switch accountType {
+	case "individual":
 		isPerson = true
-	} else if accountType == "organization" {
+	case "organization":
 		isPerson = false
-	} else {
+	default:
 		writeError(w, 400, "tipo de cuenta no valido para asignar terminal: "+accountType)
 		return
 	}

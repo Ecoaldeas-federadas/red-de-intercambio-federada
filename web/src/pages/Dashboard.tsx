@@ -310,8 +310,8 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium">{s.title}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {s.is_presential && <span className="text-purple-600">Presencial | </span>}
-                    {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}
+                    {s.is_presential && <span className="text-purple-600">{t('presential_badge')} | </span>}
+                    {t(`session_type_${s.session_type}`, s.session_type)} | {s.start_time?.slice(0, 16).replace('T', ' ')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -320,7 +320,7 @@ export default function Dashboard() {
                     s.status === 'waiting_quorum' ? 'bg-orange-100 text-orange-700' :
                     s.status === 'active' ? 'bg-green-100 text-green-700' :
                     'bg-gray-100 text-gray-600'
-                  }`}>{s.status}</span>
+                  }`}>{String(t(`status_${s.status}`, { defaultValue: s.status }))}</span>
                   <ChevronRight size={16} className="text-gray-400" />
                 </div>
               </button>

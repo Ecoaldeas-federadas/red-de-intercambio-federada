@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings, Users, Server, Mail, ExternalLink, AlertTriangle, Clock, MapPin, FileText, Wifi, WifiOff } from 'lucide-react'
+import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings, Users, Server, Mail, ExternalLink, AlertTriangle, Clock, MapPin, FileText, Wifi, WifiOff, HelpCircle } from 'lucide-react'
 import { fmtDate } from '../lib/format'
 
 // NodeDiscovery: descubre nodos via gossip, envia solicitudes de contacto
@@ -27,6 +27,7 @@ export default function NodeDiscovery() {
   const [inactiveNodes, setInactiveNodes] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [config, setConfig] = useState<any>(null)
+  const [showHelp, setShowHelp] = useState(false)
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
   const [search, setSearch] = useState('')
@@ -230,6 +231,24 @@ export default function NodeDiscovery() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} /> {t('tab_discover', 'Descubrir Nodos')}</h1>
+        <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+          <HelpCircle size={20} />
+        </button>
+      </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+          <p><strong>{t('discover_help_title')}</strong></p>
+          <p><strong>{t('discover_help_what_label')}</strong> {t('discover_help_what')}</p>
+          <p><strong>{t('discover_help_personal_label')}</strong> {t('discover_help_personal')}</p>
+          <p><strong>{t('discover_help_requests_label')}</strong> {t('discover_help_requests')}</p>
+          <p><strong>{t('discover_help_config_label')}</strong> {t('discover_help_config')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', { ns: 'common' })}</button>
+        </div>
+      )}
+
       {msg && (
         <div className={`p-3 rounded-lg text-sm ${msg.type === 'success' ? 'bg-green-50 text-green-700' : msg.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
           {msg.text}

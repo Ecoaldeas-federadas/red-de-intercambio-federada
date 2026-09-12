@@ -18,10 +18,12 @@ interface LanguageSwitcherProps {
   variant?: 'light' | 'dark'
   /** Tamano compacto (solo codigo ES/EN) o completo (nombre nativo) */
   compact?: boolean
+  /** Direccion del dropdown: 'down' para header, 'up' para footer */
+  dropDirection?: 'up' | 'down'
   className?: string
 }
 
-export function LanguageSwitcher({ variant = 'light', compact = true, className = '' }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ variant = 'light', compact = true, dropDirection, className = '' }: LanguageSwitcherProps) {
   const { i18n } = useTranslation(['common'])
   const { isAuthenticated } = useAuth()
   const [languages, setLanguages] = useState<LanguageOption[]>([])
@@ -146,8 +148,10 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
 
   if (languages.length <= 1) return null
 
-  // En modo dark (footer), el dropdown se abre hacia arriba para no salir de la pagina
-  const dropdownPosition = isDark ? 'bottom-full mb-1' : 'top-full mt-1'
+  // Direccion del dropdown: explicita por prop, o por defecto segun variante
+  // (dark=footer=arriba, light=header=abajo) para compatibilidad con usos existentes
+  const effectiveDrop = dropDirection || (isDark ? 'up' : 'down')
+  const dropdownPosition = effectiveDrop === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'
 
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -158,12 +162,12 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={currentLang?.native_name || `Language: ${current}`}
-        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border ${textColor} ${borderColor} ${hoverColor} transition focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+        className={`flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-1 rounded-lg text-[11px] sm:text-xs font-medium border ${textColor} ${borderColor} ${hoverColor} transition focus:outline-none focus:ring-2 focus:ring-emerald-500 flex-shrink-0`}
         title={currentLang?.native_name || current}
       >
-        <Languages size={14} />
-        <span>{displayLabel}</span>
-        <ChevronDown size={12} className={`transition ${open ? 'rotate-180' : ''}`} />
+        <Languages size={13} className="flex-shrink-0" />
+        <span className="font-semibold">{displayLabel}</span>
+        <ChevronDown size={11} className={`transition flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div

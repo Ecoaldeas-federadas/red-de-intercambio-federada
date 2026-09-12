@@ -1,11 +1,15 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
 
+	"federated-credit-node/internal/db"
+
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,17 +23,18 @@ type CommerceScheduleHandler struct {
 
 // CommerceSchedule representa una regla de horario de comercio.
 type CommerceSchedule struct {
-	ID              string  `json:"id"`
-	NodeDomain      string  `json:"node_domain"`
-	Name            string  `json:"name"`
-	IsActive        bool    `json:"is_active"`
-	DayOfWeek       *int    `json:"day_of_week"`
-	StartTime       *string `json:"start_time"`
-	EndTime         *string `json:"end_time"`
-	CrossesMidnight bool    `json:"crosses_midnight"`
-	EndDayOfWeek    *int    `json:"end_day_of_week"`
-	BlockType       string  `json:"block_type"`
-	BlockMessage    string  `json:"block_message"`
+	ID              string                       `json:"id"`
+	NodeDomain      string                       `json:"node_domain"`
+	Name            string                       `json:"name"`
+	IsActive        bool                         `json:"is_active"`
+	DayOfWeek       *int                         `json:"day_of_week"`
+	StartTime       *string                      `json:"start_time"`
+	EndTime         *string                      `json:"end_time"`
+	CrossesMidnight bool                         `json:"crosses_midnight"`
+	EndDayOfWeek    *int                         `json:"end_day_of_week"`
+	BlockType       string                       `json:"block_type"`
+	BlockMessage    string                       `json:"block_message"`
+	Translations    map[string]map[string]string `json:"translations,omitempty"`
 }
 
 func (h *CommerceScheduleHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
@@ -41,10 +46,7 @@ func (h *CommerceScheduleHandler) RegisterRoutes(r chi.Router, am *AuthMiddlewar
 }
 
 func (h *CommerceScheduleHandler) listSchedules(w http.ResponseWriter, r *http.Request) {
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = h.NodeDomain
-	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id::text, node_domain, name, is_active, day_of_week, start_time, end_time,
@@ -80,6 +82,27 @@ func (h *CommerceScheduleHandler) listSchedules(w http.ResponseWriter, r *http.R
 		SELECT COALESCE(commerce_hours_enabled, false), COALESCE(commerce_hours_message, '')
 		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(&enabled, &message)
 
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	if lang != fallbackLang {
+		keys := make([]string, 0, len(schedules)*2+1)
+		for _, s := range schedules {
+			keys = append(keys, "commerce_schedule:"+s.ID+":name", "commerce_schedule:"+s.ID+":block_message")
+		}
+		keys = append(keys, "public_settings:"+nodeDomain+":commerce_hours_message")
+		vals := localizedContentValues(r.Context(), h.Pool, keys, lang)
+		for i := range schedules {
+			if v := vals["commerce_schedule:"+schedules[i].ID+":name"]; v != "" {
+				schedules[i].Name = v
+			}
+			if v := vals["commerce_schedule:"+schedules[i].ID+":block_message"]; v != "" {
+				schedules[i].BlockMessage = v
+			}
+		}
+		if v := vals["public_settings:"+nodeDomain+":commerce_hours_message"]; v != "" {
+			message = v
+		}
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
 		"schedules":              schedules,
 		"commerce_hours_enabled": enabled,
@@ -88,10 +111,7 @@ func (h *CommerceScheduleHandler) listSchedules(w http.ResponseWriter, r *http.R
 }
 
 func (h *CommerceScheduleHandler) createSchedule(w http.ResponseWriter, r *http.Request) {
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = h.NodeDomain
-	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
 
 	var req CommerceSchedule
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -116,6 +136,13 @@ func (h *CommerceScheduleHandler) createSchedule(w http.ResponseWriter, r *http.
 		return
 	}
 
+	scheduleFields := map[string]string{"name": req.Name, "block_message": req.BlockMessage}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "commerce_schedule", id, scheduleFields, map[string]interface{}{"label": req.Name})
+	if len(req.Translations) > 0 {
+		userID, _ := uuid.Parse(r.Header.Get("X-User-ID"))
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "commerce_schedule", id, scheduleFields, req.Translations, userID)
+	}
+
 	writeJSON(w, 201, map[string]interface{}{"id": id, "success": true})
 }
 
@@ -127,6 +154,7 @@ func (h *CommerceScheduleHandler) updateSchedule(w http.ResponseWriter, r *http.
 		return
 	}
 
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.NodeDomain)
 	_, err := h.Pool.Exec(r.Context(), `
 		UPDATE commerce_schedule SET
 			name = $2, is_active = $3, day_of_week = $4, start_time = $5, end_time = $6,
@@ -138,6 +166,13 @@ func (h *CommerceScheduleHandler) updateSchedule(w http.ResponseWriter, r *http.
 	if err != nil {
 		writeError(w, 500, "error updating schedule")
 		return
+	}
+
+	scheduleFields := map[string]string{"name": req.Name, "block_message": req.BlockMessage}
+	registerEntityFields(r.Context(), h.Pool, nodeDomain, "commerce_schedule", id, scheduleFields, map[string]interface{}{"label": req.Name})
+	if len(req.Translations) > 0 {
+		userID, _ := uuid.Parse(r.Header.Get("X-User-ID"))
+		saveSubmittedTranslations(r.Context(), h.Pool, nodeDomain, "commerce_schedule", id, scheduleFields, req.Translations, userID)
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"success": true})
@@ -185,7 +220,7 @@ func (h *CommerceScheduleHandler) toggleCommerceHours(w http.ResponseWriter, r *
 func IsCommerceBlocked(pool *pgxpool.Pool, nodeDomain string) (bool, string) {
 	// Verificar si esta activado
 	var enabled bool
-	err := pool.QueryRow(nil, `
+	err := pool.QueryRow(context.TODO(), `
 		SELECT COALESCE(commerce_hours_enabled, false) FROM public_settings WHERE node_domain = $1`,
 		nodeDomain).Scan(&enabled)
 	if err != nil || !enabled {
@@ -197,7 +232,7 @@ func IsCommerceBlocked(pool *pgxpool.Pool, nodeDomain string) (bool, string) {
 	hourMin := now.Format("15:04")
 
 	// Buscar reglas activas que apliquen a este momento
-	rows, err := pool.Query(nil, `
+	rows, err := pool.Query(context.TODO(), `
 		SELECT block_type, block_message, day_of_week, start_time, end_time,
 		       crosses_midnight, end_day_of_week
 		FROM commerce_schedule

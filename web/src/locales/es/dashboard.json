@@ -91,5 +91,13 @@
   "help_buy": "Comprar",
   "help_buy_desc": "Ver productos disponibles en la tienda",
   "help_calculator_desc": "Usar la calculadora de equivalencias",
-  "help_quick_actions_tip": "Solo haz clic en el boton y te llevara a esa pagina. Es un atajo para no buscar en el menu lateral."
+  "help_quick_actions_tip": "Solo haz clic en el boton y te llevara a esa pagina. Es un atajo para no buscar en el menu lateral.",
+  "presential_badge": "Presencial",
+  "session_type_ordinaria": "Ordinaria",
+  "session_type_extraordinaria": "Extraordinaria",
+  "session_type_urgente": "Urgente",
+  "status_scheduled": "Programada",
+  "status_waiting_quorum": "Esperando quorum",
+  "status_active": "Activa",
+  "status_closed": "Cerrada"
 }

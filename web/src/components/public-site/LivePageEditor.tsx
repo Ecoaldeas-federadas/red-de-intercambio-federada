@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Sparkles,
   Plus,
@@ -24,8 +24,9 @@ import {
 } from 'lucide-react'
 import { SiteBlock, BlockType } from '../../types/publicSite'
 import { BlockRenderer } from './PublicBlocks'
-import { getCurrentLanguage } from '../../i18n/TranslationProvider'
+import { getCurrentLanguage, changeLanguage } from '../../i18n/TranslationProvider'
 import { api } from '../../api'
+import { getPreconfiguredTemplate } from './defaultSiteData'
 
 // Block definitions for the inline module adder
 const BLOCK_TEMPLATES: {
@@ -380,20 +381,26 @@ export function LivePageEditor({
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [error, setError] = useState('')
   const [editLang, setEditLang] = useState(getCurrentLanguage())
+  const [defaultLang, setDefaultLang] = useState('es')
   const [languages, setLanguages] = useState<any[]>([])
   const [pageTranslations, setPageTranslations] = useState<Record<string, boolean>>({})
   const [pageTitle, setPageTitle] = useState(title)
   const [pageSubtitle, setPageSubtitle] = useState(subtitle || '')
+  // Borradores locales en memoria por idioma para alternar sin pérdida de cambios
+  const [draftsByLang, setDraftsByLang] = useState<Record<string, { blocks: SiteBlock[]; title: string; subtitle: string; hasChanges: boolean }>>({})
 
   // Cargar idiomas disponibles
   useEffect(() => {
     api.get<any[]>('/languages').then((langs) => {
-      setLanguages((langs || []).filter((l: any) => l.enabled))
+      const enabled = (langs || []).filter((l: any) => l.enabled)
+      setLanguages(enabled)
+      setDefaultLang(enabled.find((l: any) => l.is_default)?.code || 'es')
     }).catch(() => {
       setLanguages([
-        { code: 'es', native_name: 'Español' },
-        { code: 'en', native_name: 'English' },
+        { code: 'es', native_name: 'Español', is_default: true },
+        { code: 'en', native_name: 'English', is_default: false },
       ])
+      setDefaultLang('es')
     })
   }, [])
 
@@ -407,43 +414,180 @@ export function LivePageEditor({
     }).catch(() => {})
   }, [pageId])
 
+  // Si el editor se abre en un idioma secundario, cargar su contenido
+  useEffect(() => {
+    if (editLang && editLang !== defaultLang) {
+      loadLangContent(editLang)
+    }
+  }, [])
+
   // Cargar contenido del idioma seleccionado
   const loadLangContent = async (lang: string) => {
-    if (!pageId) return
+    setError('')
     try {
-      const tr = await api.get<any>(`/site/pages/${pageId}/translations/${lang}`)
-      if (tr?.content) {
-        try {
-          const parsed = JSON.parse(tr.content)
-          if (Array.isArray(parsed)) {
-            setBlocks(parsed)
+      if (lang !== defaultLang) {
+        let tr: any = null
+        if (pageId) {
+          try {
+            tr = await api.get<any>(`/site/pages/${pageId}/translations/${lang}`)
+          } catch {
+            tr = null
           }
-        } catch {}
+        }
+        if (!tr) {
+          try {
+            tr = await api.get<any>(`/site/pages/by-slug/${slug}?lang=${lang}`)
+          } catch {
+            tr = null
+          }
+        }
+
+        // Si existe traducción en BD y NO es un fallback que devuelve el contenido en español
+        if (tr && !tr.is_fallback && tr.content) {
+          try {
+            const parsed = JSON.parse(tr.content)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setBlocks(parsed)
+              setPageTitle(tr.title || title)
+              setPageSubtitle(tr.subtitle || '')
+              setHasChanges(false)
+              return
+            }
+          } catch {}
+        }
+
+        // Si es fallback o no tiene traducción en BD, consultar plantilla preconfigurada en ese idioma
+        const tmpl = getPreconfiguredTemplate(slug, lang)
+        if (tmpl) {
+          setBlocks(tmpl.blocks)
+          setPageTitle(tmpl.title)
+          setPageSubtitle(tmpl.subtitle || '')
+          setHasChanges(false)
+          return
+        }
+
+        // Fallback a título traducido si existiera
+        if (tr?.title && !tr.is_fallback) {
+          setPageTitle(tr.title)
+          setPageSubtitle(tr.subtitle || '')
+        }
+      } else {
+        // Idioma principal (defaultLang)
+        let baseData: any = null
+        if (pageId) {
+          try {
+            baseData = await api.get<any>(`/site/pages/${pageId}/translations/${defaultLang}`)
+          } catch {
+            baseData = null
+          }
+        }
+        if (!baseData || !baseData.content) {
+          try {
+            baseData = await api.get<any>(`/site/pages/by-slug/${slug}?lang=${defaultLang}`)
+          } catch {
+            baseData = null
+          }
+        }
+
+        if (baseData?.content) {
+          try {
+            const parsed = JSON.parse(baseData.content)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setBlocks(parsed)
+              setPageTitle(baseData.title || title)
+              setPageSubtitle(baseData.subtitle || '')
+              setHasChanges(false)
+              return
+            }
+          } catch {}
+        }
+
+        const tmpl = getPreconfiguredTemplate(slug, defaultLang)
+        if (tmpl) {
+          setBlocks(tmpl.blocks)
+          setPageTitle(tmpl.title)
+          setPageSubtitle(tmpl.subtitle || '')
+        } else {
+          setBlocks(initialBlocks)
+          setPageTitle(title)
+          setPageSubtitle(subtitle || '')
+        }
       }
-      setPageTitle(tr?.title || title)
-      setPageSubtitle(tr?.subtitle || subtitle || '')
-    } catch {
-      // No hay traducción: mantener contenido actual como punto de partida
-      setPageTitle(title)
-      setPageSubtitle(subtitle || '')
+    } catch (e) {
+      console.error('Error cargando idioma en editor:', e)
+      const tmpl = getPreconfiguredTemplate(slug, lang)
+      if (tmpl) {
+        setBlocks(tmpl.blocks)
+        setPageTitle(tmpl.title)
+        setPageSubtitle(tmpl.subtitle || '')
+      }
     }
     setHasChanges(false)
   }
 
   const handleLangChange = async (lang: string) => {
-    if (hasChanges && !confirm('Hay cambios sin guardar. ¿Cambiar de idioma de todos modos? Se perderán los cambios no guardados.')) {
+    if (lang === editLang) return
+
+    // 1. Respaldar en memoria local el borrador del idioma que se está editando actualmente
+    setDraftsByLang(prev => ({
+      ...prev,
+      [editLang]: {
+        blocks: [...blocks],
+        title: pageTitle,
+        subtitle: pageSubtitle,
+        hasChanges: hasChanges,
+      }
+    }))
+
+    setEditLang(lang)
+    try {
+      await changeLanguage(lang)
+    } catch {}
+
+    // 2. Si ya teníamos un borrador en memoria para este idioma, restaurarlo de inmediato
+    if (draftsByLang[lang]) {
+      setBlocks(draftsByLang[lang].blocks)
+      setPageTitle(draftsByLang[lang].title)
+      setPageSubtitle(draftsByLang[lang].subtitle)
+      setHasChanges(draftsByLang[lang].hasChanges)
       return
     }
-    setEditLang(lang)
+
+    // 3. Si no estaba en memoria, cargarlo desde el backend o la plantilla
     await loadLangContent(lang)
   }
 
   // Copiar contenido de otro idioma como punto de partida
   const copyFromLang = async (fromLang: string) => {
-    if (!pageId) return
-    if (!confirm(`¿Copiar el contenido desde ${fromLang.toUpperCase()}? Esto reemplazará el contenido actual.`)) return
+    if (!confirm(`¿Copiar el contenido desde ${fromLang.toUpperCase()}? Esto reemplazará el contenido actual en este editor.`)) return
     try {
-      const tr = await api.get<any>(`/site/pages/${pageId}/translations/${fromLang}`)
+      let tr: any = null
+      if (pageId) {
+        try {
+          tr = await api.get<any>(`/site/pages/${pageId}/translations/${fromLang}`)
+        } catch {
+          tr = null
+        }
+      }
+      if (!tr) {
+        try {
+          tr = await api.get<any>(`/site/pages/by-slug/${slug}?lang=${fromLang}`)
+        } catch {
+          tr = null
+        }
+      }
+
+      if (!tr || tr.is_fallback || !tr.content) {
+        const tmpl = getPreconfiguredTemplate(slug, fromLang)
+        if (tmpl) {
+          setBlocks(tmpl.blocks)
+          setPageTitle(tmpl.title)
+          setPageSubtitle(tmpl.subtitle || '')
+          setHasChanges(true)
+          return
+        }
+      }
+
       if (tr?.content) {
         try {
           const parsed = JSON.parse(tr.content)
@@ -522,8 +666,6 @@ export function LivePageEditor({
     try {
       const content = JSON.stringify(blocks, null, 2)
 
-      // Guardar metadatos (slug, icon, etc.) en el idioma por defecto
-      // solo si estamos editando el idioma por defecto del nodo
       const payload = {
         slug,
         title: pageTitle,
@@ -535,21 +677,59 @@ export function LivePageEditor({
         content,
       }
 
-      // Guardar en la pagina principal (metadatos)
-      await api.put(`/site/pages/by-slug/${slug}`, payload)
-
-      // Guardar la traducción del contenido en el idioma seleccionado
-      if (pageId && editLang) {
-        await api.put(`/site/pages/${pageId}/translations/${editLang}`, {
-          title: pageTitle,
-          subtitle: pageSubtitle || '',
-          content,
-        })
-        // Marcar como traducido
+      if (editLang === defaultLang) {
+        await api.put(`/site/pages/by-slug/${slug}`, payload)
+      } else {
+        if (pageId) {
+          await api.put(`/site/pages/${pageId}/translations/${editLang}`, {
+            title: pageTitle,
+            subtitle: pageSubtitle || '',
+            content,
+          })
+        } else {
+          await api.put(`/site/pages/by-slug/${slug}?lang=${editLang}`, payload)
+        }
         setPageTranslations(prev => ({ ...prev, [editLang]: true }))
       }
 
+      // Guardar también borradores en otros idiomas si tenían cambios pendientes
+      for (const otherLang of Object.keys(draftsByLang)) {
+        if (otherLang !== editLang && draftsByLang[otherLang]?.hasChanges) {
+          const draft = draftsByLang[otherLang]
+          const otherContent = JSON.stringify(draft.blocks, null, 2)
+          try {
+            if (otherLang === defaultLang) {
+              await api.put(`/site/pages/by-slug/${slug}`, {
+                ...payload,
+                title: draft.title,
+                subtitle: draft.subtitle || '',
+                content: otherContent,
+              })
+            } else {
+              if (pageId) {
+                await api.put(`/site/pages/${pageId}/translations/${otherLang}`, {
+                  title: draft.title,
+                  subtitle: draft.subtitle || '',
+                  content: otherContent,
+                })
+              } else {
+                await api.put(`/site/pages/by-slug/${slug}?lang=${otherLang}`, {
+                  ...payload,
+                  title: draft.title,
+                  subtitle: draft.subtitle || '',
+                  content: otherContent,
+                })
+              }
+              setPageTranslations(prev => ({ ...prev, [otherLang]: true }))
+            }
+          } catch (errOther) {
+            console.error(`Error guardando borrador pendiente de ${otherLang}:`, errOther)
+          }
+        }
+      }
+
       setHasChanges(false)
+      setDraftsByLang({})
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
       if (onSaved) onSaved()
@@ -594,7 +774,7 @@ export function LivePageEditor({
                   title={l.native_name}
                 >
                   {l.code.toUpperCase()}
-                  {pageTranslations[l.code] && (
+                  {(l.code === defaultLang || pageTranslations[l.code]) && (
                     <CheckCircle2 size={10} className={editLang === l.code ? 'text-gray-900' : 'text-green-400'} />
                   )}
                 </button>
@@ -778,7 +958,7 @@ export function LivePageEditor({
                       setBlocks(updated)
                       setHasChanges(true)
                     }}
-                    onArrayChange={(action, arrayField, index, item) => {
+                    onArrayChange={(action, arrayField, itemIndex, item) => {
                       const updated = [...blocks]
                       const newBlock = JSON.parse(JSON.stringify(updated[index])) as SiteBlock
                       if (action === 'add') {
@@ -788,10 +968,10 @@ export function LivePageEditor({
                         } else {
                           (newBlock as any)[arrayField] = [item]
                         }
-                      } else if (action === 'remove' && index !== undefined) {
+                      } else if (action === 'remove' && itemIndex !== undefined) {
                         const arr = (newBlock as any)[arrayField]
                         if (Array.isArray(arr)) {
-                          arr.splice(index, 1)
+                          arr.splice(itemIndex, 1)
                         }
                       }
                       updated[index] = newBlock

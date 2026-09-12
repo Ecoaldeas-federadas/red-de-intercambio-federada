@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Link, useParams, useLocation } from 'react-router-dom'
+import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
+import { changeLanguage } from '../i18n/TranslationProvider'
 import { assetUrl } from '../utils/assetUrl'
 import {
   Home,
@@ -32,18 +33,18 @@ import {
   Upload,
   Check,
   ScrollText,
+  LogIn,
 } from 'lucide-react'
 import { PageBlocksRenderer } from './public-site/PublicBlocks'
 import { LivePageEditor } from './public-site/LivePageEditor'
 import { DynamicAdmissionForm } from './public-site/DynamicAdmissionForm'
 import { LoginModal } from './LoginModal'
 import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCustomizer'
-import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
+import { FERIA_CONUQUERA_TEMPLATES, FERIA_CONUQUERA_TEMPLATES_EN, getPreconfiguredTemplate } from './public-site/defaultSiteData'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
 import { PublicGovernancePage } from './public-site/PublicGovernancePage'
-// PublicFederationPage ya no se importa: la pagina de federacion ahora usa bloques editables.
-// El componente se mantiene en el repositorio para referencia pero no se usa en el enrutado.
+import { PublicFederationPage } from './public-site/PublicFederationPage'
 const ICONS: Record<string, any> = {
   home: Home,
   heart: Heart,
@@ -119,8 +120,9 @@ function getShortLabel(p: { slug: string; title: string }): string {
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, username, logout } = useAuth()
-  const { t: tpub } = useTranslation(['public', 'common'])
+  const { t: tpub, i18n: publicI18n } = useTranslation(['public', 'common'])
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [pages, setPages] = useState<PublicPageData[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -133,20 +135,32 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const [showAdminMenu, setShowAdminMenu] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
 
+  const urlLang = searchParams.get('lang')?.toLowerCase()
+  const currentEffectiveLang = (urlLang === 'en' || urlLang === 'es') ? urlLang : (publicI18n.language || 'es')
+
   useEffect(() => {
-    api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
-    api.get('/public/pages').then((d: any) => {
+    if (urlLang && (urlLang === 'en' || urlLang === 'es') && urlLang !== publicI18n.language) {
+      changeLanguage(urlLang)
+    }
+  }, [urlLang, publicI18n.language])
+
+  useEffect(() => {
+    api.get(`/public/settings?lang=${currentEffectiveLang}`).then((s: any) => setSettings(s)).catch(() => {
+      api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
+    })
+    api.get(`/public/pages?lang=${currentEffectiveLang}`).then((d: any) => {
+      const activeTemplates = currentEffectiveLang === 'en' ? FERIA_CONUQUERA_TEMPLATES_EN : FERIA_CONUQUERA_TEMPLATES
       if (Array.isArray(d) && d.length > 0) {
         // Merge: keep DB pages, but add any template pages whose slug
         // doesn't exist in the DB yet (so new template pages appear
         // automatically without needing a re-seed or migration).
         const dbSlugs = new Set(d.map((p: any) => p.slug))
-        const templateOnly = FERIA_CONUQUERA_TEMPLATES
+        const templateOnly = activeTemplates
           .filter((t) => !dbSlugs.has(t.slug))
           .map((t) => ({
             slug: t.slug,
-            title: tpub(`page_${t.slug}_title`, t.title),
-            subtitle: tpub(`page_${t.slug}_subtitle`, t.subtitle),
+            title: t.title,
+            subtitle: t.subtitle,
             icon: t.icon,
             menu_order: t.menu_order,
             is_published: true,
@@ -157,8 +171,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         // renderiza las reglas desde /api/public/governance (no bloques editables)
         const governancePage = dbSlugs.has('gobernanza') ? null : {
           slug: 'gobernanza',
-          title: tpub('page_gobernanza_title', 'Gobernanza'),
-          subtitle: tpub('page_gobernanza_subtitle', 'Ley de la Aldea - Reglas de convivencia'),
+          title: currentEffectiveLang === 'en' ? 'Governance' : 'Gobernanza',
+          subtitle: currentEffectiveLang === 'en' ? 'Village Law - Cohabitation rules' : 'Ley de la Aldea - Reglas de convivencia',
           icon: 'scale',
           menu_order: 90,
           is_published: true,
@@ -168,8 +182,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         // Pagina virtual de federacion: invita a ecoaldeas a sumarse
         const federationPage = dbSlugs.has('federacion') ? null : {
           slug: 'federacion',
-          title: tpub('page_federacion_title', 'Federacion'),
-          subtitle: tpub('page_federacion_subtitle', 'Suma tu ecoaldea a la red'),
+          title: currentEffectiveLang === 'en' ? 'Federation' : 'Federacion',
+          subtitle: currentEffectiveLang === 'en' ? 'Join your eco-village to the network' : 'Suma tu ecoaldea a la red',
           icon: 'globe',
           menu_order: 95,
           is_published: true,
@@ -181,7 +195,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         if (federationPage) allPages.push(federationPage)
         setPages(allPages)
       } else {
-        const tmplPages = FERIA_CONUQUERA_TEMPLATES.map((t) => ({
+        const tmplPages = activeTemplates.map((t) => ({
           slug: t.slug,
           title: t.title,
           subtitle: t.subtitle,
@@ -195,8 +209,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         if (!tmplPages.find((p) => p.slug === 'gobernanza')) {
           tmplPages.push({
             slug: 'gobernanza',
-            title: 'Gobernanza',
-            subtitle: 'Ley de la Aldea - Reglas de convivencia',
+            title: currentEffectiveLang === 'en' ? 'Governance' : 'Gobernanza',
+            subtitle: currentEffectiveLang === 'en' ? 'Village Law - Cohabitation rules' : 'Ley de la Aldea - Reglas de convivencia',
             icon: 'scale',
             menu_order: 90,
             is_published: true,
@@ -208,8 +222,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         if (!tmplPages.find((p) => p.slug === 'federacion')) {
           tmplPages.push({
             slug: 'federacion',
-            title: 'Federacion',
-            subtitle: 'Suma tu ecoaldea a la red',
+            title: currentEffectiveLang === 'en' ? 'Federation' : 'Federacion',
+            subtitle: currentEffectiveLang === 'en' ? 'Join your eco-village to the network' : 'Suma tu ecoaldea a la red',
             icon: 'globe',
             menu_order: 95,
             is_published: true,
@@ -220,7 +234,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         setPages(tmplPages)
       }
     }).catch(() => {})
-  }, [])
+  }, [currentEffectiveLang])
 
   // Close "More" dropdown when clicking outside
   useEffect(() => {
@@ -359,17 +373,17 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <header className={`${stickyClass} z-50 shadow-md w-full`} style={{ backgroundColor: (settings as any)?.page_bg_color || '#f8faf5' }}>
           {/* Top bar: logo + actions */}
           <div className="border-b-2" style={{ borderColor: primaryColor }}>
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
-              <Link to="/p/inicio" className="flex items-center gap-2.5 flex-shrink-0 max-w-xs sm:max-w-sm">
+            <div className="max-w-7xl mx-auto px-2.5 sm:px-6 py-2.5 flex items-center justify-between gap-1.5 sm:gap-3 w-full">
+              <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 mr-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-sm">
                 {settings?.logo_url ? (
-                  <img src={settings.logo_url} alt="logo" className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0" />
+                  <img src={settings.logo_url} alt="logo" className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-cover shadow-sm flex-shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-sm flex-shrink-0" style={{ backgroundColor: primaryColor }}>
-                    <Leaf size={20} />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl text-white flex items-center justify-center shadow-sm flex-shrink-0" style={{ backgroundColor: primaryColor }}>
+                    <Leaf size={18} />
                   </div>
                 )}
-                <div>
-                  <h1 className="text-sm sm:text-base font-black tracking-tight leading-tight" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-[11px] xs:text-xs sm:text-sm md:text-base font-black tracking-tight leading-tight line-clamp-2 break-words" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
                     {settings?.site_title || ''}
                   </h1>
                   <p className="text-[10px] sm:text-[11px] font-semibold hidden sm:block truncate" style={{ color: (settings as any)?.link_color || '#15803d' }}>
@@ -378,23 +392,26 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </Link>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
+                <LanguageSwitcher variant="light" compact={true} dropDirection="down" />
                 {settings?.show_join_form && !isAuthenticated && (
-                  <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-2 rounded-lg text-xs font-bold text-white shadow transition hover:opacity-90 items-center gap-1" style={{ backgroundColor: secondaryColor }}>
+                  <Link to="/p/unirse" className="hidden sm:inline-flex px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow transition hover:opacity-90 items-center gap-1 flex-shrink-0" style={{ backgroundColor: secondaryColor }}>
                     <Sparkles size={12} />
                     {tpub('join', 'Join')}
                   </Link>
                 )}
                 {isAuthenticated ? (
-                  <Link to="/app/dashboard" className="px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: primaryColor }}>
-                    {tpub('dashboard', 'Dashboard')}
+                  <Link to="/app/dashboard" className="px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold text-white shadow flex items-center gap-1 flex-shrink-0" style={{ backgroundColor: primaryColor }}>
+                    <LayoutDashboard size={13} />
+                    <span className="hidden xs:inline">{tpub('dashboard', 'Dashboard')}</span>
                   </Link>
                 ) : (
-                  <button onClick={() => setShowLoginModal(true)} className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50" style={{ color: primaryColor, borderColor: primaryColor }}>
-                    {tpub('login', 'Log in')}
+                  <button onClick={() => setShowLoginModal(true)} className="px-2 py-1 rounded-lg text-[11px] sm:text-xs font-bold border transition hover:bg-gray-50 flex items-center gap-1 flex-shrink-0" style={{ color: primaryColor, borderColor: primaryColor }} title={tpub('login', 'Log in')}>
+                    <LogIn size={13} />
+                    <span className="hidden xs:inline">{tpub('login', 'Log in')}</span>
                   </button>
                 )}
-                <button className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
+                <button className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
                   {menuOpen ? <X size={18} /> : <Menu size={18} />}
                 </button>
               </div>
@@ -449,17 +466,17 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {headerStyle === 'editorial_latam' && (
         <header className={`${stickyClass} z-50 shadow-md w-full`}>
           <div className="py-2.5 px-3 sm:px-6 border-b" style={{ backgroundColor: headerTopBgColor || '#ffffff', borderColor: `${headerBottomBgColor || primaryColor}30` }}>
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-              <Link to="/p/inicio" className="flex items-center gap-2.5 max-w-sm" style={{ color: headerTopTextColor || (settings as any)?.text_color || '#1a1a1a' }}>
+            <div className="max-w-7xl mx-auto px-2.5 sm:px-6 flex items-center justify-between gap-1.5 sm:gap-3 w-full">
+              <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 mr-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-sm" style={{ color: headerTopTextColor || (settings as any)?.text_color || '#1a1a1a' }}>
                 {settings?.logo_url ? (
-                  <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-full object-cover border border-amber-300 shadow-sm flex-shrink-0" />
+                  <img src={settings.logo_url} alt="logo" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-amber-300 shadow-sm flex-shrink-0" />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-amber-700 text-white flex items-center justify-center font-serif text-lg font-bold flex-shrink-0">
-                    <Leaf size={18} />
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-700 text-white flex items-center justify-center font-serif text-base font-bold flex-shrink-0">
+                    <Leaf size={16} />
                   </div>
                 )}
-                <div>
-                  <h1 className="text-xs sm:text-sm md:text-base font-black text-amber-950 uppercase tracking-tight font-serif leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-[11px] xs:text-xs sm:text-sm md:text-base font-black text-amber-950 uppercase tracking-tight font-serif leading-tight line-clamp-2 break-words">
                     {settings?.site_title || ''}
                   </h1>
                   <p className="text-[10px] text-amber-800 italic hidden sm:block truncate">
@@ -468,20 +485,21 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </Link>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="hidden md:inline-block text-[11px] font-serif font-bold text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full">
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
+                <LanguageSwitcher variant="light" compact={true} dropDirection="down" />
+                <span className="hidden md:inline-block text-[11px] font-serif font-bold text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full flex-shrink-0">
                   🍃 Semillas Libres
                 </span>
                 {isAuthenticated && (
                   <Link
                     to="/app/website"
-                    className="text-xs font-bold bg-amber-800 text-white px-2.5 py-1 rounded-lg shadow-xs"
+                    className="text-xs font-bold bg-amber-800 text-white px-2.5 py-1 rounded-lg shadow-xs flex-shrink-0"
                   >
                     Editor
                   </Link>
                 )}
                 <button
-                  className="lg:hidden p-1.5 text-amber-950 bg-amber-100 rounded-lg"
+                  className="lg:hidden p-1.5 text-amber-950 bg-amber-100 rounded-lg flex-shrink-0"
                   onClick={() => setMenuOpen(!menuOpen)}
                 >
                   {menuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -553,17 +571,17 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {/* STYLE C: DROPDOWN CATEGORIES */}
       {headerStyle === 'dropdown_categories' && (
         <header className={`${stickyClass} z-50 shadow-md backdrop-blur-md w-full`} style={{ backgroundColor: primaryColor }}>
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
-            <Link to="/p/inicio" className="flex items-center gap-2 text-white max-w-xs" style={{ color: headerTextColorResolved }}>
+          <div className="max-w-7xl mx-auto px-2.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-3 w-full">
+            <Link to="/p/inicio" className="flex items-center gap-1.5 sm:gap-2 text-white min-w-0 flex-1 mr-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-sm" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img src={settings.logo_url} alt="logo" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-white/30 shadow flex-shrink-0" />
               ) : (
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
-                  <Leaf size={18} />
+                  <Leaf size={16} />
                 </div>
               )}
-              <div>
-                <h1 className="text-xs sm:text-sm md:text-base font-bold leading-tight">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-[11px] xs:text-xs sm:text-sm md:text-base font-bold leading-tight line-clamp-2 break-words">
                   {settings?.site_title || ''}
                 </h1>
                 <p className="text-[10px] text-emerald-200 hidden sm:block truncate">{settings?.site_subtitle}</p>
@@ -673,16 +691,27 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               )}
             </nav>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
+              <LanguageSwitcher variant="dark" compact={true} dropDirection="down" />
               <Link
                 to="/p/unirse"
-                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow"
+                className="hidden sm:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow flex-shrink-0"
                 style={{ backgroundColor: secondaryColor }}
               >
                 Unirse
               </Link>
+              {!isAuthenticated && (
+                <Link
+                  to="/login"
+                  className="px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-medium text-white/90 hover:text-white bg-white/10 hover:bg-white/20 transition flex items-center gap-1 flex-shrink-0"
+                  title={tpub('login', 'Log in')}
+                >
+                  <LogIn size={13} />
+                  <span className="hidden xs:inline">{tpub('login', 'Log in')}</span>
+                </Link>
+              )}
               <button
-                className="lg:hidden text-white p-1.5"
+                className="lg:hidden text-white p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition flex-shrink-0"
                 onClick={() => setMenuOpen(!menuOpen)}
               >
                 {menuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -714,9 +743,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     <Leaf size={28} />
                   </div>
                 )}
-                <div className="text-center">
+                <div className="text-center max-w-[280px] sm:max-w-md">
                   <h1
-                    className="text-sm sm:text-lg font-black tracking-tight leading-tight"
+                    className="text-xs sm:text-lg font-black tracking-tight leading-tight line-clamp-2 break-words"
                     style={{ color: (settings as any)?.text_color || '#1a1a1a' }}
                   >
                     {settings?.site_title || ''}
@@ -734,7 +763,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
           {/* Bottom row: horizontal menu bar */}
           <div style={{ backgroundColor: primaryColor }}>
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-center gap-0.5 py-1.5">
+            <div className="max-w-7xl mx-auto px-2.5 sm:px-6 flex items-center justify-between lg:justify-center gap-1.5 py-1.5 w-full">
               <nav className="hidden lg:flex items-center gap-0.5 text-xs font-bold text-white" style={{ color: headerTextColorResolved }}>
                 {visiblePages.map((p) => {
                   const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
@@ -776,12 +805,28 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 )}
               </nav>
-              <button
-                className="lg:hidden text-white p-1.5"
-                onClick={() => setMenuOpen(!menuOpen)}
-              >
-                {menuOpen ? <X size={18} /> : <Menu size={18} />}
-              </button>
+
+              <div className="flex lg:hidden items-center justify-between w-full">
+                <LanguageSwitcher variant="dark" compact={true} dropDirection="down" />
+                <div className="flex items-center gap-1.5">
+                  {!isAuthenticated && (
+                    <Link
+                      to="/login"
+                      className="px-2 py-1 rounded-md text-[11px] font-medium text-white/90 hover:text-white bg-white/10 transition flex items-center gap-1"
+                      title={tpub('login', 'Log in')}
+                    >
+                      <LogIn size={13} />
+                      <span className="hidden xs:inline">{tpub('login', 'Log in')}</span>
+                    </Link>
+                  )}
+                  <button
+                    className="text-white p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition"
+                    onClick={() => setMenuOpen(!menuOpen)}
+                  >
+                    {menuOpen ? <X size={18} /> : <Menu size={18} />}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </header>
@@ -827,22 +872,22 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 ))}
               </div>
             )}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-3 relative z-10">
+            <div className="max-w-7xl mx-auto px-2.5 sm:px-6 py-3 sm:py-6 flex items-center justify-between gap-1.5 sm:gap-3 relative z-10 w-full">
               {/* Logo + brand overlaid on image */}
-              <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0 max-w-xs sm:max-w-md" style={{ color: headerTextColorResolved }}>
+              <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-3 text-white group min-w-0 flex-1 mr-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-md" style={{ color: headerTextColorResolved }}>
                 {settings?.logo_url ? (
                   <img
                     src={settings.logo_url}
                     alt="logo"
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border-2 border-white/60 shadow-lg flex-shrink-0"
+                    className="w-9 h-9 sm:w-14 sm:h-14 rounded-xl object-cover border-2 border-white/60 shadow-lg flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg border border-white/30 flex-shrink-0">
-                    <Leaf size={26} />
+                  <div className="w-9 h-9 sm:w-14 sm:h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg border border-white/30 flex-shrink-0">
+                    <Leaf size={20} />
                   </div>
                 )}
-                <div>
-                  <h1 className="text-sm sm:text-xl font-black tracking-tight leading-tight drop-shadow-lg">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-xs sm:text-lg md:text-xl font-black tracking-tight leading-tight drop-shadow-lg line-clamp-2 break-words">
                     {settings?.site_title || ''}
                   </h1>
                   <p className="text-[11px] sm:text-xs text-white/80 font-medium hidden sm:block truncate drop-shadow">
@@ -852,11 +897,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
 
               {/* Actions */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
+                <LanguageSwitcher variant="dark" compact={true} dropDirection="down" />
                 {settings?.show_join_form && !isAuthenticated && (
                   <Link
                     to="/p/unirse"
-                    className="hidden sm:inline-flex px-4 py-2 rounded-lg text-xs font-bold text-white shadow-lg transition hover:brightness-110 items-center gap-1"
+                    className="hidden sm:inline-flex px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs font-bold text-white shadow-lg transition hover:brightness-110 items-center gap-1 flex-shrink-0"
                     style={{ backgroundColor: secondaryColor }}
                   >
                     <Sparkles size={12} />
@@ -866,21 +912,24 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 {isAuthenticated ? (
                   <Link
                     to="/app/dashboard"
-                    className="px-3 py-2 rounded-lg text-xs font-bold text-white shadow-lg"
+                    className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold text-white shadow-lg flex items-center gap-1 flex-shrink-0"
                     style={{ backgroundColor: secondaryColor }}
                   >
-                    {tpub('dashboard', 'Dashboard')}
+                    <LayoutDashboard size={13} />
+                    <span className="hidden xs:inline">{tpub('dashboard', 'Dashboard')}</span>
                   </Link>
                 ) : (
                   <Link
                     to="/login"
-                    className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-medium text-white border border-white/40 hover:bg-white/10 transition"
+                    className="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium text-white border border-white/40 hover:bg-white/10 transition flex items-center gap-1 flex-shrink-0"
+                    title={tpub('login', 'Log in')}
                   >
-                    {tpub('login', 'Log in')}
+                    <LogIn size={13} />
+                    <span className="hidden xs:inline">{tpub('login', 'Log in')}</span>
                   </Link>
                 )}
                 <button
-                  className="lg:hidden text-white p-1.5 bg-white/15 rounded-lg"
+                  className="lg:hidden text-white p-1.5 bg-white/15 rounded-lg flex-shrink-0"
                   onClick={() => setMenuOpen(!menuOpen)}
                 >
                   {menuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -1107,18 +1156,18 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {/* STYLE J: HERO OVERLAY — Menu transparente superpuesto, se vuelve solido al scroll */}
       {headerStyle === 'hero_overlay' && (
         <header className={`${headerSticky ? 'fixed' : 'absolute'} top-0 left-0 right-0 z-50 w-full transition-all duration-300`} style={{ backgroundColor: `${headerTransparencyColor}${Math.round(headerTransparency * 2.55).toString(16).padStart(2, '0')}`, backdropFilter: `blur(${headerBlur}px)` }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
-            <Link to="/p/inicio" className="flex items-center gap-2.5 text-white flex-shrink-0 max-w-xs sm:max-w-sm" style={{ color: headerTextColorResolved }}>
+          <div className="max-w-7xl mx-auto px-2.5 sm:px-6 flex items-center justify-between gap-1.5 sm:gap-3 py-2.5 sm:py-3 w-full">
+            <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 text-white min-w-0 flex-1 mr-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-sm" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
-                <img src={settings.logo_url} alt="logo" className="w-10 h-10 rounded-lg object-cover border border-white/30 shadow flex-shrink-0" />
+                <img src={settings.logo_url} alt="logo" className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover border border-white/30 shadow flex-shrink-0" />
               ) : (
-                <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center text-white flex-shrink-0">
-                  <Leaf size={20} />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white/15 flex items-center justify-center text-white flex-shrink-0">
+                  <Leaf size={18} />
                 </div>
               )}
-              <div>
-                <h1 className="text-sm font-black tracking-tight drop-shadow">{settings?.site_title || ''}</h1>
-                <p className="text-[10px] text-white/70 hidden sm:block">{settings?.site_subtitle}</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-[11px] xs:text-xs sm:text-sm md:text-base font-black tracking-tight drop-shadow line-clamp-2 break-words">{settings?.site_title || ''}</h1>
+                <p className="text-[10px] text-white/70 hidden sm:block truncate">{settings?.site_subtitle}</p>
               </div>
             </Link>
 
@@ -1149,13 +1198,24 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               )}
             </nav>
 
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
+              <LanguageSwitcher variant="dark" compact={true} dropDirection="down" />
               {settings?.show_join_form && !isAuthenticated && (
-                <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-1.5 rounded-full text-xs font-bold text-white shadow transition hover:opacity-90" style={{ backgroundColor: secondaryColor }}>
+                <Link to="/p/unirse" className="hidden sm:inline-flex px-3 py-1.5 rounded-full text-xs font-bold text-white shadow transition hover:opacity-90 flex-shrink-0" style={{ backgroundColor: secondaryColor }}>
                   {tpub('join', 'Join')}
                 </Link>
               )}
-              <button className="lg:hidden text-white p-1.5" onClick={() => setMenuOpen(!menuOpen)}>
+              {!isAuthenticated && (
+                <Link
+                  to="/login"
+                  className="px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-medium text-white/90 hover:text-white bg-white/10 hover:bg-white/20 transition flex items-center gap-1 flex-shrink-0"
+                  title={tpub('login', 'Log in')}
+                >
+                  <LogIn size={13} />
+                  <span className="hidden xs:inline">{tpub('login', 'Log in')}</span>
+                </Link>
+              )}
+              <button className="lg:hidden text-white p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition flex-shrink-0" onClick={() => setMenuOpen(!menuOpen)}>
                 {menuOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
             </div>
@@ -1229,25 +1289,25 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {/* STYLE D & DEFAULT: MODERN ECO / ECOVILLAGE */}
       {(headerStyle === 'modern_eco' || headerStyle === 'agrodigital_mincyt') && (
         <header className={`shadow-md ${stickyClass} z-50 backdrop-blur-md border-b border-white/10 w-full`} style={{ backgroundColor: primaryColor }}>
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
+          <div className="max-w-7xl mx-auto px-2 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-3 w-full">
             {/* Logo & Brand */}
-            <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 text-white group flex-shrink-0 max-w-[200px] sm:max-w-xs md:max-w-sm" style={{ color: headerTextColorResolved }}>
+            <Link to="/p/inicio" className="flex items-center gap-1.5 sm:gap-2.5 text-white group min-w-0 flex-1 mr-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-sm" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img
                   src={settings.logo_url}
                   alt="logo"
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border-2 border-amber-400/80 shadow-md group-hover:scale-105 transition flex-shrink-0"
+                  className="w-7 h-7 sm:w-9 sm:h-9 rounded-full object-cover border-2 border-amber-400/80 shadow-md group-hover:scale-105 transition flex-shrink-0"
                 />
               ) : (
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition flex-shrink-0">
-                  <Leaf size={18} />
+                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition flex-shrink-0">
+                  <Leaf size={16} />
                 </div>
               )}
-              <div>
-                <h1 className="text-xs sm:text-sm md:text-base font-extrabold tracking-tight leading-tight">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-[11px] xs:text-xs sm:text-sm md:text-base font-extrabold tracking-tight leading-tight line-clamp-2 break-words">
                   {settings?.site_title || ''}
                 </h1>
-                <p className="text-[10px] sm:text-[11px] text-emerald-200/90 hidden md:block font-medium">
+                <p className="text-[10px] sm:text-[11px] text-emerald-200/90 hidden md:block font-medium truncate">
                   {settings?.site_subtitle || ''}
                 </p>
               </div>
@@ -1314,11 +1374,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </nav>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
+              <LanguageSwitcher variant="dark" compact={true} dropDirection="down" />
               {settings?.show_join_form && !isAuthenticated && (
                 <Link
                   to="/p/unirse"
-                  className="hidden sm:inline-flex px-3 py-1.5 rounded-lg text-xs font-bold text-white transition shadow hover:brightness-110 active:scale-95 items-center gap-1"
+                  className="hidden md:inline-flex px-3 py-1.5 rounded-lg text-xs font-bold text-white transition shadow hover:brightness-110 active:scale-95 items-center gap-1 flex-shrink-0"
                   style={{ backgroundColor: secondaryColor }}
                 >
                   <Sparkles size={12} />
@@ -1327,10 +1388,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               )}
 
               {isAuthenticated ? (
-                <div className="flex items-center gap-1 bg-black/25 p-0.5 sm:p-1 rounded-lg border border-white/10">
+                <div className="flex items-center gap-1 bg-black/25 p-0.5 sm:p-1 rounded-lg border border-white/10 flex-shrink-0">
                   <Link
                     to="/app/website"
-                    className="px-2 py-1 rounded text-[11px] sm:text-xs font-semibold text-white hover:bg-white/20 transition flex items-center gap-1"
+                    className="hidden sm:flex px-2 py-1 rounded text-[11px] sm:text-xs font-semibold text-white hover:bg-white/20 transition items-center gap-1"
                     title={tpub('modular_editor', 'Modular Editor')}
                   >
                     <Edit size={12} />
@@ -1340,9 +1401,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     to="/app/dashboard"
                     className="px-2 py-1 rounded text-[11px] sm:text-xs font-bold text-white transition flex items-center gap-1 shadow-sm"
                     style={{ backgroundColor: secondaryColor }}
+                    title={tpub('dashboard', 'Dashboard')}
                   >
-                    <LayoutDashboard size={12} />
-                    <span className="hidden md:inline">{tpub('dashboard', 'Dashboard')}</span>
+                    <LayoutDashboard size={13} />
+                    <span className="hidden xs:inline">{tpub('dashboard', 'Dashboard')}</span>
                   </Link>
                   <button
                     onClick={() => {
@@ -1359,15 +1421,17 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               ) : (
                 <Link
                   to="/login"
-                  className="hidden sm:inline-block px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition"
+                  className="px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-medium text-white/90 hover:text-white bg-white/10 hover:bg-white/20 transition flex items-center gap-1 flex-shrink-0"
+                  title={tpub('login', 'Log in')}
                 >
-                  {tpub('login', 'Log in')}
+                  <LogIn size={13} />
+                  <span className="hidden xs:inline">{tpub('login', 'Log in')}</span>
                 </Link>
               )}
 
               {/* Mobile / Tablet Menu Button */}
               <button
-                className="lg:hidden text-white p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition"
+                className="lg:hidden text-white p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition flex-shrink-0"
                 onClick={() => setMenuOpen(!menuOpen)}
                 aria-label={tpub('open_menu', 'Open menu')}
               >
@@ -1387,7 +1451,22 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
         /* === MOBILE: MODERN ECO / AGRODIGITAL === */
         (headerStyle === 'modern_eco' || headerStyle === 'agrodigital_mincyt') && (
-        <div className="lg:hidden text-white p-3.5 border-b border-white/10 space-y-2.5 z-40 w-full" style={{ backgroundColor: primaryColor }}>
+        <div className="lg:hidden text-white p-3.5 border-b border-white/10 space-y-3 z-40 w-full shadow-2xl" style={{ backgroundColor: primaryColor }}>
+          {/* Header informativo dentro del cajón móvil */}
+          <div className="flex items-center gap-2.5 pb-2.5 border-b border-white/10">
+            {settings?.logo_url ? (
+              <img src={settings.logo_url} alt="logo" className="w-8 h-8 rounded-full object-cover border border-amber-400/80 shadow flex-shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-white shadow flex-shrink-0">
+                <Leaf size={16} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold leading-tight truncate">{settings?.site_title || ''}</p>
+              <p className="text-[10px] text-emerald-200/80 truncate">{settings?.site_subtitle || ''}</p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-1.5">
             {menuPages.map((p) => {
               const Icon = ICONS[p.icon || 'home'] || Home
@@ -1398,25 +1477,64 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   to={`/p/${p.slug}`}
                   onClick={() => setMenuOpen(false)}
                   className={`px-2.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                    isActive ? 'bg-white/20 text-white font-bold' : 'text-white/80 hover:text-white hover:bg-white/10'
+                    isActive ? 'bg-white/20 text-white font-bold shadow-inner' : 'text-white/80 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <Icon size={14} className="flex-shrink-0" />
-                  <span>{p.title}</span>
+                  <span className="truncate">{p.title}</span>
                 </Link>
               )
             })}
           </div>
-          <div className="pt-2 border-t border-white/10 space-y-1.5">
+          <div className="pt-2 border-t border-white/10 space-y-2">
             {settings?.show_join_form && !isAuthenticated && (
-              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
-                {tpub('request_admission', 'Request Admission')}
+              <Link
+                to="/p/unirse"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center justify-center gap-1.5 w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow transition hover:brightness-110"
+                style={{ backgroundColor: secondaryColor }}
+              >
+                <Sparkles size={13} />
+                <span>{tpub('request_admission', 'Request Admission')}</span>
               </Link>
             )}
-            {!isAuthenticated && (
-              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
-                {tpub('member_login', 'Member login')}
-              </button>
+            {!isAuthenticated ? (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-1 text-center px-3 py-2 rounded-lg text-xs font-bold text-white bg-white/10 hover:bg-white/20 transition border border-white/15"
+                >
+                  <LogIn size={13} />
+                  <span>{tpub('login', 'Log in')}</span>
+                </Link>
+                <button
+                  onClick={() => { setMenuOpen(false); setShowLoginModal(true) }}
+                  className="text-center px-3 py-2 rounded-lg text-xs font-semibold text-white/90 hover:text-white bg-white/5 hover:bg-white/10 transition border border-white/10"
+                >
+                  {tpub('member_login', 'Member login')}
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/app/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow-sm"
+                  style={{ backgroundColor: secondaryColor }}
+                >
+                  <LayoutDashboard size={13} />
+                  <span>{tpub('dashboard', 'Dashboard')}</span>
+                </Link>
+                <Link
+                  to="/app/website"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 text-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-white/15 hover:bg-white/25 transition border border-white/15"
+                >
+                  <Edit size={13} />
+                  <span>{tpub('editor', 'Editor')}</span>
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -1874,7 +1992,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <ScrollText size={12} />
                 Licencia LPF-1.0
               </Link>
-              <LanguageSwitcher variant="dark" compact={true} />
+              <LanguageSwitcher variant="dark" compact={true} dropDirection="up" />
             </div>
             <div>
               {isAuthenticated ? (
@@ -2062,7 +2180,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             }
           }
           await api.get('/public/settings').then((s: any) => setSettings(s))
-          await api.get('/public/pages').then((d: any) => {
+          await api.get(`/public/pages?lang=${publicI18n.language || 'es'}`).then((d: any) => {
             if (Array.isArray(d)) setPages(d)
           })
         }}
@@ -2080,15 +2198,27 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 export function PublicPageView() {
   const { isAuthenticated } = useAuth()
   const { slug } = useParams<{ slug?: string }>()
+  const [searchParams] = useSearchParams()
   const targetSlug = slug || 'inicio'
   const [page, setPage] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isLiveEditing, setIsLiveEditing] = useState(false)
   const { i18n: pageI18n } = useTranslation(['public', 'common'])
 
-  const loadPageData = () => {
-    setLoading(true)
-    const lang = pageI18n.language || 'es'
+  const urlLang = searchParams.get('lang')?.toLowerCase()
+  const activeLang = (urlLang === 'en' || urlLang === 'es') ? urlLang : (pageI18n.language || 'es')
+
+  useEffect(() => {
+    if (urlLang && (urlLang === 'en' || urlLang === 'es') && urlLang !== pageI18n.language) {
+      changeLanguage(urlLang)
+    }
+  }, [urlLang, pageI18n.language])
+
+  const loadPageData = (isInitial = false) => {
+    if (isInitial || !page) {
+      setLoading(true)
+    }
+    const lang = activeLang
     api
       .get(`/public/pages/${targetSlug}?lang=${lang}`)
       .then((d: any) => {
@@ -2104,10 +2234,15 @@ export function PublicPageView() {
           isValidJson = false
         }
 
-        if (!isValidJson) {
-          const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === targetSlug)
+        // Si no es JSON válido o es un fallback de BD para un idioma traducible
+        if (!isValidJson || (d.is_fallback && lang !== 'es')) {
+          const tmpl = getPreconfiguredTemplate(targetSlug, lang)
           if (tmpl) {
             contentToUse = JSON.stringify(tmpl.blocks)
+            if (d.is_fallback) {
+              d.title = tmpl.title
+              d.subtitle = tmpl.subtitle
+            }
           }
         }
 
@@ -2115,7 +2250,7 @@ export function PublicPageView() {
         setLoading(false)
       })
       .catch(() => {
-        const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === targetSlug)
+        const tmpl = getPreconfiguredTemplate(targetSlug, lang)
         if (tmpl) {
           setPage({
             slug: tmpl.slug,
@@ -2128,10 +2263,16 @@ export function PublicPageView() {
       })
   }
 
+  // Al cambiar la página (targetSlug), salir del modo edición y recargar
   useEffect(() => {
-    loadPageData()
     setIsLiveEditing(false)
-  }, [targetSlug, pageI18n.language])
+    loadPageData(true)
+  }, [targetSlug])
+
+  // Al cambiar solo el idioma (activeLang), recargar datos pero MANTENER el modo de edición
+  useEffect(() => {
+    loadPageData(false)
+  }, [activeLang])
 
   // Listen for "start live edit" event from the consolidated admin button in PublicLayout
   useEffect(() => {
@@ -2140,7 +2281,7 @@ export function PublicPageView() {
     return () => window.removeEventListener('start-live-edit', handleStartLiveEdit)
   }, [])
 
-  if (loading) {
+  if (loading && !page) {
     return (
       <div className="text-center py-24 space-y-3">
         <div className="w-10 h-10 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin mx-auto" />
@@ -2164,7 +2305,9 @@ export function PublicPageView() {
               ...page,
               [field]: value,
             })
-            loadPageData()
+            api.get(`/public/pages/gobernanza?lang=${activeLang}`).then((d: any) => {
+              if (d) setPage(d)
+            }).catch(() => {})
           } catch (e) {
             console.error('Error guardando:', e)
           }
@@ -2173,11 +2316,58 @@ export function PublicPageView() {
     )
   }
 
-  // La pagina de federacion ahora es editable con bloques (como las demas paginas).
-  // Si no existe en la BD, se usa el template de fallback con bloques por defecto.
-  // El editor en vivo funciona normalmente en esta pagina.
+  // Pagina especial: federacion muestra la pagina de invitacion a ecoaldeas
+  // con el boton para iniciar el nodo demo y ver como funciona por dentro.
+  // En modo edición en vivo se edita directamente sobre la ventana de federacion in-situ.
+  if (targetSlug === 'federacion') {
+    return (
+      <PublicFederationPage
+        editMode={isLiveEditing}
+        onExit={() => setIsLiveEditing(false)}
+        pageTitle={page?.title}
+        pageSubtitle={page?.subtitle}
+        onFieldChange={async (field, value) => {
+          try {
+            await api.put(`/site/pages/by-slug/federacion?lang=${activeLang}`, {
+              slug: 'federacion',
+              title: field === 'title' ? value : (page?.title || 'Federación'),
+              subtitle: field === 'subtitle' ? value : (page?.subtitle || ''),
+              content: page?.content || '[]',
+              icon: 'globe',
+              menu_order: 95,
+              is_published: true,
+              show_in_menu: true,
+            })
+            api.get(`/public/pages/federacion?lang=${activeLang}`).then((d: any) => {
+              if (d) setPage(d)
+            }).catch(() => {})
+          } catch (e) {
+            console.error('Error guardando federacion:', e)
+          }
+        }}
+      />
+    )
+  }
 
-  if (!page) {
+  const effectivePage = page || (() => {
+    const tmpl = getPreconfiguredTemplate(targetSlug, activeLang)
+    if (tmpl) {
+      return {
+        id: undefined,
+        slug: tmpl.slug,
+        title: tmpl.title,
+        subtitle: tmpl.subtitle,
+        content: JSON.stringify(tmpl.blocks),
+        icon: tmpl.icon,
+        menu_order: tmpl.menu_order,
+        is_published: true,
+        show_in_menu: true,
+      } as any
+    }
+    return null
+  })()
+
+  if (!effectivePage) {
     return (
       <div className="text-center py-16 bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 max-w-lg mx-auto space-y-3">
         <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
@@ -2198,10 +2388,10 @@ export function PublicPageView() {
   // Parse blocks for the live editor
   let currentBlocks: SiteBlock[] = []
   try {
-    const parsed = JSON.parse(page.content)
+    const parsed = JSON.parse(effectivePage.content)
     if (Array.isArray(parsed)) currentBlocks = parsed
   } catch {
-    currentBlocks = [{ type: 'richtext', title: page.title, content: page.content }]
+    currentBlocks = [{ type: 'richtext', title: effectivePage.title, content: effectivePage.content }]
   }
 
   return (
@@ -2209,14 +2399,14 @@ export function PublicPageView() {
       {/* When in Live Edit Mode, render the Interactive WYSIWYG Editor */}
       {isLiveEditing ? (
         <LivePageEditor
-          pageId={page.id}
-          slug={page.slug || targetSlug}
-          title={page.title}
-          subtitle={page.subtitle}
-          icon={page.icon}
-          menuOrder={page.menu_order}
-          isPublished={page.is_published}
-          showInMenu={page.show_in_menu}
+          pageId={effectivePage.id}
+          slug={effectivePage.slug || targetSlug}
+          title={effectivePage.title}
+          subtitle={effectivePage.subtitle}
+          icon={effectivePage.icon}
+          menuOrder={effectivePage.menu_order}
+          isPublished={effectivePage.is_published}
+          showInMenu={effectivePage.show_in_menu}
           initialBlocks={currentBlocks}
           onExit={() => setIsLiveEditing(false)}
           onSaved={() => {
@@ -2225,7 +2415,7 @@ export function PublicPageView() {
         />
       ) : (
         /* Normal Clean View */
-        <PageBlocksRenderer content={page.content} />
+        <PageBlocksRenderer content={effectivePage.content} />
       )}
     </div>
   )

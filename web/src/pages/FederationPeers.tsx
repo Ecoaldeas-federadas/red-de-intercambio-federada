@@ -664,7 +664,7 @@ export default function FederationPeers() {
       {/* Modal: Registrar peer */}
       {showAdd && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
-          <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 w-96 max-h-[85vh] overflow-y-auto space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">{t('peers_register_modal_title', 'Registrar Nodo Peer')}</h2>
             <div>
               <label className="label">{t('peers_register_modal_domain', 'Dominio del nodo remoto')}</label>

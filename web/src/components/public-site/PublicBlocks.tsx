@@ -756,7 +756,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   }, [useBackend])
 
   // Items segun el modo de vista
-  const rawItems = useBackend
+  const rawItems: any[] = useBackend
     ? viewMode === 'feria'
       ? storeItems.map((p: any) => ({
           name: p.product_name || p.name,
@@ -783,7 +783,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
           price_energy: p.price_trueque ? `${p.price_trueque} TQ` : '',
           price_trueque: p.price_trueque || 0,
         }))
-    : data.items || []
+    : (data.items || [])
 
   const items = rawItems
 
@@ -1056,7 +1056,7 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
               )}
               <div>
                 <EdArrayText arrayField="items" index={idx} itemField="name" value={item.name} as="b" className="text-xs sm:text-sm text-gray-900 block" />
-                <EdArrayText arrayField="items" index={idx} itemField="role" value={item.role || item.project} as="span" className="text-[11px] text-emerald-800 font-medium block" />
+                <EdArrayText arrayField="items" index={idx} itemField="role" value={item.role || item.project || ''} as="span" className="text-[11px] text-emerald-800 font-medium block" />
                 {item.location && <EdArrayText arrayField="items" index={idx} itemField="location" value={item.location} as="span" className="text-[10px] text-gray-400 block" />}
               </div>
             </div>

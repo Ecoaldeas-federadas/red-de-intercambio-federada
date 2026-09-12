@@ -20,6 +20,7 @@ interface CompositeComponent {
 
 export default function Store() {
   const { t } = useTranslation(['products', 'common'])
+  const tc = (name: string) => t(`category.${name}`, { ns: 'products', defaultValue: name })
   const { currency } = useConfig()
   const [view, setView] = useState<'mine' | 'browse'>('mine')
   const [items, setItems] = useState<any[]>([])
@@ -421,7 +422,7 @@ export default function Store() {
                         >
                           <option value="">{t('store_select_option', '-- Selecciona --')}</option>
                           {hierarchy.map((pc: any) => (
-                            <option key={pc.name} value={pc.name}>{pc.name}</option>
+                            <option key={pc.name} value={pc.name}>{pc.label || tc(pc.name)}</option>
                           ))}
                         </select>
                       </div>
@@ -440,7 +441,7 @@ export default function Store() {
                           {selectedParent && hierarchy
                             .find((pc: any) => pc.name === selectedParent)
                             ?.categories?.map((c: any) => (
-                              <option key={c.name} value={c.name}>{c.name}</option>
+                              <option key={c.name} value={c.name}>{c.label || tc(c.name)}</option>
                             ))}
                         </select>
                       </div>
@@ -457,14 +458,14 @@ export default function Store() {
                             .find((pc: any) => pc.name === selectedParent)
                             ?.categories?.find((c: any) => c.name === selectedCategory)
                             ?.subcategories?.map((sc: any) => (
-                              <option key={sc.name} value={sc.name}>{sc.name}</option>
+                              <option key={sc.name} value={sc.name}>{sc.label || tc(sc.name)}</option>
                             ))}
                         </select>
                       </div>
                     </div>
                     <p className="text-xs text-gray-500">
                       {selectedParent && selectedCategory
-                        ? <>{t('store_location_label', 'Ubicacion:')} <strong>{selectedParent} › {selectedCategory}{selectedSubcategory ? ` › ${selectedSubcategory}` : ''}</strong></>
+                        ? <>{t('store_location_label', 'Ubicacion:')} <strong>{tc(selectedParent)} › {tc(selectedCategory)}{selectedSubcategory ? ` › ${tc(selectedSubcategory)}` : ''}</strong></>
                         : <span className="text-amber-700">{t('store_location_required', 'Debes seleccionar al menos categoria padre y categoria. Si necesitas una categoria nueva, pide a administracion que la cree en el catalogo.')}</span>}
                     </p>
                   </div>
@@ -590,7 +591,7 @@ export default function Store() {
                       <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
                         <option value="">{t('store_all_categories', 'Todas las categorias')}</option>
                         {categories.map((c) => (
-                          <option key={c} value={c}>{c}</option>
+                          <option key={c} value={c}>{tc(c)}</option>
                         ))}
                       </select>
                     </div>
@@ -751,7 +752,7 @@ export default function Store() {
                 <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
                   <option value="">{t('store_all_categories', 'Todas las categorias')}</option>
                   {storeCategories.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>{tc(c)}</option>
                   ))}
                 </select>
               </div>
@@ -808,7 +809,7 @@ export default function Store() {
                     <div>
                       <h3 className="font-semibold text-sm leading-tight line-clamp-2">{s.product_name}</h3>
                       {(s.parent_category || s.category) && (
-                        <span className="inline-block text-[10px] text-gray-400 mt-1">{s.parent_category}{s.subcategory ? ` · ${s.subcategory}` : ''}</span>
+                        <span className="inline-block text-[10px] text-gray-400 mt-1">{tc(s.parent_category)}{s.subcategory ? ` · ${tc(s.subcategory)}` : ''}</span>
                       )}
                     </div>
 
@@ -932,7 +933,7 @@ export default function Store() {
                           <p className="font-medium text-sm text-gray-900">{c.name}</p>
                           {c.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{c.description}</p>}
                           <p className="text-xs text-gray-400 mt-1">
-                            {c.parent_category} › {c.category}{c.subcategory ? ` › ${c.subcategory}` : ''}
+                            {tc(c.parent_category)} › {tc(c.category)}{c.subcategory ? ` › ${tc(c.subcategory)}` : ''}
                           </p>
                         </div>
                         <div className="text-right ml-2">

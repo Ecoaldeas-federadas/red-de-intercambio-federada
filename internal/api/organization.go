@@ -89,15 +89,30 @@ func (oh *OrganizationHandler) createOrganization(w http.ResponseWriter, r *http
 		writeError(w, 400, err.Error())
 		return
 	}
+	registerEntityFields(r.Context(), oh.Orgs.Pool, org.NodeDomain, "organization", org.ID.String(), map[string]string{"display_name": org.DisplayName}, map[string]interface{}{"label": org.DisplayName})
 	writeJSON(w, 201, org)
 }
 
 func (oh *OrganizationHandler) listOrganizations(w http.ResponseWriter, r *http.Request) {
 	subtype := r.URL.Query().Get("subtype")
-	orgs, err := oh.Orgs.List(r.Context(), db.LOCAL_NODE_DOMAIN, subtype)
+	nodeDomain := db.ResolveNodeDomain(r.Context(), oh.Orgs.Pool, r.Header.Get("X-Node-Domain"), oh.NodeDomain)
+	orgs, err := oh.Orgs.List(r.Context(), nodeDomain, subtype)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
+	}
+	lang, fallbackLang := resolveRequestLanguages(r, oh.Orgs.Pool, nodeDomain)
+	if lang != fallbackLang {
+		keys := make([]string, 0, len(orgs))
+		for _, org := range orgs {
+			keys = append(keys, "organization:"+org.ID.String()+":display_name")
+		}
+		values := localizedContentValues(r.Context(), oh.Orgs.Pool, keys, lang)
+		for i := range orgs {
+			if value := values["organization:"+orgs[i].ID.String()+":display_name"]; value != "" {
+				orgs[i].DisplayName = value
+			}
+		}
 	}
 	writeJSON(w, 200, orgs)
 }
@@ -254,6 +269,7 @@ func (oh *OrganizationHandler) createInstitution(w http.ResponseWriter, r *http.
 		writeError(w, 400, err.Error())
 		return
 	}
+	registerEntityFields(r.Context(), oh.Orgs.Pool, org.NodeDomain, "organization", org.ID.String(), map[string]string{"display_name": org.DisplayName}, map[string]interface{}{"label": org.DisplayName})
 	writeJSON(w, 201, org)
 }
 

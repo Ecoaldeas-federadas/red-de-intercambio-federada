@@ -1,5 +1,5 @@
-const CACHE_NAME = 'trueque-v7'
-const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg']
+const CACHE_NAME = 'trueque-v8'
+const ASSETS = ['/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -37,6 +37,28 @@ self.addEventListener('fetch', (e) => {
       fetch(e.request).catch(() => caches.match(e.request)).then(r => r || new Response('', { status: 504 })))
     return
   }
+
+  // Documentos de navegacion (index.html, rutas SPA): network-first.
+  // Siempre buscar la version mas reciente del index.html en la red para
+  // evitar servir un HTML viejo que referencia hashes JS obsoletos.
+  // Si la red falla, usar cache como fallback offline.
+  if (e.request.mode === 'navigate' ||
+      url.pathname === '/' ||
+      url.pathname === '/index.html' ||
+      url.pathname.endsWith('/')) {
+    e.respondWith(
+      fetch(e.request).then((response) => {
+        if (response && response.status === 200) {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone))
+        }
+        return response
+      }).catch(() => caches.match(e.request).then(r => r || caches.match('/')))
+    )
+    return
+  }
+
+  // Resto de recursos estaticos: stale-while-revalidate
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const fetchPromise = fetch(e.request).then((response) => {

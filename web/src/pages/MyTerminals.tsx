@@ -268,8 +268,8 @@ export default function MyTerminals() {
       if (fromDate) params.set('from', fromDate)
       if (toDate) params.set('to', toDate)
       const qs = params.toString()
-      const resp = await apiFetch(`/nfc/my-terminals/${terminalId}/export/transactions${qs ? '?' + qs : ''}`)
-      const text = await resp.text()
+      const resp = await apiFetch<string>(`/nfc/my-terminals/${terminalId}/export/transactions${qs ? '?' + qs : ''}`)
+      const text = resp
       downloadCSV(text, `transacciones_${terminalId}.csv`)
     } catch (err) {
       setError(t('error_export_tx', 'Error al exportar transacciones'))
@@ -282,8 +282,8 @@ export default function MyTerminals() {
       if (fromDate) params.set('from', fromDate)
       if (toDate) params.set('to', toDate)
       const qs = params.toString()
-      const resp = await apiFetch(`/nfc/my-terminals/${terminalId}/export/shifts${qs ? '?' + qs : ''}`)
-      const text = await resp.text()
+      const resp = await apiFetch<string>(`/nfc/my-terminals/${terminalId}/export/shifts${qs ? '?' + qs : ''}`)
+      const text = resp
       downloadCSV(text, `turnos_${terminalId}.csv`)
     } catch (err) {
       setError(t('error_export_shifts', 'Error al exportar turnos'))

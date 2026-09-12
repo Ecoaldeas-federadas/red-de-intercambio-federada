@@ -507,6 +507,19 @@ Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
 | DELETE | `/api/node/commerce-schedule/{id}` | Eliminar regla de horario (permiso: `config.manage`) |
 | PUT | `/api/node/commerce-hours-toggle` | Activar/desactivar horarios (permiso: `config.manage`) |
 
+### Traducciones Dinámicas de Contenido (`internal/api/content_translation_registry.go`)
+
+| Metodo | Ruta | Permiso | Descripcion |
+|--------|------|---------|-------------|
+| GET | `/api/content-translations/sources` | `translations.edit` | Listar fuentes traducibles con filtros por tipo, idioma, estado (missing, translated, stale) |
+| GET | `/api/content-translations/sources/{key}` | `translations.edit` | Detalle de fuente original, traducciones existentes e historial |
+| GET | `/api/content-translations/sources/{key}/{lang}` | `translations.edit` | Traducción o fallback seguro con metadatos de estado |
+| PUT | `/api/content-translations/sources/{key}/{lang}` | `translations.edit` | Guardar o actualizar traducción (invalida por hash) |
+| DELETE | `/api/content-translations/sources/{key}/{lang}` | `translations.edit` | Eliminar traducción individual volviendo al texto original |
+| POST | `/api/content-translations/bulk` | `translations.edit` | Guardado masivo de traducciones validadas contra fuentes registradas |
+| GET | `/api/content-translations/status` | `translations.edit` | Resumen de progreso por idioma, entidad, faltantes y obsoletas |
+| POST | `/api/content-translations/refresh` | `translations.edit` | Sincronización y registro incremental de fuentes |
+
 ## Formato de Respuesta
 
 ### Exito

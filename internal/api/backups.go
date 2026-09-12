@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -100,7 +101,7 @@ func (h *BackupsHandler) createBackupNow(w http.ResponseWriter, r *http.Request)
 
 	// Escribir un archivo trigger que el servicio db-backup lee
 	triggerFile := filepath.Join(h.BackupsDir, ".trigger_now")
-	err := os.WriteFile(triggerFile, []byte(fmt.Sprintf("%d", time.Now().Unix())), 0644)
+	err := os.WriteFile(triggerFile, strconv.AppendInt(nil, time.Now().Unix(), 10), 0644)
 	if err != nil {
 		writeError(w, 500, "no se pudo crear el trigger de backup: "+err.Error())
 		return

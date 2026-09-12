@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"federated-credit-node/internal/accounts"
+	"federated-credit-node/internal/db"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -54,6 +55,7 @@ func (h *ServicesHandler) listServices(w http.ResponseWriter, r *http.Request) {
 	if services == nil {
 		services = []accounts.Service{}
 	}
+	h.localizeServices(r, services)
 	writeJSON(w, 200, services)
 }
 
@@ -104,6 +106,10 @@ func (h *ServicesHandler) createService(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 500, err.Error())
 		return
 	}
+	registerEntityFields(r.Context(), h.Pool, svc.NodeDomain, "organization_service", svc.ID.String(), map[string]string{
+		"name": svc.Name, "description": svc.Description, "obligations": svc.Obligations,
+		"rights": svc.Rights, "duties": svc.Duties,
+	}, map[string]interface{}{"label": svc.Name})
 
 	// Si es obligatorio (org de Asamblea), auto-suscribir a todos los miembros
 	if svc.IsMandatory {
@@ -138,8 +144,53 @@ func (h *ServicesHandler) updateService(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 500, err.Error())
 		return
 	}
+	var nodeDomain string
+	if err := h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM organization_services WHERE id = $1`, serviceID).Scan(&nodeDomain); err == nil {
+		registerEntityFields(r.Context(), h.Pool, nodeDomain, "organization_service", serviceID.String(), map[string]string{
+			"name": req.Name, "description": req.Description, "obligations": req.Obligations,
+			"rights": req.Rights, "duties": req.Duties,
+		}, map[string]interface{}{"label": req.Name})
+	}
 
 	writeJSON(w, 200, map[string]interface{}{"status": "updated"})
+}
+
+func (h *ServicesHandler) localizeServices(r *http.Request, services []accounts.Service) {
+	if len(services) == 0 {
+		return
+	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), services[0].NodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
+	if lang == fallbackLang {
+		return
+	}
+	keys := make([]string, 0, len(services)*5)
+	for _, svc := range services {
+		id := svc.ID.String()
+		for _, field := range []string{"name", "description", "obligations", "rights", "duties"} {
+			keys = append(keys, "organization_service:"+id+":"+field)
+		}
+	}
+	values := localizedContentValues(r.Context(), h.Pool, keys, lang)
+	for i := range services {
+		svc := &services[i]
+		id := svc.ID.String()
+		if value := values["organization_service:"+id+":name"]; value != "" {
+			svc.Name = value
+		}
+		if value := values["organization_service:"+id+":description"]; value != "" {
+			svc.Description = value
+		}
+		if value := values["organization_service:"+id+":obligations"]; value != "" {
+			svc.Obligations = value
+		}
+		if value := values["organization_service:"+id+":rights"]; value != "" {
+			svc.Rights = value
+		}
+		if value := values["organization_service:"+id+":duties"]; value != "" {
+			svc.Duties = value
+		}
+	}
 }
 
 // deactivateService desactiva un servicio
@@ -287,6 +338,8 @@ func (h *ServicesHandler) myServices(w http.ResponseWriter, r *http.Request) {
 	if voluntaryServices == nil {
 		voluntaryServices = []accounts.Service{}
 	}
+	h.localizeServices(r, assemblyServices)
+	h.localizeServices(r, voluntaryServices)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"assembly_services":  assemblyServices,

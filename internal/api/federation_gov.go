@@ -60,6 +60,7 @@ func (fh *FederationGovHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMid
 
 // listConstants devuelve todas las constantes federadas
 func (fh *FederationGovHandler) listConstants(w http.ResponseWriter, r *http.Request) {
+	lang, fallbackLang := resolveRequestLanguages(r, fh.Pool, fh.NodeDomain)
 	rows, err := fh.Pool.Query(r.Context(), `
 		SELECT key, value, description, updated_at
 		FROM federation_constants ORDER BY key`)
@@ -78,12 +79,14 @@ func (fh *FederationGovHandler) listConstants(w http.ResponseWriter, r *http.Req
 			continue
 		}
 		constants = append(constants, map[string]interface{}{
+			"id":          key,
 			"key":         key,
 			"value":       json.RawMessage(value),
 			"description": description,
 			"updated_at":  updatedAt,
 		})
 	}
+	localizeEntityMaps(r.Context(), fh.Pool, constants, "federation_constant", lang, fallbackLang, "description")
 	writeJSON(w, 200, map[string]interface{}{"constants": constants})
 }
 
@@ -100,6 +103,8 @@ func (fh *FederationGovHandler) getConstant(w http.ResponseWriter, r *http.Reque
 		writeError(w, 404, "constante no encontrada")
 		return
 	}
+	lang, _ := resolveRequestLanguages(r, fh.Pool, fh.NodeDomain)
+	description, _ = localizedContentValue(r.Context(), fh.Pool, "__GLOBAL__", "federation_constant", key, "description", description, lang)
 	writeJSON(w, 200, map[string]interface{}{
 		"key":         key,
 		"value":       json.RawMessage(value),
@@ -900,6 +905,7 @@ func (fh *FederationGovHandler) syncConstants(w http.ResponseWriter, r *http.Req
 			continue
 		}
 		constants = append(constants, map[string]interface{}{
+			"id":          key,
 			"key":         key,
 			"value":       json.RawMessage(value),
 			"description": description,
