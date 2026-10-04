@@ -675,12 +675,13 @@ func (eh *ExternalHandler) purchase(w http.ResponseWriter, r *http.Request) {
 // ============ PRODUCTOS COMPUESTOS ============
 
 type CompositeComponent struct {
-	ComponentProductID string  `json:"component_product_id"`
-	ComponentName      string  `json:"component_name"`
-	ComponentUnit      string  `json:"component_unit"`
-	ComponentPrice     float64 `json:"component_price"`
-	Quantity           float64 `json:"quantity"`
-	ComponentCategory  string  `json:"component_category"`
+	ComponentProductID  string  `json:"component_product_id"`
+	ComponentName       string  `json:"component_name"`
+	ComponentUnit       string  `json:"component_unit"`
+	ComponentPrice      float64 `json:"component_price"`
+	Quantity            float64 `json:"quantity"`
+	ComponentCategory   string  `json:"component_category"`
+	ComponentCatalogKey string  `json:"component_catalog_key"`
 }
 
 type AddCompositeItemRequest struct {
@@ -718,29 +719,47 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 	compositeDesc := ""
 	for i := range req.Components {
 		c := &req.Components[i]
-		// Verificar que el componente existe y esta aprobado
+		// Verificar que el componente existe y esta aprobado.
+		// Los componentes viven en el catalogo federado (__FEDERATION__) o son
+		// compuestos locales aprobados (__LOCAL__).
 		if c.ComponentProductID != "" {
 			pid, err := uuid.Parse(c.ComponentProductID)
 			if err == nil {
-				var pname, punit string
+				var pname, punit, pCatalogKey, pItemType string
 				var pprice float64
 				var pApproved bool
 				err := eh.Pool.QueryRow(r.Context(),
-					`SELECT name, unit, price_per_unit, is_approved
-					 FROM products WHERE id = $1 AND node_domain = $2`,
-					pid, db.LOCAL_NODE_DOMAIN).Scan(&pname, &punit, &pprice, &pApproved)
+					`SELECT name, unit, price_per_unit, is_approved, COALESCE(catalog_key,''), COALESCE(item_type,'')
+					 FROM products WHERE id = $1 AND is_active = true
+					   AND (node_domain = '__FEDERATION__'
+					        OR (node_domain IN ($2,'localhost','default') AND COALESCE(is_composite,false) = true))`,
+					pid, db.LOCAL_NODE_DOMAIN).Scan(&pname, &punit, &pprice, &pApproved, &pCatalogKey, &pItemType)
 				if err != nil {
 					writeError(w, 400, "componente no encontrado: "+c.ComponentName)
 					return
 				}
 				if !pApproved {
-					writeError(w, 400, "componente no aprobado por asamblea: "+pname)
+					writeError(w, 400, "componente no aprobado: "+pname)
 					return
 				}
 				// Usar precio del catalogo, no el enviado por el cliente
 				c.ComponentPrice = pprice
 				c.ComponentName = pname
 				c.ComponentUnit = punit
+				c.ComponentCatalogKey = pCatalogKey
+				// Clasificar por item_type (metadata del catalogo, no heuristica de texto)
+				switch pItemType {
+				case "service":
+					c.ComponentCategory = "trabajo"
+				case "packaging":
+					c.ComponentCategory = "embalaje"
+				case "shipping":
+					c.ComponentCategory = "envio"
+				case "base_product", "composite":
+					c.ComponentCategory = "producto_base"
+				case "raw_material":
+					c.ComponentCategory = "materia_prima"
+				}
 			}
 		}
 		subtotal := c.ComponentPrice * c.Quantity
@@ -788,9 +807,9 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 		}
 		subtotal := c.ComponentPrice * c.Quantity
 		_, err := eh.Pool.Exec(r.Context(),
-			`INSERT INTO product_compositions (product_id, product_type, component_product_id, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-			 VALUES ($1, 'store_item', $2, $3, $4, $5, $6, $7, $8, $9)`,
-			item.ID, componentID, c.ComponentName, c.ComponentUnit, c.ComponentPrice, c.Quantity, subtotal, c.ComponentCategory, i)
+			`INSERT INTO product_compositions (product_id, product_type, component_product_id, component_catalog_key, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
+			 VALUES ($1, 'store_item', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			item.ID, componentID, c.ComponentCatalogKey, c.ComponentName, c.ComponentUnit, c.ComponentPrice, c.Quantity, subtotal, c.ComponentCategory, i)
 		if err != nil {
 			// No fallar si no se puede guardar la composicion, pero loguear
 			continue
@@ -869,23 +888,28 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 	}
 	search := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("search")))
 
-	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url, group_id
+	// Componentes elegibles: catalogo federado (__FEDERATION__) + compuestos
+	// locales aprobados. La clasificacion usa item_type, no texto de categoria.
+	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url, group_id,
+		COALESCE(catalog_key,''), COALESCE(item_type,'product'), node_domain
 		FROM products
-		WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND is_group = false`
+		WHERE is_approved = true AND is_active = true AND is_hidden = false AND COALESCE(is_group, false) = false
+		  AND (node_domain = '__FEDERATION__'
+		       OR (node_domain IN ($1, 'localhost', 'default') AND COALESCE(is_composite, false) = true))`
 	args := []interface{}{nodeDomain}
 	argIdx := 2
 
 	switch category {
 	case "materia_prima":
-		query += ` AND subcategory = 'Materia Prima'`
+		query += ` AND item_type = 'raw_material' AND node_domain = '__FEDERATION__'`
 	case "producto_base":
-		query += ` AND is_composite = true`
+		query += ` AND (item_type = 'base_product' OR COALESCE(is_composite, false) = true)`
 	case "trabajo":
-		query += ` AND unit = 'hora'`
+		query += ` AND item_type = 'service'`
 	case "embalaje":
-		query += ` AND parent_category = 'Embalaje'`
+		query += ` AND item_type = 'packaging'`
 	case "envio":
-		query += ` AND parent_category = 'Envio'`
+		query += ` AND item_type = 'shipping'`
 	}
 
 	if search != "" {
@@ -906,11 +930,11 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 
 	components := []map[string]interface{}{}
 	for rows.Next() {
-		var id, name, parentCategory, cat, subcat, unit, description string
+		var id, name, parentCategory, cat, subcat, unit, description, catalogKey, itemType, rowDomain string
 		var price float64
 		var badge, imageURL *string
 		var groupID *string
-		_ = rows.Scan(&id, &name, &parentCategory, &cat, &subcat, &unit, &price, &description, &badge, &imageURL, &groupID)
+		_ = rows.Scan(&id, &name, &parentCategory, &cat, &subcat, &unit, &price, &description, &badge, &imageURL, &groupID, &catalogKey, &itemType, &rowDomain)
 
 		bdg := ""
 		if badge != nil {
@@ -937,7 +961,12 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 			"badge":           bdg,
 			"image_url":       imgURL,
 			"group_id":        gid,
+			"catalog_key":     catalogKey,
+			"item_type":       itemType,
+			"node_domain":     rowDomain,
 		})
 	}
+	lang, fallbackLang := resolveRequestLanguages(r, eh.Pool, nodeDomain)
+	localizeEntityMaps(r.Context(), eh.Pool, components, "product", lang, fallbackLang, "name", "description", "badge", "unit")
 	writeJSON(w, 200, components)
 }

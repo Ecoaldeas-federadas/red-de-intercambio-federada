@@ -13,9 +13,20 @@ interface CompositeComponent {
   component_price: number
   quantity: number
   component_category: string
+  component_catalog_key?: string
   // Campos para display del calculo
   quantity_purchased: number
   yield_products: number
+}
+
+// Clasificacion del componente segun el item_type del catalogo federado
+const itemTypeToCategory: Record<string, string> = {
+  raw_material: 'materia_prima',
+  base_product: 'producto_base',
+  composite: 'producto_base',
+  service: 'trabajo',
+  packaging: 'embalaje',
+  shipping: 'envio',
 }
 
 export default function Store() {
@@ -141,13 +152,14 @@ export default function Store() {
       setError(t('error_yield_zero', 'El numero de productos que salen debe ser mayor que cero'))
       return
     }
-    // Determinar categoria del componente
-    let category = 'materia_prima'
-    if (pendingComponent.parent_category === 'Embalaje') category = 'embalaje'
-    else if (pendingComponent.parent_category === 'Envio') category = 'envio'
-    else if (pendingComponent.unit === 'hora') category = 'trabajo'
-    else if (pendingComponent.subcategory === 'Materia Prima') category = 'materia_prima'
-    else category = 'producto_base'
+    // Clasificar por item_type del catalogo federado (fallback: heuristica vieja)
+    let category = itemTypeToCategory[pendingComponent.item_type]
+    if (!category) {
+      if (pendingComponent.parent_category === 'Embalaje') category = 'embalaje'
+      else if (pendingComponent.parent_category === 'Envio') category = 'envio'
+      else if (pendingComponent.unit === 'hora') category = 'trabajo'
+      else category = 'producto_base'
+    }
 
     // Calcular cantidad por producto: si compro 1 kg y salen 50 productos -> 0.02 kg por producto
     const qtyPerProduct = qtyPurchased / yieldProducts
@@ -159,6 +171,7 @@ export default function Store() {
       component_price: pendingComponent.price_per_unit || 0,
       quantity: qtyPerProduct,
       component_category: category,
+      component_catalog_key: pendingComponent.catalog_key || '',
       quantity_purchased: qtyPurchased,
       yield_products: yieldProducts,
     }])
@@ -566,11 +579,14 @@ export default function Store() {
                       </div>
                     )}
 
-                    {/* Precio total calculado */}
+                    {/* Precio total calculado (piso de referencia del catalogo federado) */}
                     {components.length > 0 && (
-                      <div className="bg-trueque-100 border border-trueque-300 rounded-lg p-3 flex justify-between items-center">
-                        <span className="font-semibold text-trueque-900">{t('store_total_price', 'Precio total automatico:')}</span>
-                        <span className="text-xl font-bold text-trueque-700">{fmtNumber(compositeTotalPrice, 2)} {currency}</span>
+                      <div className="bg-trueque-100 border border-trueque-300 rounded-lg p-3 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-trueque-900">{t('store_total_price', 'Precio total automatico:')}</span>
+                          <span className="text-xl font-bold text-trueque-700">{fmtNumber(compositeTotalPrice, 2)} {currency}</span>
+                        </div>
+                        <p className="text-[10px] text-trueque-600">{t('store_reference_price_hint', 'Los precios del catalogo federado son de referencia (minimo). Tu producto no puede costar menos que la suma de sus componentes.')}</p>
                       </div>
                     )}
                   </div>
@@ -934,6 +950,9 @@ export default function Store() {
                           {c.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{c.description}</p>}
                           <p className="text-xs text-gray-400 mt-1">
                             {tc(c.parent_category)} › {tc(c.category)}{c.subcategory ? ` › ${tc(c.subcategory)}` : ''}
+                            {c.node_domain === '__FEDERATION__' && (
+                              <span className="ml-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">{t('store_federated_badge', 'Federado')}</span>
+                            )}
                           </p>
                         </div>
                         <div className="text-right ml-2">

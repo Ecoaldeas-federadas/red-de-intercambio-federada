@@ -265,9 +265,40 @@ func (fh *FederationGovHandler) createProposal(w http.ResponseWriter, r *http.Re
 		}
 	}
 
+	// Validar propuestas del catalogo federado: key = catalog_key del item
+	if req.ProposalType == "catalog_item_upsert" || req.ProposalType == "catalog_item_remove" {
+		if !strings.HasPrefix(req.Key, "fed-") {
+			writeError(w, 400, "key debe ser el catalog_key del item (ej: fed-tomate-fresco)")
+			return
+		}
+	}
+	if req.ProposalType == "catalog_item_upsert" {
+		var item CatalogItemPayload
+		raw, mErr := json.Marshal(req.ProposedValue)
+		if mErr != nil || json.Unmarshal(raw, &item) != nil || item.Name == "" {
+			writeError(w, 400, "proposed_value debe ser el item completo del catalogo (name, item_type, unit, price...)")
+			return
+		}
+		switch item.ItemType {
+		case "raw_material", "base_product", "service", "packaging", "shipping", "":
+		default:
+			writeError(w, 400, "item_type invalido (raw_material|base_product|service|packaging|shipping)")
+			return
+		}
+	}
+
 	// Obtener valor actual
 	var currentValue []byte
-	_ = fh.Pool.QueryRow(r.Context(), `SELECT value FROM federation_constants WHERE key = $1`, req.Key).Scan(&currentValue)
+	if req.ProposalType == "catalog_item_upsert" || req.ProposalType == "catalog_item_remove" {
+		var currentItem []byte
+		_ = fh.Pool.QueryRow(r.Context(), `
+			SELECT jsonb_build_object('name', name, 'item_type', item_type, 'unit', unit,
+				'price_per_unit', price_per_unit, 'category', category)::text
+			FROM products WHERE catalog_key = $1 AND node_domain = '__FEDERATION__'`, req.Key).Scan(&currentItem)
+		currentValue = currentItem
+	} else {
+		_ = fh.Pool.QueryRow(r.Context(), `SELECT value FROM federation_constants WHERE key = $1`, req.Key).Scan(&currentValue)
+	}
 
 	// Obtener umbral de aprobacion (default 75% = mayoria, configurable a 100% o cualquier valor)
 	threshold, _ := fh.getConstantInt64(r.Context(), "fc_approval_threshold")
@@ -684,6 +715,16 @@ func (fh *FederationGovHandler) applyProposal(ctx context.Context, proposalID uu
 		return true
 	}
 
+	// Si es upsert de un item del catalogo federado (__FEDERATION__)
+	if proposalType == "catalog_item_upsert" {
+		return fh.applyCatalogItemUpsert(ctx, proposalID, key, proposedValue)
+	}
+
+	// Si es eliminacion de un item del catalogo federado
+	if proposalType == "catalog_item_remove" {
+		return fh.applyCatalogItemRemove(ctx, proposalID, key)
+	}
+
 	// Para constantes normales: actualizar la constante
 	_, err = fh.Pool.Exec(ctx, `
 		UPDATE federation_constants SET value = $1, approved_proposal_id = $2, updated_at = NOW()
@@ -937,4 +978,107 @@ func (fh *FederationGovHandler) syncConstants(w http.ResponseWriter, r *http.Req
 		"message":        "Constantes federadas para heredar al unirse a la federacion",
 		"note":           "Los nodos nuevos heredan automaticamente todas las reglas existentes. No votan sobre reglas previas.",
 	})
+}
+
+// ============================================================================
+// Catalogo federado (materia prima + productos base + servicios)
+// ============================================================================
+
+// CatalogItemPayload es el item del catalogo federado propuesto por votacion.
+// catalog_key es la identidad estable entre nodos (ej: fed-tomate-fresco).
+type CatalogItemPayload struct {
+	Name               string  `json:"name"`
+	ItemType           string  `json:"item_type"`
+	ParentCategory     string  `json:"parent_category"`
+	Category           string  `json:"category"`
+	Subcategory        string  `json:"subcategory"`
+	Unit               string  `json:"unit"`
+	Description        string  `json:"description"`
+	Badge              string  `json:"badge"`
+	ImageURL           string  `json:"image_url"`
+	ProductCode        string  `json:"product_code"`
+	PricePerUnit       float64 `json:"price_per_unit"`
+	PricePerKg         float64 `json:"price_per_kg"`
+	BaseUnit           string  `json:"base_unit"`
+	WeightKg           float64 `json:"weight_kg"`
+	EnergyDirect       float64 `json:"energy_direct"`
+	EnergyHuman        float64 `json:"energy_human"`
+	EnergyInputs       float64 `json:"energy_inputs"`
+	EnergyAmortization float64 `json:"energy_amortization"`
+}
+
+// applyCatalogItemUpsert inserta o actualiza un item del catalogo federado
+// (node_domain='__FEDERATION__') identificado por catalog_key. Idem en todos
+// los nodos: misma clave -> mismo contenido.
+func (fh *FederationGovHandler) applyCatalogItemUpsert(ctx context.Context, proposalID uuid.UUID, key string, proposedValue []byte) bool {
+	var item CatalogItemPayload
+	if err := json.Unmarshal(proposedValue, &item); err != nil {
+		return false
+	}
+	if item.Name == "" {
+		return false
+	}
+	if item.ItemType == "" {
+		item.ItemType = "raw_material"
+	}
+	if item.Unit == "" {
+		item.Unit = "unidad"
+	}
+
+	var existingID string
+	err := fh.Pool.QueryRow(ctx,
+		`SELECT id::text FROM products WHERE catalog_key = $1 AND node_domain = '__FEDERATION__'`, key).Scan(&existingID)
+
+	if err == nil && existingID != "" {
+		_, err = fh.Pool.Exec(ctx, `
+			UPDATE products SET
+				name = $2, item_type = $3, parent_category = $4, category = $5, subcategory = $6,
+				unit = $7, description = $8, badge = $9, image_url = $10, product_code = $11,
+				price_per_unit = $12, price_per_kg = $13, base_unit = $14, weight_kg = $15,
+				energy_direct = $16, energy_human = $17, energy_inputs = $18, energy_amortization = $19,
+				is_approved = true, is_system = true, is_active = true, is_hidden = false, updated_at = NOW()
+			WHERE id = $1`,
+			existingID, item.Name, item.ItemType, item.ParentCategory, item.Category, item.Subcategory,
+			item.Unit, item.Description, item.Badge, item.ImageURL, item.ProductCode,
+			int64(item.PricePerUnit), item.PricePerKg, item.BaseUnit, item.WeightKg,
+			int64(item.EnergyDirect), int64(item.EnergyHuman), int64(item.EnergyInputs), int64(item.EnergyAmortization))
+	} else {
+		_, err = fh.Pool.Exec(ctx, `
+			INSERT INTO products (id, node_domain, catalog_key, item_type, name,
+				parent_category, category, subcategory, unit, description, badge,
+				image_url, product_code, price_per_unit, price_per_kg, base_unit,
+				weight_kg, energy_direct, energy_human, energy_inputs, energy_amortization,
+				is_approved, is_system, is_active, is_hidden, origin)
+			VALUES (gen_random_uuid(), '__FEDERATION__', $1, $2, $3,
+				$4, $5, $6, $7, $8, $9,
+				$10, $11, $12, $13, $14,
+				$15, $16, $17, $18, $19,
+				true, true, true, false, 'internal')`,
+			key, item.ItemType, item.Name,
+			item.ParentCategory, item.Category, item.Subcategory, item.Unit, item.Description, item.Badge,
+			item.ImageURL, item.ProductCode, int64(item.PricePerUnit), item.PricePerKg, item.BaseUnit,
+			item.WeightKg, int64(item.EnergyDirect), int64(item.EnergyHuman), int64(item.EnergyInputs), int64(item.EnergyAmortization))
+	}
+	if err != nil {
+		return false
+	}
+
+	_, _ = fh.Pool.Exec(ctx, `
+		UPDATE federation_proposals SET status = 'approved', applied_at = NOW() WHERE id = $1`, proposalID)
+	return true
+}
+
+// applyCatalogItemRemove desactiva un item del catalogo federado (borrado
+// suave para no romper referencias de composiciones existentes).
+func (fh *FederationGovHandler) applyCatalogItemRemove(ctx context.Context, proposalID uuid.UUID, key string) bool {
+	res, err := fh.Pool.Exec(ctx, `
+		UPDATE products SET is_active = false, is_hidden = true, updated_at = NOW()
+		WHERE catalog_key = $1 AND node_domain = '__FEDERATION__'`, key)
+	if err != nil || res.RowsAffected() == 0 {
+		return false
+	}
+
+	_, _ = fh.Pool.Exec(ctx, `
+		UPDATE federation_proposals SET status = 'approved', applied_at = NOW() WHERE id = $1`, proposalID)
+	return true
 }

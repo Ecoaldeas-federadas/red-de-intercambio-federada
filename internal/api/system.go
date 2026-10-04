@@ -767,6 +767,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 
 	// Mostrar productos del nodo local (aprobados y no aprobados) para que el admin
 	// pueda ver permitidos y no permitidos. is_allowed distingue permitido/no-permitido.
+	// Bajo el modelo federado los productos locales son compuestos; se muestran todos.
 	query := `
 		SELECT p.id, p.name, COALESCE(p.description, '') AS description,
 		       COALESCE(p.parent_category,''), COALESCE(p.category,''), COALESCE(p.subcategory,''),
@@ -775,7 +776,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 		       p.product_code, p.is_system, p.is_hidden, COALESCE(p.image_thumb_url,''),
 		       COALESCE(p.is_allowed, NULL)
 		FROM products p
-		WHERE p.node_domain IN ($1, 'localhost', 'default') AND p.is_hidden = false AND COALESCE(p.is_composite, false) = false`
+		WHERE p.node_domain IN ($1, 'localhost', 'default') AND p.is_hidden = false`
 	args := []interface{}{nodeDomain}
 	if search != "" {
 		query += ` AND (LOWER(p.name) LIKE LOWER($2) OR EXISTS (
@@ -808,7 +809,7 @@ func (h *SystemHandler) listPendingProducts(w http.ResponseWriter, r *http.Reque
 	lang, fallbackLang := resolveRequestLanguages(r, h.Pool, nodeDomain)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products WHERE node_domain = $1 AND is_approved = false AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY created_at DESC LIMIT 200`, nodeDomain)
+		FROM products WHERE node_domain = $1 AND is_approved = false AND is_hidden = false ORDER BY created_at DESC LIMIT 200`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -915,11 +916,12 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 		       COALESCE(subcategory,''), unit, price_per_unit,
 		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
 		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden,
-		       node_domain, COALESCE(source_node, ''), COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL)
+		       node_domain, COALESCE(source_node, ''), COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL),
+		       COALESCE(catalog_key,''), COALESCE(item_type,'product'), COALESCE(is_active,true)
 		FROM products`
 	var args []interface{}
 	argIdx := 1
-	whereParts := []string{"is_hidden = false", "COALESCE(is_composite, false) = false"}
+	whereParts := []string{"is_hidden = false", "COALESCE(is_composite, false) = false", "COALESCE(is_active, true) = true"}
 	if search != "" {
 		whereParts = append(whereParts, fmt.Sprintf("LOWER(name) LIKE LOWER($%d)", argIdx))
 		args = append(args, "%"+search+"%")
@@ -941,12 +943,12 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 	var products []map[string]interface{}
 	for rows.Next() {
 		var id uuid.UUID
-		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit, nodeDomain, sourceNode, thumbURL string
+		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit, nodeDomain, sourceNode, thumbURL, catalogKey, itemType string
 		var price, pricePerKg, weightKg float64
-		var isApproved, isSystem, isHidden bool
+		var isApproved, isSystem, isHidden, isActive bool
 		var badge, imageURL, productCode *string
 		var isAllowed *bool
-		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden, &nodeDomain, &sourceNode, &thumbURL, &isAllowed); err != nil {
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden, &nodeDomain, &sourceNode, &thumbURL, &isAllowed, &catalogKey, &itemType, &isActive); err != nil {
 			continue
 		}
 		bdg := ""
@@ -1000,6 +1002,9 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 			"source_node":       sourceNode,
 			"available_locally": nodeDomain == db.LOCAL_NODE_DOMAIN,
 			"is_allowed":        isAllowed,
+			"catalog_key":       catalogKey,
+			"item_type":         itemType,
+			"is_federation":     nodeDomain == "__FEDERATION__",
 		})
 	}
 	localizeEntityMaps(r.Context(), h.Pool, products, "product", lang, fallbackLang, "name", "description", "badge", "unit")
@@ -1192,6 +1197,7 @@ type CreateSystemProductRequest struct {
 	ProductCode    string                       `json:"product_code"`
 	IsHidden       *bool                        `json:"is_hidden"`
 	Translations   map[string]map[string]string `json:"translations"`
+	Components     []CompositeComponent         `json:"components"`
 }
 
 func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
@@ -1212,14 +1218,92 @@ func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+
+	// Los productos del nodo son siempre compuestos: se arman desde el
+	// catalogo federado (__FEDERATION__) o compuestos locales aprobados.
+	// Nadie vende materia prima directa.
+	if len(req.Components) == 0 {
+		writeError(w, 400, "los productos del nodo deben ser compuestos: agrega al menos un componente del catalogo federado (materia prima, trabajo, embalaje o envio)")
+		return
+	}
+
+	// Validar componentes y calcular precio = suma(componente x cantidad).
+	// El precio del catalogo federado es el piso de referencia.
+	computedPrice := 0.0
+	compositeDesc := ""
+	for i := range req.Components {
+		c := &req.Components[i]
+		pid, err := uuid.Parse(c.ComponentProductID)
+		if err != nil {
+			writeError(w, 400, "componente invalido: "+c.ComponentName)
+			return
+		}
+		var pname, punit, pCatalogKey, pItemType string
+		var pprice float64
+		var pApproved bool
+		err = h.Pool.QueryRow(r.Context(),
+			`SELECT name, unit, price_per_unit, is_approved, COALESCE(catalog_key,''), COALESCE(item_type,'')
+			 FROM products WHERE id = $1 AND is_active = true
+			   AND (node_domain = '__FEDERATION__' OR (node_domain IN ($2,'localhost','default') AND COALESCE(is_composite,false) = true))`,
+			pid, db.LOCAL_NODE_DOMAIN).Scan(&pname, &punit, &pprice, &pApproved, &pCatalogKey, &pItemType)
+		if err != nil {
+			writeError(w, 400, "componente no encontrado en el catalogo federado: "+c.ComponentName)
+			return
+		}
+		if !pApproved {
+			writeError(w, 400, "componente no aprobado: "+pname)
+			return
+		}
+		c.ComponentPrice = pprice
+		c.ComponentName = pname
+		c.ComponentUnit = punit
+		c.ComponentCatalogKey = pCatalogKey
+		switch pItemType {
+		case "service":
+			c.ComponentCategory = "trabajo"
+		case "packaging":
+			c.ComponentCategory = "embalaje"
+		case "shipping":
+			c.ComponentCategory = "envio"
+		case "base_product", "composite":
+			c.ComponentCategory = "producto_base"
+		default:
+			c.ComponentCategory = "materia_prima"
+		}
+		subtotal := c.ComponentPrice * c.Quantity
+		computedPrice += subtotal
+		if compositeDesc != "" {
+			compositeDesc += ", "
+		}
+		compositeDesc += fmt.Sprintf("%s x%.4f (%.2f TQ)", c.ComponentName, c.Quantity, subtotal)
+	}
+	// El precio del compuesto se calcula solo; el precio enviado es referencia
+	// pero nunca puede ser menor que la suma de componentes (piso federado).
+	if req.Price < computedPrice {
+		req.Price = computedPrice
+	}
+	if req.Description == "" {
+		req.Description = compositeDesc
+	}
+
 	id := uuid.New()
 	_, err := h.Pool.Exec(r.Context(), `
-		INSERT INTO products (id, node_domain, name, description, parent_category, category, subcategory, unit, price_per_unit, origin, badge, image_url, product_code, is_approved)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, false)`,
+		INSERT INTO products (id, node_domain, name, description, parent_category, category, subcategory, unit, price_per_unit, origin, badge, image_url, product_code, is_approved, is_composite, item_type)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, false, true, 'composite')`,
 		id, nodeDomain, req.Name, req.Description, req.ParentCategory, req.Category, req.Subcategory, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
+	}
+
+	// Guardar la composicion del producto de catalogo
+	for i, c := range req.Components {
+		pid, _ := uuid.Parse(c.ComponentProductID)
+		subtotal := c.ComponentPrice * c.Quantity
+		_, _ = h.Pool.Exec(r.Context(),
+			`INSERT INTO product_compositions (product_id, product_type, component_product_id, component_catalog_key, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
+			 VALUES ($1, 'catalog', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			id, pid, c.ComponentCatalogKey, c.ComponentName, c.ComponentUnit, c.ComponentPrice, c.Quantity, subtotal, c.ComponentCategory, i)
 	}
 	productID := id.String()
 	baseFields := map[string]string{"name": req.Name, "description": req.Description, "badge": req.Badge, "unit": req.Unit}
@@ -1267,6 +1351,82 @@ func (h *SystemHandler) updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+
+	// Si el producto es compuesto (modelo de nodo), el precio nunca puede bajar
+	// del piso = suma de componentes. Si se envian componentes nuevos, se
+	// reemplaza la composicion; si no, se valida contra la almacenada.
+	var isComposite bool
+	_ = h.Pool.QueryRow(r.Context(),
+		`SELECT COALESCE(is_composite,false) FROM products WHERE id = $1`, id).Scan(&isComposite)
+
+	if isComposite {
+		if len(req.Components) > 0 {
+			computedPrice := 0.0
+			for i := range req.Components {
+				c := &req.Components[i]
+				pid, perr := uuid.Parse(c.ComponentProductID)
+				if perr != nil {
+					writeError(w, 400, "componente invalido: "+c.ComponentName)
+					return
+				}
+				var pname, punit, pCatalogKey, pItemType string
+				var pprice float64
+				var pApproved bool
+				perr = h.Pool.QueryRow(r.Context(),
+					`SELECT name, unit, price_per_unit, is_approved, COALESCE(catalog_key,''), COALESCE(item_type,'')
+					 FROM products WHERE id = $1 AND is_active = true
+					   AND (node_domain = '__FEDERATION__' OR (node_domain IN ($2,'localhost','default') AND COALESCE(is_composite,false) = true))`,
+					pid, db.LOCAL_NODE_DOMAIN).Scan(&pname, &punit, &pprice, &pApproved, &pCatalogKey, &pItemType)
+				if perr != nil {
+					writeError(w, 400, "componente no encontrado en el catalogo federado: "+c.ComponentName)
+					return
+				}
+				if !pApproved {
+					writeError(w, 400, "componente no aprobado: "+pname)
+					return
+				}
+				c.ComponentPrice = pprice
+				c.ComponentName = pname
+				c.ComponentUnit = punit
+				c.ComponentCatalogKey = pCatalogKey
+				switch pItemType {
+				case "service":
+					c.ComponentCategory = "trabajo"
+				case "packaging":
+					c.ComponentCategory = "embalaje"
+				case "shipping":
+					c.ComponentCategory = "envio"
+				case "base_product", "composite":
+					c.ComponentCategory = "producto_base"
+				default:
+					c.ComponentCategory = "materia_prima"
+				}
+				computedPrice += c.ComponentPrice * c.Quantity
+			}
+			if req.Price < computedPrice {
+				req.Price = computedPrice
+			}
+			_, _ = h.Pool.Exec(r.Context(),
+				`DELETE FROM product_compositions WHERE product_id = $1 AND product_type = 'catalog'`, id)
+			for i, c := range req.Components {
+				pid, _ := uuid.Parse(c.ComponentProductID)
+				subtotal := c.ComponentPrice * c.Quantity
+				_, _ = h.Pool.Exec(r.Context(),
+					`INSERT INTO product_compositions (product_id, product_type, component_product_id, component_catalog_key, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
+					 VALUES ($1, 'catalog', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+					id, pid, c.ComponentCatalogKey, c.ComponentName, c.ComponentUnit, c.ComponentPrice, c.Quantity, subtotal, c.ComponentCategory, i)
+			}
+		} else {
+			// Sin componentes nuevos: el piso es la suma de la composicion actual
+			var floor float64
+			_ = h.Pool.QueryRow(r.Context(),
+				`SELECT COALESCE(SUM(subtotal),0) FROM product_compositions WHERE product_id = $1 AND product_type = 'catalog'`, id).Scan(&floor)
+			if req.Price < floor {
+				req.Price = floor
+			}
+		}
+	}
+
 	result, err := h.Pool.Exec(r.Context(), `
 		UPDATE products SET name = $1, description = $2, parent_category = $3, category = $4, subcategory = $5, unit = $6, price_per_unit = $7, origin = $8, badge = $9, image_url = $10, product_code = $11, is_hidden = $12, updated_at = NOW()
 		WHERE id = $13 AND node_domain = $14`,
@@ -3437,10 +3597,10 @@ func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
 
 	type pageItem struct {
 		id, slug, title, content string
-		subtitle, icon          *string
-		menuOrder               int
-		isPublished             bool
-		showInMenu              bool
+		subtitle, icon           *string
+		menuOrder                int
+		isPublished              bool
+		showInMenu               bool
 	}
 	var rawPages []pageItem
 	var keys []string

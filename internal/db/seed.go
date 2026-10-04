@@ -1,4 +1,4 @@
-﻿package db
+package db
 
 import (
 	"context"
@@ -2276,11 +2276,12 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 	}
 
 	// 1. Si el dominio cambio, actualizar todos los productos al nuevo dominio
-	// Buscar productos system que no pertenecen a este dominio ni a 'default'
+	// Buscar productos system que no pertenecen a este dominio, a 'default'
+	// ni al catalogo federado (__FEDERATION__ nunca se convierte a dominio local)
 	var oldDomain string
 	err := d.Pool.QueryRow(ctx, `
 		SELECT node_domain FROM products
-		WHERE is_system = true AND node_domain != $1 AND node_domain != 'default'
+		WHERE is_system = true AND node_domain != $1 AND node_domain != 'default' AND node_domain != '__FEDERATION__'
 		LIMIT 1`, nodeDomain).Scan(&oldDomain)
 	if err == nil && oldDomain != "" {
 		// El dominio cambio: mover todos los productos al nuevo dominio
@@ -3364,21 +3365,34 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 			"", 0, 0, 0, 0, 0},
 	}
 
+	// Catalogo federado: los items del seed son materia prima, productos base,
+	// servicios, embalaje y envio compartidos por todos los nodos (__FEDERATION__).
+	// Los bienes finales (item_type='product') no se siembran: cada nodo crea sus
+	// propios productos compuestos a partir del catalogo.
+	fedDomain := FEDERATION_NODE_DOMAIN
+	seededCatalog := 0
 	for _, p := range products {
-		// Solo insertar si no existe ya para este dominio
+		itemType := ClassifyCatalogItemType(p.name, p.parentCategory, p.category, p.subcategory, p.unit, false)
+		if itemType == "product" {
+			continue
+		}
+		catalogKey := CatalogItemSlug(p.name)
 		_, err := d.Pool.Exec(ctx, `
 			INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url,
 			                      price_per_unit, is_approved, is_system, product_code,
-			                      energy_direct, energy_human, energy_inputs, energy_amortization)
+			                      energy_direct, energy_human, energy_inputs, energy_amortization,
+			                      catalog_key, item_type)
 			SELECT $1, $2, $3, $4, $5, 'internal', $6, $7, $8, $9, $10, true, true, '',
-			       $11, $12, $13, $14
+			       $11, $12, $13, $14, $15, $16
 			WHERE NOT EXISTS (
-				SELECT 1 FROM products WHERE node_domain = $1 AND name = $2
+				SELECT 1 FROM products WHERE catalog_key = $15
 			)`,
-			nodeDomain, p.name, p.parentCategory, p.category, p.subcategory, p.unit, p.description, p.badge, p.imageURL, p.price,
-			p.energyDirect, p.energyHuman, p.energyInputs, p.energyAmort)
+			fedDomain, p.name, p.parentCategory, p.category, p.subcategory, p.unit, p.description, p.badge, p.imageURL, p.price,
+			p.energyDirect, p.energyHuman, p.energyInputs, p.energyAmort, catalogKey, itemType)
 		if err != nil {
-			log.Printf("Warning: failed to seed product %s: %v", p.name, err)
+			log.Printf("Warning: failed to seed catalog item %s: %v", p.name, err)
+		} else {
+			seededCatalog++
 		}
 	}
 
@@ -3388,7 +3402,7 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 	// reseteos de BD.
 
 	// Eliminar "Huevos Frescos" viejo si quedo de seeds anteriores
-	_, _ = d.Pool.Exec(ctx, `DELETE FROM products WHERE node_domain = $1 AND name = 'Huevos Frescos'`, nodeDomain)
+	_, _ = d.Pool.Exec(ctx, `DELETE FROM products WHERE node_domain = $1 AND name = 'Huevos Frescos'`, fedDomain)
 
 	// Tabla de correcciones: name, price_per_kg, base_unit, weight_kg, price_per_unit, energy_inputs
 	// Valores de migraciones 085-092 (correcciones de energia y precios)
@@ -3470,7 +3484,7 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 				price_per_kg = $3, base_unit = $4, weight_kg = $5,
 				price_per_unit = $6, energy_inputs = $7
 			WHERE node_domain = $1 AND name = $2`,
-			nodeDomain, c.name, c.pricePerKg, c.baseUnit, c.weightKg, c.pricePerUnit, c.energyInputs)
+			fedDomain, c.name, c.pricePerKg, c.baseUnit, c.weightKg, c.pricePerUnit, c.energyInputs)
 	}
 
 	// Actualizar descripciones de productos corregidos (migracion 085-086)
@@ -3497,7 +3511,7 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 	}
 	for _, du := range descUpdates {
 		_, _ = d.Pool.Exec(ctx, `UPDATE products SET description = $3 WHERE node_domain = $1 AND name = $2`,
-			nodeDomain, du.name, du.desc)
+			fedDomain, du.name, du.desc)
 	}
 
 	// === Marcar productos compuestos (is_composite=true) ===
@@ -3531,11 +3545,11 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 		"Horno de Barro Artesanal",
 	}
 	for _, cp := range compositeProducts {
-		_, _ = d.Pool.Exec(ctx, `UPDATE products SET is_composite = true WHERE node_domain = $1 AND name = $2`,
-			nodeDomain, cp)
+		_, _ = d.Pool.Exec(ctx, `UPDATE products SET is_composite = true, item_type = 'composite' WHERE node_domain = $1 AND name = $2`,
+			fedDomain, cp)
 	}
 
-	log.Printf("Seeded %d products to node_domain=%s", len(products), nodeDomain)
+	log.Printf("Seeded %d catalog items to node_domain=%s", seededCatalog, fedDomain)
 	return nil
 }
 

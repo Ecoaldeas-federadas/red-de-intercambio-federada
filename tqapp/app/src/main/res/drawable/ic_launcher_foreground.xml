@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- WhatsApp speech bubble outline & fill in 66dp area (center is 54, 54) -->
+    <!-- Circular speech bubble with tail -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 C38.54,26 26,38.54 26,54 C26,59.38 27.53,64.4 30.17,68.67 L27.2,79.52 L38.38,76.64 C42.94,79.35 48.27,81.02 54,81.02 C69.46,81.02 82,68.48 82,53.02 C82,37.56 69.46,26 54,26 Z" />
+    
+    <!-- Phone handset / Matrix federated icon inside the bubble -->
+    <path
+        android:fillColor="#075E54"
+        android:pathData="M64.71,60.89 C63.56,60.89 62.43,60.71 61.35,60.35 C60.99,60.23 60.59,60.32 60.31,60.6 L57.85,63.07 C54.34,61.28 51.46,58.4 49.67,54.89 L52.14,52.43 C52.42,52.15 52.51,51.75 52.39,51.39 C52.03,50.31 51.85,49.18 51.85,48.03 C51.85,47.46 51.39,47 50.82,47 L46.97,47 C46.4,47 45.94,47.46 45.94,48.03 C45.94,58.39 54.35,66.8 64.71,66.8 C65.28,66.8 65.74,66.34 65.74,65.77 L65.74,61.92 C65.74,61.35 65.28,60.89 64.71,60.89 Z" />
+
+    <!-- Matrix brackets around phone to symbolize WhatsApp + Matrix Federation -->
+    <path
+        android:fillColor="#00A884"
+        android:pathData="M39,45 L39,43 L42,43 L42,41 L37,41 L37,63 L42,63 L42,61 L39,61 L39,45 Z" />
+    <path
+        android:fillColor="#00A884"
+        android:pathData="M69,45 L69,43 L66,43 L66,41 L71,41 L71,63 L66,63 L66,61 L69,61 L69,45 Z" />
+</vector>

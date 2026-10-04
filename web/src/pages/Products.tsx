@@ -27,6 +27,28 @@ const emptyForm: ProductForm = {
   product_code: '', badge: '', image_url: '', origin: 'internal', is_hidden: false
 }
 
+// Componente de un producto compuesto (catalogo federado + locales)
+interface FormComponent {
+  component_product_id: string
+  component_name: string
+  component_unit: string
+  component_price: number
+  quantity: number
+  component_category: string
+  component_catalog_key?: string
+}
+
+const itemTypeToCategory: Record<string, string> = {
+  raw_material: 'materia_prima',
+  base_product: 'producto_base',
+  composite: 'producto_base',
+  service: 'trabajo',
+  packaging: 'embalaje',
+  shipping: 'envio',
+}
+
+const ITEM_TYPES = ['raw_material', 'base_product', 'service', 'packaging', 'shipping']
+
 // Categorias padre predefinidas con sus categorias hijas
 const PARENT_CATEGORIES: Record<string, string[]> = {
   'Alimentacion': ['Cosecha Fresca', 'Gastronomia Artesanal', 'Granos y Cereales', 'Endulzantes', 'Carnes y Pescados', 'Bebidas', 'Condimentos'],
@@ -86,6 +108,22 @@ export default function Products() {
   const [activeTab, setActiveTab] = useState<ProductTab>('mynode')
   // Sub-tabs dentro de Mi Nodo: Permitidos / No Permitidos
   const [mynodeSubTab, setMynodeSubTab] = useState<MyNodeSubTab>('allowed')
+
+  // Constructor de producto compuesto (todos los productos del nodo son compuestos)
+  const [formComponents, setFormComponents] = useState<FormComponent[]>([])
+  const [compOptions, setCompOptions] = useState<any[]>([])
+  const [compSearch, setCompSearch] = useState('')
+  const [compTypeFilter, setCompTypeFilter] = useState('all')
+  const [selComponentId, setSelComponentId] = useState('')
+  const [selComponentQty, setSelComponentQty] = useState(1)
+
+  // Propuesta de nuevo item al catalogo federado (votacion de la federacion)
+  const [showCatalogProposal, setShowCatalogProposal] = useState(false)
+  const [catalogForm, setCatalogForm] = useState({
+    name: '', description: '', item_type: 'raw_material', parent_category: '',
+    category: '', subcategory: '', unit: 'kg', price_per_unit: 0, price_per_kg: 0,
+    weight_kg: 0, base_unit: 'kg', badge: '', image_url: '', product_code: '',
+  })
 
   const PAGE_SIZE = 24
 
@@ -436,6 +474,83 @@ export default function Products() {
     setFilterSubcategory('')
   }
 
+  // Cargar opciones de componentes del catalogo federado (materia prima,
+  // base, trabajo, embalaje, envio) cuando el formulario esta abierto
+  useEffect(() => {
+    if (!showForm && !editingId) return
+    const params = new URLSearchParams()
+    if (compTypeFilter !== 'all') params.set('category', compTypeFilter)
+    if (compSearch.trim()) params.set('search', compSearch.trim())
+    const qs = params.toString()
+    api.get('/products/components' + (qs ? `?${qs}` : ''))
+      .then((d: any) => setCompOptions(Array.isArray(d) ? d : []))
+      .catch(() => setCompOptions([]))
+  }, [showForm, editingId, compTypeFilter, compSearch])
+
+  // Piso de referencia: suma de componentes (precio minimo del producto)
+  const componentsFloor = formComponents.reduce((sum, c) => sum + c.component_price * c.quantity, 0)
+
+  const addFormComponent = () => {
+    const comp = compOptions.find((c: any) => c.id === selComponentId)
+    if (!comp || selComponentQty <= 0) return
+    setFormComponents([...formComponents, {
+      component_product_id: comp.id,
+      component_name: comp.name,
+      component_unit: comp.unit || 'unidad',
+      component_price: comp.price_per_unit || 0,
+      quantity: selComponentQty,
+      component_category: itemTypeToCategory[comp.item_type] || 'materia_prima',
+      component_catalog_key: comp.catalog_key || '',
+    }])
+    setSelComponentId('')
+    setSelComponentQty(1)
+  }
+
+  const removeFormComponent = (idx: number) => {
+    setFormComponents(formComponents.filter((_, i) => i !== idx))
+  }
+
+  // Proponer un nuevo item al catalogo federado: votacion de la federacion
+  // (no de la asamblea local). El item es identico en todos los nodos.
+  const proposeCatalogItem = async () => {
+    if (!catalogForm.name) {
+      setError(t('error_name_required', 'El nombre del item es obligatorio'))
+      return
+    }
+    try {
+      // El slug debe ser igual en todos los nodos: replica de CatalogItemSlug
+      const slug = 'fed-' + catalogForm.name.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      await api.post('/federation-gov/proposals', {
+        proposal_type: 'catalog_item_upsert',
+        key: slug,
+        proposed_value: { ...catalogForm },
+        description: `Agregar/actualizar item del catalogo federado: ${catalogForm.name} (${catalogForm.item_type})`,
+      })
+      setSuccess(t('success_catalog_proposal', 'Propuesta creada. La federacion votara para agregar "{{name}}" al catalogo global.', { name: catalogForm.name }))
+      setShowCatalogProposal(false)
+      setCatalogForm({ name: '', description: '', item_type: 'raw_material', parent_category: '', category: '', subcategory: '', unit: 'kg', price_per_unit: 0, price_per_kg: 0, weight_kg: 0, base_unit: 'kg', badge: '', image_url: '', product_code: '' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
+    }
+  }
+
+  // Proponer retirar un item del catalogo federado
+  const proposeCatalogRemove = async (p: any) => {
+    try {
+      await api.post('/federation-gov/proposals', {
+        proposal_type: 'catalog_item_remove',
+        key: p.catalog_key,
+        proposed_value: p.catalog_key,
+        description: `Retirar del catalogo federado: ${p.name} (${p.catalog_key})`,
+      })
+      setSuccess(t('success_remove_proposal', 'Propuesta creada. La federacion votara para retirar "{{name}}".', { name: p.name }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
+    }
+  }
+
   const setTranslatedField = (field: string, value: string) => {
     setFormTranslations((prev) => ({ ...prev, [formLang]: { ...(prev[formLang] || {}), [field]: value } }))
   }
@@ -474,23 +589,46 @@ export default function Products() {
     setFormTranslations({})
     setFormLang(defaultLang)
     setShowForm(false)
+    // Cargar la composicion existente (productos de nodo = compuestos)
+    setFormComponents([])
+    api.get(`/store/composite/${p.id}/composition`).then((d: any) => {
+      if (Array.isArray(d)) {
+        setFormComponents(d.map((c: any) => ({
+          component_product_id: c.component_product_id || '',
+          component_name: c.component_name,
+          component_unit: c.component_unit || 'unidad',
+          component_price: c.component_price || 0,
+          quantity: c.quantity || 1,
+          component_category: c.component_category || 'materia_prima',
+          component_catalog_key: c.component_catalog_key || '',
+        })))
+      }
+    }).catch(() => {})
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setForm(emptyForm)
     setFormTranslations({})
+    setFormComponents([])
     setFormLang(defaultLang)
   }
 
   const save = async () => {
     setError('')
-    if (!form.name || form.price <= 0) {
-      setError(t('error_name_price_required', 'Nombre y precio son obligatorios'))
+    if (!form.name) {
+      setError(t('error_name_required', 'El nombre es obligatorio'))
+      return
+    }
+    // Productos del nodo = compuestos: requieren al menos un componente
+    // del catalogo federado. El precio = suma de componentes (piso).
+    if (!editingId && formComponents.length === 0) {
+      setError(t('error_components_required', 'Agrega al menos un componente del catalogo federado (materia prima, trabajo, embalaje o envio)'))
       return
     }
     try {
-      const payload = { ...form, translations: formTranslations }
+      const price = Math.max(form.price, componentsFloor)
+      const payload = { ...form, price, translations: formTranslations, components: formComponents }
       if (editingId) {
         await api.put(`/products/${editingId}`, payload)
       } else {
@@ -498,6 +636,7 @@ export default function Products() {
       }
       setForm(emptyForm)
       setFormTranslations({})
+      setFormComponents([])
       setFormLang(defaultLang)
       setEditingId(null)
       setShowForm(false)
@@ -613,6 +752,53 @@ export default function Products() {
         </div>
       </div>
 
+      {/* Componentes: todo producto del nodo es compuesto desde el catalogo federado */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
+        <p className="text-xs font-semibold text-emerald-800">{t('components_title', 'Componentes (catalogo federado)')}</p>
+        <p className="text-xs text-gray-600">{t('components_desc', 'Los productos del nodo se arman con materia prima, productos base, trabajo, embalaje y envio del catalogo de la federacion. El precio es la suma de los componentes.')}</p>
+        <div className="flex flex-wrap gap-2">
+          <select className="input flex-1 min-w-[120px]" value={compTypeFilter} onChange={(e) => setCompTypeFilter(e.target.value)}>
+            <option value="all">{t('store_cat_all', 'Todos')}</option>
+            <option value="materia_prima">{t('store_cat_raw_materials', 'Materias Primas')}</option>
+            <option value="producto_base">{t('store_cat_base_products', 'Productos Base')}</option>
+            <option value="trabajo">{t('store_cat_work', 'Trabajo (h)')}</option>
+            <option value="embalaje">{t('store_cat_packaging', 'Embalaje')}</option>
+            <option value="envio">{t('store_cat_shipping', 'Envio')}</option>
+          </select>
+          <input className="input flex-1 min-w-[140px]" placeholder={t('components_search_placeholder', 'Buscar componente...')} value={compSearch} onChange={(e) => setCompSearch(e.target.value)} />
+        </div>
+        <div className="flex gap-2">
+          <select className="input flex-1" value={selComponentId} onChange={(e) => setSelComponentId(e.target.value)}>
+            <option value="">{t('components_select', 'Seleccionar componente...')}</option>
+            {compOptions.map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.name} — {fmtTQ(c.price_per_unit || 0)} {currency}/{c.unit || 'unidad'}{c.node_domain === '__FEDERATION__' ? ' 🌐' : ''}
+              </option>
+            ))}
+          </select>
+          <input type="number" step="any" min="0" className="input w-24" placeholder={t('components_qty', 'Cant.')} value={selComponentQty} onChange={(e) => setSelComponentQty(parseFloat(e.target.value) || 0)} />
+          <button type="button" onClick={addFormComponent} disabled={!selComponentId || selComponentQty <= 0} className="btn-secondary flex items-center gap-1">
+            <Plus size={14} /> {t('components_add', 'Agregar')}
+          </button>
+        </div>
+        {formComponents.length > 0 && (
+          <div className="space-y-1">
+            {formComponents.map((c, i) => (
+              <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-1.5 border border-gray-200 text-sm">
+                <span>{c.component_name} <span className="text-xs text-gray-400">({c.component_category})</span></span>
+                <span className="text-xs text-gray-600">
+                  {c.quantity} {c.component_unit} × {fmtTQ(c.component_price)} = <strong>{fmtTQ(c.component_price * c.quantity)} {currency}</strong>
+                  <button type="button" onClick={() => removeFormComponent(i)} className="text-red-500 hover:text-red-700 ml-2"><X size={14} /></button>
+                </span>
+              </div>
+            ))}
+            <p className="text-xs font-semibold text-emerald-800 pt-1">
+              {t('components_floor', 'Precio minimo (suma de componentes):')} {fmtTQ(componentsFloor)} {currency}
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">{t('form_unit_label', 'Unidad de medida')}</label>
@@ -621,6 +807,7 @@ export default function Products() {
         <div>
           <label className="label">{t('form_price_label', 'Precio')} ({currency})</label>
           <input type="number" className="input" placeholder={t('form_price_placeholder', 'Ej: 50')} value={form.price} onChange={(e) => setForm({ ...form, price: toCents(e.target.value) })} />
+          {componentsFloor > 0 && <p className="text-xs text-gray-400 mt-1">{t('form_price_floor_hint', 'Minimo:')} {fmtTQ(componentsFloor)} {currency}</p>}
         </div>
       </div>
 
@@ -771,9 +958,9 @@ export default function Products() {
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>{t('help_title', 'Productos del Catalogo Comunitario - Ayuda')}</strong></p>
           <p><strong>{t('help_tabs_label', 'Tres pestanas:')}</strong></p>
-          <p><strong>{t('help_federation_label', '1. Federacion:')}</strong> {t('help_federation_desc', 'Todos los productos base que existen en toda la red de nodos federados, INCLUYENDO los de tu propio nodo. Aqui puedes ver todos los productos y decidir cuales estan permitidos o no permitidos en tu nodo.')}</p>
-          <p><strong>{t('help_my_node_label', '2. Mi Nodo:')}</strong> {t('help_my_node_desc', 'Los productos base que pertenecen a tu aldea. Tiene dos sub-pestanas: Permitidos (productos que se pueden vender/usar) y No Permitidos (productos explicitamente prohibidos). Puedes editarlos, crear nuevos, y moverlos entre permitido y no permitido.')}</p>
-          <p><strong>{t('help_compounds_label', '3. Compuestos:')}</strong> {t('help_compounds_desc', 'Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Si todos los ingredientes ya estan permitidos, el compuesto aparece directamente aqui sin necesidad de aprobacion.')}</p>
+          <p><strong>{t('help_federation_label', '1. Federacion:')}</strong> {t('help_federation_desc', 'El catalogo global de la federacion: materia prima, productos base, servicios, embalaje y envio. Es identico en todos los nodos y sus precios son de referencia (minimo). Solo cambia por votacion de la federacion.')}</p>
+          <p><strong>{t('help_my_node_label', '2. Mi Nodo:')}</strong> {t('help_my_node_desc', 'Los productos de tu nodo. Todos son compuestos: se arman desde el catalogo federado + trabajo local. El precio es la suma de sus componentes (piso federado).')}</p>
+          <p><strong>{t('help_compounds_label', '3. Compuestos:')}</strong> {t('help_compounds_desc', 'Vista de los productos compuestos del nodo: combinaciones de componentes del catalogo federado (ej: harina + agua + horno = pan).')}</p>
           <p><strong>{t('help_search_label', 'Busqueda:')}</strong> {t('help_search_desc', 'Escribe parte del nombre en el campo de busqueda para encontrar productos rapidamente.')}</p>
           <p><strong>{t('help_public_page_label', 'Pagina publica:')}</strong> {t('help_public_page_desc', 'Los productos aprobados aparecen automaticamente en la pagina publica si usas el bloque Catalogo desde Backend.')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common:close'))}</button>
@@ -878,6 +1065,15 @@ export default function Products() {
             ))}
           </select>
         )}
+        {/* Proponer nuevo item al catalogo federado (votacion de la federacion) */}
+        {activeTab === 'federated' && canManage && (
+          <button
+            onClick={() => setShowCatalogProposal(!showCatalogProposal)}
+            className="btn-secondary flex items-center gap-1 text-sm"
+          >
+            <Globe size={14} /> {t('propose_catalog_item', 'Proponer item al catalogo')}
+          </button>
+        )}
         <button onClick={doSearch} className="btn-primary flex items-center gap-2">
           <Search size={16} />
           {t('search_button', 'Buscar')}
@@ -889,6 +1085,79 @@ export default function Products() {
           </button>
         )}
       </div>
+
+      {/* Formulario: proponer item al catalogo federado (votacion global) */}
+      {showCatalogProposal && activeTab === 'federated' && (
+        <div className="card bg-blue-50 border border-blue-200 space-y-3">
+          <h3 className="font-semibold flex items-center gap-2 text-blue-900"><Globe size={18} />{t('catalog_proposal_title', 'Proponer item al catalogo federado')}</h3>
+          <p className="text-xs text-blue-700">{t('catalog_proposal_desc', 'El item sera identico en todos los nodos. Requiere aprobacion por votacion de la federacion (75% por defecto), no de la asamblea local.')}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">{t('form_name_label', 'Nombre del producto')}</label>
+              <input className="input" value={catalogForm.name} onChange={(e) => setCatalogForm({ ...catalogForm, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">{t('catalog_item_type', 'Tipo de item')}</label>
+              <select className="input" value={catalogForm.item_type} onChange={(e) => setCatalogForm({ ...catalogForm, item_type: e.target.value })}>
+                {ITEM_TYPES.map((it) => (
+                  <option key={it} value={it}>{t(`item_type_${it}`, it)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="label">{t('form_description_label', 'Descripción')}</label>
+            <textarea className="input" rows={2} value={catalogForm.description} onChange={(e) => setCatalogForm({ ...catalogForm, description: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="label">{t('form_parent_category_label', 'Categoría Padre')}</label>
+              <input className="input" value={catalogForm.parent_category} onChange={(e) => setCatalogForm({ ...catalogForm, parent_category: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">{t('form_category_label', 'Categoría')}</label>
+              <input className="input" value={catalogForm.category} onChange={(e) => setCatalogForm({ ...catalogForm, category: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">{t('form_subcategory_label', 'Subcategoría')}</label>
+              <input className="input" value={catalogForm.subcategory} onChange={(e) => setCatalogForm({ ...catalogForm, subcategory: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="label">{t('form_unit_label', 'Unidad de medida')}</label>
+              <input className="input" value={catalogForm.unit} onChange={(e) => setCatalogForm({ ...catalogForm, unit: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">{t('catalog_ref_price', 'Precio referencia')} ({currency})</label>
+              <input type="number" step="any" className="input" value={catalogForm.price_per_unit} onChange={(e) => setCatalogForm({ ...catalogForm, price_per_unit: toCents(e.target.value) })} />
+              <p className="text-[10px] text-gray-500 mt-1">{t('catalog_ref_price_hint', 'Precio minimo/referencia en todos los nodos')}</p>
+            </div>
+            <div>
+              <label className="label">{t('catalog_price_per_kg', 'Precio por kg')} ({currency})</label>
+              <input type="number" step="any" className="input" value={catalogForm.price_per_kg} onChange={(e) => setCatalogForm({ ...catalogForm, price_per_kg: toCents(e.target.value) })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">{t('catalog_weight_kg', 'Peso/cantidad base')}</label>
+              <input type="number" step="any" className="input" value={catalogForm.weight_kg} onChange={(e) => setCatalogForm({ ...catalogForm, weight_kg: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="label">{t('catalog_base_unit', 'Unidad base')}</label>
+              <input className="input" value={catalogForm.base_unit} onChange={(e) => setCatalogForm({ ...catalogForm, base_unit: e.target.value })} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={proposeCatalogItem} className="btn-primary flex items-center gap-2">
+              <Check size={16} /> {t('catalog_propose_button', 'Proponer a la federacion')}
+            </button>
+            <button onClick={() => setShowCatalogProposal(false)} className="btn-secondary flex items-center gap-2">
+              <X size={16} /> {t('form_cancel', t('common:cancel'))}
+            </button>
+          </div>
+        </div>
+      )}
 
       {products.length === 0 && !showForm ? (
         <div className="card text-center text-gray-500 py-8">
@@ -1104,6 +1373,16 @@ export default function Products() {
                           {fmtTQ(p.price)} {currency}
                           {p.unit && <span className="text-sm font-normal text-gray-500"> / {p.unit}</span>}
                         </p>
+                        {p.is_federation && (
+                          <p className="text-[10px] font-bold text-blue-600 bg-blue-50 rounded px-1.5 py-0.5 inline-block">
+                            {t('reference_price_label', 'Precio de referencia (minimo) - catalogo federado')}
+                          </p>
+                        )}
+                        {p.item_type && p.item_type !== 'product' && (
+                          <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full inline-block">
+                            {String(t(`item_type_${p.item_type}`, { defaultValue: p.item_type }))}
+                          </span>
+                        )}
                         {p.price_calculation && (
                           <p className="text-[10px] text-gray-400">{p.price_calculation}</p>
                         )}
@@ -1115,7 +1394,7 @@ export default function Products() {
                         {p.product_code && <p className="text-xs text-gray-400">{t('code_label', 'Código:')} {p.product_code}</p>}
                         {activeTab === 'federated' && p.node_domain && (
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-blue-600">{t('node_label', 'Nodo:')} {p.node_domain}</p>
+                            <p className="text-xs text-blue-600">{t('node_label', 'Nodo:')} {p.is_federation ? t('federation_catalog_name', 'Federacion (catalogo global)') : p.node_domain}</p>
                             {p.available_locally ? (
                               <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                                 <Check size={10} /> {t('available_locally', 'Disponible en mi nodo')}
@@ -1160,7 +1439,39 @@ export default function Products() {
                                 <X size={10} /> {t('disallow', 'No Permitir')}
                               </button>
                             )}
-                            {!p.available_locally && (
+                            {/* Items del catalogo federado: cambios por votacion de la federacion */}
+                            {p.is_federation && canManage && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setCatalogForm({
+                                      name: p.name, description: p.description || '',
+                                      item_type: p.item_type || 'raw_material',
+                                      parent_category: p.parent_category || '', category: p.category || '',
+                                      subcategory: p.subcategory || '', unit: p.unit || 'kg',
+                                      price_per_unit: (p.price || 0) / 100, price_per_kg: (p.base_price || 0) / 100,
+                                      weight_kg: p.weight_kg || 0, base_unit: p.base_unit || 'kg',
+                                      badge: p.badge || '', image_url: p.image_url || '',
+                                      product_code: p.product_code || '',
+                                    })
+                                    setShowCatalogProposal(true)
+                                  }}
+                                  className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-200 transition flex items-center gap-1"
+                                  title={t('tooltip_propose_catalog_change', 'Proponer cambio a la federacion (votacion global)')}
+                                >
+                                  <Pencil size={10} /> {t('propose_catalog_change', 'Proponer cambio')}
+                                </button>
+                                <button
+                                  onClick={() => proposeCatalogRemove(p)}
+                                  className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full hover:bg-red-200 transition flex items-center gap-1"
+                                  title={t('tooltip_propose_catalog_remove', 'Proponer retirar del catalogo (votacion de la federacion)')}
+                                >
+                                  <Trash2 size={10} /> {t('propose_catalog_remove', 'Proponer retiro')}
+                                </button>
+                              </>
+                            )}
+                            {/* Importar a la asamblea solo aplica a productos de otros nodos, no al catalogo federado */}
+                            {!p.available_locally && !p.is_federation && (
                               <button
                                 onClick={() => proposeProductToAssembly(p)}
                                 className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full hover:bg-amber-200 transition flex items-center gap-1"
@@ -1169,7 +1480,7 @@ export default function Products() {
                               </button>
                             )}
                             {/* Botones aprobar/desaprobar/eliminar para productos del propio nodo */}
-                            {p.available_locally && canManage && (
+                            {p.available_locally && !p.is_federation && canManage && (
                               p.is_approved ? (
                                 <button
                                   onClick={() => disapproveProduct(p)}
@@ -1188,7 +1499,7 @@ export default function Products() {
                                 </button>
                               )
                             )}
-                            {p.available_locally && canManage && (
+                            {p.available_locally && !p.is_federation && canManage && (
                               <button
                                 onClick={() => removeProduct(p)}
                                 className="text-[10px] font-bold text-red-900 bg-red-200 px-2 py-0.5 rounded-full hover:bg-red-300 transition flex items-center gap-1"

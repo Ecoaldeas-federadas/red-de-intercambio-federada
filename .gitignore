@@ -56,3 +56,10 @@ desktop.ini
 
 .commit_msg.txt
 .commit_msg_*.txt
+
+# ---- Datos pesados / archivos locales ----
+*.zolca
+nul
+/chat.md
+/informe_chat.html
+tqapp/call_log.txt

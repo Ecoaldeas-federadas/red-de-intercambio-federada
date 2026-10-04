@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="uploads" path="uploads/" />
+    <cache-path name="matrix_media" path="matrix_media/" />
+    <files-path name="matrix_store" path="matrix_store/" />
+</paths>

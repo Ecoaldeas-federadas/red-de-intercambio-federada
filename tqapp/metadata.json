@@ -1,0 +1,6 @@
+{
+  "name": "TqApp",
+  "description": "TqApp - Cliente federado estilo WhatsApp impulsado por la red abierta Matrix con chats privados, grupos, canales, comunidades y estados de 24 horas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+} 
