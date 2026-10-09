@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analizador de chat de WhatsApp</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:system-ui,'Segoe UI',Arial,sans-serif;background:#111b21;color:#e9edef;margin:0;padding:24px}
+.wrap{max-width:980px;margin:auto}
+h1{color:#25d366;margin-bottom:4px}
+h2{color:#00a884;border-bottom:1px solid #2a3942;padding-bottom:6px;margin-top:40px}
+.sub{color:#8696a0;font-size:13px}
+.card{background:#202c33;border-radius:10px;padding:16px 20px;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid #2a3942;text-align:right;white-space:nowrap}
+th{color:#00a884}
+td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}
+tr:hover td{background:#2a3942}
+.kpi{display:flex;flex-wrap:wrap;gap:14px}
+.kpi .box{flex:1;min-width:140px;background:#2a3942;border-radius:8px;padding:12px;text-align:center}
+.kpi .num{font-size:26px;font-weight:700;color:#25d366}
+.kpi .lbl{font-size:12px;color:#8696a0}
+.warn{background:#3a2a2a;border-left:4px solid #ee5253}
+.ok{background:#1f3a2a;border-left:4px solid #25d366}
+ul{line-height:1.7}
+.small{font-size:12px;color:#8696a0}
+#drop{border:2px dashed #2a3942;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s}
+#drop.over{border-color:#25d366;background:#1f3a2a}
+#drop b{color:#25d366;font-size:18px}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.controls label{display:flex;flex-direction:column;font-size:12px;color:#8696a0;gap:4px}
+input[type=date]{background:#2a3942;color:#e9edef;border:1px solid #3b4a54;border-radius:8px;padding:8px 10px;font-size:14px;color-scheme:dark}
+button{background:#00a884;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer}
+button:hover{background:#06cf9f}
+button.ghost{background:#2a3942}
+button.ghost:hover{background:#3b4a54}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.quick button{padding:6px 12px;font-size:12px}
+#fileinfo{margin-top:14px;font-size:14px;line-height:1.8}
+.hidden{display:none}
+details{margin-top:14px}
+summary{cursor:pointer;color:#00a884;font-weight:600;font-size:14px}
+#plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 12px;margin-top:10px;max-height:220px;overflow-y:auto}
+.prow{display:flex;align-items:center;gap:8px;font-size:13px;color:#e9edef;padding:3px 6px;border-radius:6px}
+.prow:hover{background:#2a3942}
+.prow.off .pname{color:#8696a0;text-decoration:line-through}
+.prow .pname{cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .cnt{color:#8696a0;font-size:11px;margin-left:auto;white-space:nowrap}
+.edit{background:none;border:0;color:#8696a0;font-size:12px;padding:2px 4px;cursor:pointer;border-radius:4px}
+.edit:hover{color:#25d366;background:#1f3a2a}
+select{background:#2a3942;color:#e9edef;border:1px solid #3b4a54;border-radius:8px;padding:8px 10px;font-size:14px;max-width:100%}
+.bubble{background:#182229;border-left:3px solid #3b4a54;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.bubble .mtime{color:#8696a0;font-size:11px;margin-right:8px}
+.badge{font-size:10px;padding:1px 7px;border-radius:8px;font-weight:600;margin-right:6px}
+.badge.audio{background:#25d36633;color:#25d366}.badge.image{background:#ff9f4333;color:#ff9f43}
+.badge.video{background:#ee525333;color:#ee5253}.badge.sticker{background:#a55eea33;color:#a55eea}
+.badge.document{background:#f368e033;color:#f368e0}.badge.deleted{background:#5555;color:#bbb}
+.badge.other_media{background:#8884;color:#ccc}.badge.fwd{background:#8395a733;color:#a9bcc9}
+.bubble .txt{margin-top:4px}
+.fbtns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.fbtns button{padding:5px 12px;font-size:12px}
+.fbtns button.on{background:#00a884}
+.clickable{cursor:pointer;color:#4aa3ff}
+.clickable:hover{text-decoration:underline}
+.minirow{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.minirow .box{background:#2a3942;border-radius:8px;padding:8px 12px;text-align:center;min-width:90px}
+.minirow .num{font-size:20px;font-weight:700;color:#25d366}
+.minirow .lbl{font-size:11px;color:#8696a0}
+.zerolist{columns:2;font-size:13px;line-height:1.9}
+@media(max-width:600px){.zerolist{columns:1}}
+.plink{cursor:pointer;border-bottom:1px dotted #00a884}
+.plink:hover{color:#25d366}
+tr.zrow td{color:#8696a0;font-style:italic}
+th[data-k]{cursor:pointer}
+th[data-k]:hover{color:#25d366}
+.exbtns{margin-top:8px;display:flex;gap:8px}
+.exbtns button{padding:4px 10px;font-size:12px}
+#printArea{display:none}
+@media print{
+  body{background:#fff;color:#111}
+  #uploader,#controls,.noprint{display:none}
+  .card{background:#fff;border:1px solid #ccc}
+  th{color:#000}td,th{border-color:#ddd}
+  body:has(#printArea:not(:empty))>.wrap{display:none!important}
+  #printArea:not(:empty){display:block;color:#111}
+  #printArea .card{background:#fff;border:1px solid #ccc;break-inside:avoid}
+  #printArea .box{background:#f2f2f2}
+  #printArea .bubble{background:#f7f7f7}
+  #printArea .badge{background:#eee!important;color:#333!important}
+  #printArea .plink{border:none}
+  #printArea svg text{fill:#000!important}
+  #printArea h2,#printArea h3{break-after:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Analizador de chat de WhatsApp</h1>
+<p class="sub">Carga el archivo de exportación (.txt o .md), elige el rango de fechas y genera el informe. Todo se procesa en tu navegador: nada se sube a ningún servidor.</p>
+
+<div class="card" id="uploader">
+  <div id="drop">
+    <b>Arrastra aquí tu archivo de chat</b><br>
+    <span class="sub">o haz clic para seleccionarlo (.txt exportado de WhatsApp, o .md)</span><br>
+    <input type="file" id="file" accept=".txt,.md,.chat" class="hidden">
+  </div>
+  <div id="fileinfo" class="hidden"></div>
+</div>
+
+<div class="card hidden" id="controls">
+  <div class="controls">
+    <label>Desde <input type="date" id="desde"></label>
+    <label>Hasta <input type="date" id="hasta"></label>
+    <button id="generar">Generar informe</button>
+    <button class="ghost noprint" id="imprimir">📄 Informe completo (PDF)</button>
+  </div>
+  <div class="quick">
+    <button class="ghost" data-range="all">Todo el período</button>
+    <button class="ghost" data-range="1">Último día</button>
+    <button class="ghost" data-range="7">Últimos 7 días</button>
+    <button class="ghost" data-range="30">Últimos 30 días</button>
+  </div>
+  <label style="flex-direction:row;align-items:center;gap:8px;font-size:13px;color:#e9edef;margin-top:12px;cursor:pointer">
+    <input type="checkbox" id="soloActuales"> <b>Solo miembros actuales</b> <span class="small">— excluye de las estadísticas a quienes ya salieron del grupo (evaluado al final del período elegido)</span>
+  </label>
+  <div class="controls" style="margin-top:14px;border-top:1px solid #2a3942;padding-top:14px">
+    <label>Tipo de informe
+      <select id="expTipo">
+        <option value="participantes">Tabla completa de participantes</option>
+        <option value="top">Los que más participan (top 15)</option>
+        <option value="bottom">Los que menos participan (15)</option>
+        <option value="zeros">Miembros sin mensajes</option>
+        <option value="gone">Los que salieron del grupo</option>
+        <option value="general">Resumen general (KPIs)</option>
+        <option value="persona">Mensajes del participante elegido</option>
+      </select>
+    </label>
+    <label>Formato
+      <select id="expFmt">
+        <option value="excel">Excel (.xls) — cada dato en su casilla</option>
+        <option value="csv-s">CSV separado por ;</option>
+        <option value="csv-c">CSV separado por ,</option>
+        <option value="tsv">Texto separado por tabulador</option>
+      </select>
+    </label>
+    <button id="expBtn">⬇ Exportar</button>
+  </div>
+  <div id="rangoInfo" class="small" style="margin-top:10px"></div>
+  <details id="excluirBox">
+    <summary>👤 Excluir participantes del análisis <span class="small" id="exclResumen"></span></summary>
+    <div class="exbtns">
+      <button class="ghost" id="selTodos">Incluir todos</button>
+      <button class="ghost" id="selNinguno">Excluir todos</button>
+    </div>
+    <div id="plist"></div>
+    <p class="small">Desmarca a quien quieras dejar fuera del informe (p. ej. el expositor/administrador). Los cambios se aplican al pulsar «Generar informe» o al cambiar el rango.</p>
+  </details>
+</div>
+
+<div id="report"></div>
+</div>
+<div id="printArea"></div>
+
+<script>
+'use strict';
+const MESES={enero:0,febrero:1,marzo:2,abril:3,mayo:4,junio:5,julio:6,agosto:7,septiembre:8,setiembre:8,octubre:9,noviembre:10,diciembre:11};
+const $=id=>document.getElementById(id);
+let ALL=[],SYS={joins:0,leaves:0,notifications:0,other:0},MIN=0,MAX=0,FILE_NAME='',FMT='',EXCLUDED=new Set();
+const ALIASES=new Map(JSON.parse(localStorage.getItem('wa_alias_v1')||'[]'));
+const disp=n=>ALIASES.get(n)||n;
+function saveAliases(){try{localStorage.setItem('wa_alias_v1',JSON.stringify([...ALIASES]))}catch(e){}}
+let JOINED=[],LEFT=[],CUR_MSGS=[],SEL_PERSON='',DETAIL_FILTER='all',TABLE_ASC=false,SHOWN=200,SOLO_ACTUALES=false;
+let CHART_KEY='top',FIRST_RENDER=false,GST=null,GZERO=[],GGONE=[],GT0=0,GT1=0,LASTEXP={};
+// ¿era miembro del grupo en tEnd? último evento de alta/baja conocido
+function isMemberAt(n,tEnd){
+  let lj=-1e18,ll=-1e18;
+  for(const j of JOINED)if(j.name===n&&j.ts<=tEnd&&j.ts>lj)lj=j.ts;
+  for(const l of LEFT)if(l.name===n&&l.ts<=tEnd&&l.ts>ll)ll=l.ts;
+  return lj>=ll;
+}
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ===================== PARSEO ===================== */
+function tipoMedia(c){
+  const m=c.match(/^\[(Mensaje de voz|Audio|Imagen|Video|Vídeo|Sticker|Documento|GIF|Ubicación|Contacto)\]\s*/i);
+  if(!m)return null;
+  const k=m[1].toLowerCase();
+  const t=(k==='mensaje de voz'||k==='audio')?'audio':(k==='imagen')?'image':(k==='video'||k==='vídeo')?'video':(k==='sticker')?'sticker':(k==='documento')?'document':'other_media';
+  return {type:t,rest:c.slice(m[0].length)};
+}
+function mediaClasica(t){
+  const s=t.replace(/[‎‏‎]/g,'').trim();
+  if(/multimedia omitida|media omitted/i.test(s))return 'other_media';
+  if(/^(imagen|foto|image|photo) omitid|image omitted|photo omitted/i.test(s))return 'image';
+  if(/^sticker omitid|sticker omitted/i.test(s))return 'sticker';
+  if(/^GIF omitid|GIF omitted/i.test(s))return 'other_media';
+  if(/^(v[ií]deo|video) omitid|video omitted/i.test(s))return 'video';
+  if(/^(audio|nota de voz|mensaje de voz|voice) omitid|audio omitted|voice message|voice note/i.test(s))return 'audio';
+  if(/^(documento|document) omitid|document omitted/i.test(s))return 'document';
+  if(/^(ubicaci[oó]n|location|contacto|contact|tarjeta de contacto|llamada|call|enlace) /i.test(s)&&/omitid|omitted|missed|perdida/i.test(s))return 'other_media';
+  const adj=s.match(/\((?:archivo adjunto|file attached|attached)\)\s*$|\(adjunto\)\s*$/i);
+  const fn=s.match(/^([\w\-. ]+\.[a-z0-9]{2,5})/i);
+  if(adj&&fn){
+    const ext=fn[1].split('.').pop().toLowerCase();
+    if(['jpg','jpeg','png','webp','heic'].includes(ext))return 'image';
+    if(['mp4','3gp','mov','avi','mkv'].includes(ext))return 'video';
+    if(['opus','ogg','mp3','m4a','aac','wav'].includes(ext))return 'audio';
+    if(ext==='webp')return 'sticker';
+    return 'document';
+  }
+  if(/^PTT-|^AUD-|^AUDIO-/i.test(s))return 'audio';
+  return null;
+}
+function esBorrado(t){return /se eliminó este mensaje|this message was deleted|you deleted this message|eliminaste este mensaje/i.test(t.replace(/[‎‏_]/g,''))}
+
+function parseMd(text){
+  const msgs=[];const lines=text.split(/\r?\n/);
+  const reDate=/^## (\d{1,2}) de ([a-záéíóú]+) de (\d{4})/i;
+  const reMsg=/^\[(\d{1,2}):(\d{2}) ([ap])\.m\.\] \*\*(.+?):\*\*\s?(.*)$/;
+  const reSys=/^\[(\d{1,2}):(\d{2}) ([ap])\.m\.\] __/;
+  let d=null,cur=null;
+  const ts=(h,m,ap)=>{let hh=+h%12;if(ap==='p')hh+=12;return new Date(d.y,d.m,d.d,hh,+m).getTime()};
+  const fin=()=>{ if(!cur)return;
+    const all=[cur.first,...cur.extra];const own=[];let inQ=false;
+    for(const l of all){const t=l.trim();
+      if(inQ){if(t.endsWith('_'))inQ=false;continue}
+      if(/^>\s*_/.test(t)){if(!t.endsWith('_'))inQ=true;continue}
+      own.push(l)}
+    let c=own.join('\n').trim(),fwd=false,type='text';
+    if(/^\[Reenviado\]/i.test(c)){fwd=true;c=c.replace(/^\[Reenviado\]\s*/i,'')}
+    if(esBorrado(c)){type='deleted';c=''}
+    else{const mm=tipoMedia(c);if(mm){type=mm.type;c=mm.rest.trim()}}
+    msgs.push({ts:cur.ts,author:cur.a,type,forwarded:fwd,text:c});cur=null};
+  for(const line of lines){
+    const dd=line.match(reDate);
+    if(dd){fin();d={d:+dd[1],m:MESES[dd[2].toLowerCase()]??0,y:+dd[3]};continue}
+    if(!d)continue;
+    if(reSys.test(line)){fin();const b=line.toLowerCase();
+      const inner=line.replace(reSys,'').replace(/__$/,'').trim();
+      let mm;
+      if((mm=inner.match(/^(.+?) se unieron/i)))JOINED.push({name:mm[1].trim(),ts:ts(...line.match(reSys).slice(1,4))});
+      else if((mm=inner.match(/^.+? añadió a (.+)$/i)))JOINED.push({name:mm[1].trim(),ts:ts(...line.match(reSys).slice(1,4))});
+      else if((mm=inner.match(/^(.+?) salieron/i)))LEFT.push({name:mm[1].trim(),ts:ts(...line.match(reSys).slice(1,4)),via:'salió'});
+      else if((mm=inner.match(/^.+? eliminó a (.+)$/i)))LEFT.push({name:mm[1].trim(),ts:ts(...line.match(reSys).slice(1,4)),via:'eliminado'});
+      if(b.includes('notificación del sistema'))SYS.notifications++;
+      else if(b.includes('se unieron')||b.includes('añadió'))SYS.joins++;
+      else if(b.includes('salieron')||b.includes('eliminó'))SYS.leaves++;
+      else SYS.other++;continue}
+    const m=line.match(reMsg);
+    if(m){fin();cur={ts:ts(m[1],m[2],m[3]),a:m[4].trim(),first:m[5]||'',extra:[]}}
+    else if(cur&&line.trim())cur.extra.push(line);
+  }
+  fin();return msgs;
+}
+
+function parseTxt(text){
+  // Formatos: "D/M/YY, H:MM - Nombre: msg" | "[D/M/YY, H:MM:SS AM] Nombre: msg" | variantes a.m./p.m.
+  const msgs=[];const lines=text.split(/\r?\n/);
+  const reLine=/^\[?(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})[, ]+(\d{1,2})[:.](\d{2})(?::(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?|AM|PM|am|pm)?\]?\s*[-–]\s*(.*)$/;
+  // detectar orden día/mes: si algún primer campo >12 => DD/MM
+  let ddmm=true;const probe=text.match(/^\[?\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}[, ]/gm)||[];
+  let sawBig2=false;for(const p of probe.slice(0,200)){const mm=p.match(/(\d{1,2})[\/\-.](\d{1,2})/);if(+mm[2]>12){sawBig2=true;break}}
+  if(!sawBig2){for(const p of probe.slice(0,200)){const mm=p.match(/(\d{1,2})[\/\-.](\d{1,2})/);if(+mm[1]>12){ddmm=true;break}ddmm=true}}
+  for(const p of probe.slice(0,200)){const mm=p.match(/(\d{1,2})[\/\-.](\d{1,2})/);if(+mm[1]>12){ddmm=true;break}}
+  let cur=null;
+  const fin=()=>{if(!cur)return;
+    let c=cur.lines.join('\n').replace(/[‎‏]/g,'').trim(),type='text';
+    if(esBorrado(c)){type='deleted';c=''}
+    else{const t=mediaClasica(c);if(t){type=t;c=''}}
+    msgs.push({ts:cur.ts,author:cur.a,type,forwarded:false,text:c});cur=null};
+  for(const line of lines){
+    const m=line.match(reLine);
+    if(m){
+      fin();
+      let dd,mo;if(ddmm){dd=+m[1];mo=+m[2]}else{mo=+m[1];dd=+m[2]}
+      let y=+m[3];if(y<100)y+=2000;
+      let h=+m[4];const ap=(m[7]||'').toLowerCase().replace(/[.\s]/g,'');
+      if(ap==='pm'&&h<12)h+=12;if(ap==='am'&&h===12)h=0;
+      const rest=m[8];
+      const cts=new Date(y,mo-1,dd,h,+m[5],+(m[6]||0)).getTime();
+      const ci=rest.indexOf(':');
+      if(ci===-1){ // mensaje de sistema
+        const b=rest.toLowerCase();
+        let mm;
+        if((mm=rest.match(/^.+? (?:añadió a|added) (.+)$/i)))JOINED.push({name:mm[1].trim(),ts:cts});
+        else if((mm=rest.match(/^(.+?) (?:se uni[óo]|joined)/i)))JOINED.push({name:mm[1].trim(),ts:cts});
+        else if((mm=rest.match(/^.+? (?:eliminó a|removed) (.+)$/i)))LEFT.push({name:mm[1].trim(),ts:cts,via:'eliminado'});
+        else if((mm=rest.match(/^(.+?) (?:sali[óo]|left)$/i)))LEFT.push({name:mm[1].trim(),ts:cts,via:'salió'});
+        if(/se uni|añadi|added|joined|joined using/i.test(b))SYS.joins++;
+        else if(/salió|elimin|removed|left|salieron/i.test(b))SYS.leaves++;
+        else SYS.other++;
+        continue;
+      }
+      const a=rest.slice(0,ci).trim();const body=rest.slice(ci+1).trim();
+      if(!a){SYS.other++;continue}
+      cur={ts:cts,a,lines:[body]};
+    }else if(cur&&line.trim()){cur.lines.push(line)}
+  }
+  fin();return msgs;
+}
+
+function detectar(text){
+  if(/^## \d{1,2} de [a-záéíóú]+ de \d{4}/im.test(text))return 'md';
+  if(/^\[?\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}[, ]+\d{1,2}[:.]\d{2}/m.test(text))return 'txt';
+  return null;
+}
+
+/* ===================== ANÁLISIS ===================== */
+function analizar(msgs){
+  const authors=new Map();
+  const A=n=>{if(!authors.has(n))authors.set(n,{name:n,total:0,text:0,audio:0,image:0,video:0,sticker:0,document:0,other_media:0,deleted:0,forwarded:0,chars:0,links:0,days:new Set(),first:Infinity,last:-Infinity});return authors.get(n)};
+  for(const m of msgs){const a=A(m.author);a.total++;a[m.type]=(a[m.type]||0)+1;
+    if(m.forwarded)a.forwarded++;a.chars+=m.text.length;a.links+=(m.text.match(/https?:\/\//g)||[]).length;
+    a.days.add(new Date(m.ts).toDateString());if(m.ts<a.first)a.first=m.ts;if(m.ts>a.last)a.last=m.ts}
+  const GAP=5*60*1000,bursts=[];let run=null;
+  for(const m of msgs){
+    if(run&&run.author===m.author&&m.ts-run.lastTs<=GAP){run.n++;run.lastTs=m.ts;run.end=m.ts;if(m.type==='audio')run.audios++;if(m.type!=='text')run.media++}
+    else{if(run&&run.n>=3)bursts.push(run);run={author:m.author,start:m.ts,end:m.ts,lastTs:m.ts,n:1,audios:m.type==='audio'?1:0,media:m.type!=='text'?1:0}}}
+  if(run&&run.n>=3)bursts.push(run);
+  const bs=new Map();
+  for(const b of bursts){if(!bs.has(b.author))bs.set(b.author,{bursts:0,msgs:0,max:0,audioMsgs:0,mediaMsgs:0});
+    const s=bs.get(b.author);s.bursts++;s.msgs+=b.n;s.max=Math.max(s.max,b.n);s.audioMsgs+=b.audios;s.mediaMsgs+=b.media}
+  const perDay=new Map(),perHour=new Array(24).fill(0);
+  for(const m of msgs){const d=new Date(m.ts);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    perDay.set(k,(perDay.get(k)||0)+1);perHour[d.getHours()]++}
+  const sorted=[...authors.values()].sort((a,b)=>b.total-a.total);
+  const mt={audio:0,image:0,video:0,sticker:0,document:0,other_media:0,deleted:0};
+  for(const a of sorted)for(const k of Object.keys(mt))mt[k]+=a[k]||0;
+  return{sorted,bs,bursts,perDay,perHour,mt,total:msgs.length,
+    fwd:sorted.reduce((s,a)=>s+a.forwarded,0),
+    bmsg:[...bs.values()].reduce((s,b)=>s+b.msgs,0)};
+}
+
+/* ===================== GRÁFICOS SVG ===================== */
+function barChart(es,o={}){
+  const{w=900,barH=22,pad=6,labelW=190,valW=70,color='#25d366'}=o;
+  const max=Math.max(1,...es.map(e=>e.value)),cw=w-labelW-valW-20,h=es.length*(barH+pad)+30;
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="max-width:100%">`,y=10;
+  for(const e of es){const bw=Math.max(2,e.value/max*cw);
+    s+=`<text x="${labelW-8}" y="${y+barH*.72}" text-anchor="end" font-size="12" fill="#ddd"${e.name?` class="plink" data-p="${esc(e.name)}" style="cursor:pointer"`:''}>${esc(e.label)}</text>`;
+    s+=`<rect x="${labelW}" y="${y}" width="${bw}" height="${barH}" rx="3" fill="${e.color||color}"/>`;
+    s+=`<text x="${labelW+bw+6}" y="${y+barH*.72}" font-size="12" fill="#fff">${e.l!==undefined?e.l:e.value}</text>`;y+=barH+pad}
+  return s+'</svg>'}
+function stackedBar(es,segs,o={}){
+  const{w=900,barH=24,pad=7,labelW=190}=o;
+  const max=Math.max(1,...es.map(e=>segs.reduce((s,g)=>s+(e.parts[g.key]||0),0))),valW=70,cw=w-labelW-valW-20,h=es.length*(barH+pad)+40;
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="max-width:100%">`,lx=labelW;
+  for(const g of segs){s+=`<rect x="${lx}" y="0" width="12" height="12" fill="${g.color}" rx="2"/><text x="${lx+16}" y="11" font-size="11" fill="#ccc">${g.label}</text>`;lx+=16+g.label.length*6.5+18}
+  let y=22;
+  for(const e of es){s+=`<text x="${labelW-8}" y="${y+barH*.72}" text-anchor="end" font-size="12" fill="#ddd"${e.name?` class="plink" data-p="${esc(e.name)}" style="cursor:pointer"`:''}>${esc(e.label)}</text>`;
+    let x=labelW,tot=0;
+    for(const g of segs){const v=e.parts[g.key]||0;tot+=v;const bw=v/max*cw;
+      if(bw>0)s+=`<rect x="${x}" y="${y}" width="${Math.max(bw,.5)}" height="${barH}" fill="${g.color}"/>`;x+=bw}
+    s+=`<text x="${x+6}" y="${y+barH*.72}" font-size="12" fill="#fff">${tot}</text>`;y+=barH+pad}
+  return s+'</svg>'}
+function lineChart(pts,o={}){
+  const{w=920,h=200,color='#25d366',label=''}=o;
+  const max=Math.max(1,...pts.map(p=>p.v)),px=45,py=20,cw=w-px-15,ch=h-py-30,n=pts.length;
+  let d='';pts.forEach((p,i)=>{const x=px+(n===1?cw/2:i/(n-1)*cw),y=py+ch-p.v/max*ch;d+=(i?'L':'M')+x.toFixed(1)+','+y.toFixed(1)+' '});
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="max-width:100%">`;
+  for(let i=0;i<=4;i++){const gy=py+ch-i/4*ch;s+=`<line x1="${px}" y1="${gy}" x2="${px+cw}" y2="${gy}" stroke="#333"/><text x="${px-6}" y="${gy+4}" text-anchor="end" font-size="10" fill="#888">${Math.round(max*i/4)}</text>`}
+  s+=`<path d="${d}L${px+cw},${py+ch} L${px},${py+ch} Z" fill="${color}22"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  const step=Math.ceil(n/10);pts.forEach((p,i)=>{if(i%step===0||i===n-1){const x=px+(n===1?cw/2:i/(n-1)*cw);
+    s+=`<text x="${x}" y="${h-8}" text-anchor="middle" font-size="9" fill="#888" transform="rotate(-30 ${x} ${h-8})">${p.k.slice(5)}</text>`}});
+  if(label)s+=`<text x="${px}" y="14" font-size="11" fill="#aaa">${esc(label)}</text>`;
+  return s+'</svg>'}
+
+/* ===================== INFORME ===================== */
+const C={text:'#4aa3ff',audio:'#25d366',image:'#ff9f43',sticker:'#a55eea',document:'#f368e0'};
+const fmtD=ts=>new Date(ts).toLocaleDateString('es');
+const iso=d=>d.toISOString().slice(0,10);
+
+let RANGE_MSGS=[],LASTCSV='';
+function render(desde,hasta){
+  const t0=new Date(desde+'T00:00:00').getTime(),t1=new Date(hasta+'T23:59:59.999').getTime();
+  RANGE_MSGS=ALL.filter(m=>m.ts>=t0&&m.ts<=t1);
+  const msgs=RANGE_MSGS.filter(m=>!EXCLUDED.has(m.author)&&!(SOLO_ACTUALES&&!isMemberAt(m.author,t1)));
+  CUR_MSGS=msgs;
+  const R=$('report');
+  if(!msgs.length){R.innerHTML='<div class="card warn">No hay mensajes en el rango seleccionado'+(EXCLUDED.size?' (con los participantes excluidos)':'')+'.</div>';return}
+  const st=analizar(msgs);
+  const dias=Math.max(1,Math.round((msgs[msgs.length-1].ts-msgs[0].ts)/86400000)+1);
+  const br=[...st.bs.entries()].sort((a,b)=>b[1].msgs-a[1].msgs);
+  GST=st;GT0=t0;GT1=t1;
+  // miembros que entraron pero no escribieron en el rango
+  const rangeAuthors=new Set(RANGE_MSGS.map(m=>m.author));
+  const joinedNames=[...new Set(JOINED.map(j=>j.name))];
+  const evNames=new Set([...joinedNames,...LEFT.map(l=>l.name)]);
+  // quiénes ya NO están en el grupo al final del período
+  const goneList=[...evNames].filter(n=>!isMemberAt(n,t1)).map(n=>{
+    const leaves=LEFT.filter(l=>l.name===n&&l.ts<=t1);
+    const lastLeave=leaves[leaves.length-1];
+    const jb=JOINED.filter(j=>j.name===n&&j.ts<=lastLeave.ts).pop()||null;
+    const mn=RANGE_MSGS.filter(m=>m.author===n);
+    return{name:n,joinTs:jb?jb.ts:null,leaveTs:lastLeave.ts,via:lastLeave.via||'salió',
+      dias:jb?(lastLeave.ts-jb.ts)/864e5:null,msgs:mn.length,
+      audios:mn.filter(m=>m.type==='audio').length,
+      media:mn.filter(m=>m.type!=='text'&&m.type!=='deleted').length,
+      salidas:leaves.length};
+  }).sort((a,b)=>b.leaveTs-a.leaveTs);
+  // quiénes salieron y volvieron a entrar
+  const volvieron=[...evNames].filter(n=>isMemberAt(n,t1)&&LEFT.some(l=>l.name===n&&l.ts<=t1));
+  const zeroList=joinedNames.filter(n=>!rangeAuthors.has(n)&&(SOLO_ACTUALES?isMemberAt(n,t1):true));
+  const leftSet=new Set(LEFT.map(l=>l.name));
+  GZERO=zeroList;GGONE=goneList;
+  // filas de la tabla
+  const order=TABLE_ASC?[...st.sorted].sort((a,b)=>a.total-b.total):st.sorted;
+  const rowsData=order.map(a=>{const b=st.bs.get(a.name)||{bursts:0,msgs:0,max:0};
+    const media=(a.image||0)+(a.video||0)+(a.document||0)+(a.sticker||0)+(a.other_media||0);
+    return{a,b,media,avg:a.text>0?Math.round(a.chars/a.text):0,rank:st.sorted.indexOf(a)+1}});
+  let rows='';
+  for(const r of rowsData){const a=r.a;
+    rows+=`<tr><td>${r.rank}</td><td><span class="plink" data-p="${esc(a.name)}">${esc(disp(a.name))}</span>${!isMemberAt(a.name,t1)?' <span class="small">(salió)</span>':volvieron.includes(a.name)?' <span class="small">(salió y volvió)</span>':''}</td><td>${a.total}</td><td>${(a.total/st.total*100).toFixed(1)}%</td><td>${a.text}</td><td>${a.audio}</td><td>${a.image||0}</td><td>${a.video||0}</td><td>${a.sticker}</td><td>${a.document}</td><td>${a.forwarded}</td><td>${a.deleted||0}</td><td>${r.media}</td><td>${a.days.size}</td><td>${r.avg}</td><td>${r.b.bursts}</td><td>${r.b.msgs}</td><td>${r.b.max}</td></tr>`}
+  zeroList.forEach((n,j)=>{rows+=`<tr class="zrow"><td>${st.sorted.length+j+1}</td><td><span class="plink" data-p="${esc(n)}">${esc(disp(n))}</span> <span class="small">(sin mensajes${!isMemberAt(n,t1)?', salió':''})</span></td>${'<td>0</td>'.repeat(16)}</tr>`});
+  // datos para exportación
+  const PHEAD=['Participante','Total','%','Texto','Audios','Imgs','Videos','Stickers','Docs','Reenv','Elim','MediaTot','DiasActivo','LongProm','Rafagas','MsgsRafaga','RafagaMax'];
+  const prow=r=>[disp(r.a.name),r.a.total,(r.a.total/st.total*100).toFixed(1),r.a.text,r.a.audio,r.a.image||0,r.a.video||0,r.a.sticker,r.a.document,r.a.forwarded,r.a.deleted||0,r.media,r.a.days.size,r.avg,r.b.bursts,r.b.msgs,r.b.max];
+  const zrow=n=>[disp(n),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  const zeroDias=n=>{const j=JOINED.filter(x=>x.name===n&&x.ts<=t1).pop();const lv=LEFT.filter(l=>l.name===n&&l.ts<=t1).pop();
+    return j?Math.round(Math.max(0,((lv?lv.ts:t1)-j.ts)/864e5)):'—'};
+  LASTEXP={
+    participantes:{fname:'participantes',head:PHEAD,rows:[...rowsData.map(prow),...zeroList.map(zrow)]},
+    top:{fname:'mas_activos',head:PHEAD,rows:rowsData.slice(0,15).map(prow)},
+    bottom:{fname:'menos_activos',head:PHEAD,rows:[...rowsData].sort((a,b)=>a.a.total-b.a.total).slice(0,15).map(prow)},
+    zeros:{fname:'sin_mensajes',head:['Participante','Días en el grupo (aprox)','Salió del grupo'],rows:zeroList.map(n=>[disp(n),zeroDias(n),isMemberAt(n,t1)?'no':'sí'])},
+    gone:{fname:'salieron',head:['Participante','Entró','Salió','Días en el grupo','Mensajes','Audios','Media','Salidas','Motivo'],
+      rows:goneList.map(g=>[disp(g.name),g.joinTs?iso(new Date(g.joinTs)):'antes del export',iso(new Date(g.leaveTs)),g.dias!==null?Math.round(g.dias):'≥'+Math.round(Math.max(0,(g.leaveTs-t0)/864e5)),g.msgs,g.audios,g.media,g.salidas,g.via])},
+    general:{fname:'resumen',head:['Métrica','Valor'],rows:[
+      ['Período',desde+' → '+hasta],['Mensajes',st.total],['Participantes que escribieron',st.sorted.length],
+      ['Miembros sin mensajes',zeroList.length],['Salieron del grupo',goneList.length],
+      ['Audios',st.mt.audio],['Imágenes',st.mt.image],['Videos',st.mt.video],['Stickers',st.mt.sticker],
+      ['Documentos',st.mt.document],['Eliminados',st.mt.deleted],['Reenviados',st.fwd],
+      ['Ráfagas',st.bursts.length],['Msgs en ráfagas',st.bmsg],['Msgs/día',(st.total/dias).toFixed(1)],
+      ['Excluidos',[...EXCLUDED].map(disp).join(', ')||'ninguno'],['Solo miembros actuales',SOLO_ACTUALES?'sí':'no']]},
+  };
+  // opciones del selector de auditoría (incluye excluidos y miembros sin mensajes)
+  const rangeCnt=new Map();RANGE_MSGS.forEach(m=>rangeCnt.set(m.author,(rangeCnt.get(m.author)||0)+1));
+  const allPeople=[...rangeCnt.entries()].sort((a,b)=>b[1]-a[1]);
+  const selOpts='<option value="">— Elige participante —</option>'
+    +allPeople.map(([n,c])=>`<option value="${esc(n)}">${esc(disp(n))} — ${c} msgs${EXCLUDED.has(n)?' (excluido)':''}${!isMemberAt(n,t1)?' (salió)':''}</option>`).join('')
+    +zeroList.map(n=>`<option value="${esc(n)}">${esc(disp(n))} — sin mensajes en el período</option>`).join('');
+  const topB=[...st.bursts].sort((a,b)=>b.n-a.n).slice(0,15);
+  let brows='';
+  for(const b of topB){const s=new Date(b.start);
+    const f=d=>`${d.toLocaleDateString('es')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    brows+=`<tr><td><span class="plink" data-p="${esc(b.author)}">${esc(disp(b.author))}</span></td><td>${b.n}</td><td>${b.audios}</td><td>${b.media}</td><td>${f(s)}</td><td>${Math.round((b.end-b.start)/60000)} min</td></tr>`}
+  const s5=st.sorted.slice(0,5).reduce((s,a)=>s+a.total,0);
+  const s0=st.sorted[0],s1=st.sorted[1];
+  const notaExcl=EXCLUDED.size?` — <span style="color:#ee5253">${EXCLUDED.size} participante(s) excluido(s): ${esc([...EXCLUDED].map(disp).join(', '))}</span>`:'';
+  R.innerHTML=`
+<h2>Informe: ${esc(desde)} → ${esc(hasta)} <span class="small">(${dias} día(s), ${st.total} mensajes${notaExcl})</span></h2>
+<div class="kpi card">
+<div class="box"><div class="num">${st.total}</div><div class="lbl">mensajes</div></div>
+<div class="box"><div class="num">${st.sorted.length}</div><div class="lbl">participantes</div></div>
+<div class="box"><div class="num">${st.mt.audio}</div><div class="lbl">audios</div></div>
+<div class="box"><div class="num">${st.mt.image+st.mt.video}</div><div class="lbl">imágenes + videos</div></div>
+<div class="box"><div class="num">${st.mt.sticker}</div><div class="lbl">stickers</div></div>
+<div class="box"><div class="num">${st.mt.document}</div><div class="lbl">documentos</div></div>
+<div class="box"><div class="num">${st.mt.deleted}</div><div class="lbl">eliminados</div></div>
+<div class="box"><div class="num">${(st.total/dias).toFixed(1)}</div><div class="lbl">msgs/día</div></div>
+<div class="box"><div class="num">${st.bursts.length}</div><div class="lbl">ráfagas</div></div>
+<div class="box"><div class="num">${zeroList.length}</div><div class="lbl">miembros sin mensajes</div></div>
+<div class="box"><div class="num">${goneList.length}</div><div class="lbl">salieron del grupo</div></div>
+</div>
+<h2>1. Gráficos del informe</h2>
+<div class="card" id="chartbtns"><div class="fbtns">${CHARTS.map(([k,l])=>`<button class="ghost${CHART_KEY===k?' on':''}" data-c="${k}">${l}</button>`).join('')}</div><div id="chartBox"></div></div>
+<h2>2. Saturación y ráfagas</h2>
+<div class="card warn"><b>¿Quiénes saturan el grupo?</b> — los 5 más activos concentran el <b>${(s5/st.total*100).toFixed(1)}%</b> de los mensajes:<br>
+${st.sorted.slice(0,5).map(a=>`• <b>${esc(disp(a.name))}</b>: ${a.total} mensajes (${(a.total/st.total*100).toFixed(1)}% del grupo)`).join('<br>')}</div>
+<h3>Mayores ráfagas individuales</h3>
+<div class="card"><table><tr><th>Autor</th><th>Mensajes</th><th>Audios</th><th>Media</th><th>Inicio</th><th>Duración</th></tr>${brows}</table></div>
+<h2>3. Tabla completa de participantes <span class="small">(clic en un nombre para ver su detalle)</span></h2>
+<div class="fbtns">
+<button class="ghost${!TABLE_ASC?' on':''}" data-sort="desc">↓ más activos primero</button>
+<button class="ghost${TABLE_ASC?' on':''}" data-sort="asc">↑ menos activos primero</button>
+<button class="ghost" id="csvbtn2">⬇ Exportar tabla a CSV</button>
+</div>
+<div class="card" style="overflow-x:auto"><table>
+<tr><th>#</th><th>Participante</th><th>Total</th><th>%</th><th>Texto</th><th>Audios</th><th>Imgs</th><th>Videos</th><th>Stickers</th><th>Docs</th><th>Reenv.</th><th>Elim.</th><th>Media tot.</th><th>Días activo</th><th>Long. prom.</th><th>Ráfagas</th><th>Msgs ráfaga</th><th>Ráfaga máx.</th></tr>
+${rows}</table></div>
+<h2>4. Miembros sin actividad y bajas del grupo</h2>
+<div class="card warn"><b>Miembros del grupo sin mensajes en el período (${zeroList.length})</b>
+${zeroList.length?`<div class="zerolist" style="margin-top:10px">${zeroList.map(n=>{const zd=zeroDias(n);return`<div>• <span class="plink" data-p="${esc(n)}">${esc(disp(n))}</span> <span class="small">${zd==='—'?'sin dato de entrada':(zd<1?'<1 día':zd+' días')} en el grupo${!isMemberAt(n,t1)?' · (salió)':''}</span></div>`}).join('')}</div>`:'<p class="small" style="margin-top:8px">Todos los miembros registrados escribieron algo en este período.</p>'}
+<p class="small" style="margin-top:8px">Se detectan por los eventos "se unió / lo añadieron" del propio export. Quien entró sin evento registrado no aparece aquí.</p></div>
+<div class="card warn"><b>Personas que salieron del grupo (${goneList.length})</b>
+${goneList.length?`<div style="overflow-x:auto"><table style="margin-top:10px">
+<tr><th>Participante</th><th>Entró</th><th>Salió</th><th>Tiempo en el grupo</th><th>Mensajes</th><th>Audios</th><th>Media</th><th>Salidas</th><th>Motivo</th></tr>
+${goneList.map(g=>`<tr><td><span class="plink" data-p="${esc(g.name)}">${esc(disp(g.name))}</span></td><td>${g.joinTs?fmtD(g.joinTs):'antes del export'}</td><td>${fmtD(g.leaveTs)}</td><td>${g.dias!==null?(g.dias>=1?Math.round(g.dias)+' días':Math.max(1,Math.round(g.dias*24))+' h'):'—'}</td><td>${g.msgs}</td><td>${g.audios}</td><td>${g.media}</td><td>${g.salidas}</td><td>${g.via}</td></tr>`).join('')}
+</table></div>`:'<p class="small" style="margin-top:8px">Nadie salió del grupo en este período (o el export no registra salidas).</p>'}
+${volvieron.length?`<p class="small" style="margin-top:8px">↩ Salieron pero volvieron a entrar: ${volvieron.map(n=>esc(disp(n))).join(', ')}</p>`:''}</div>
+<h2>5. Auditoría por participante</h2>
+<div class="card">
+<select id="personaSel">${selOpts}</select>
+<div id="detalle" style="margin-top:14px"><p class="small">Elige un participante arriba, o haz clic en su nombre en cualquier tabla o gráfico, para ver su resumen y todos sus mensajes del período.</p></div>
+</div>
+<h2>6. Cómo se está "contaminando" el grupo</h2>
+<div class="card warn"><ul>
+<li><b>Concentración:</b> "${esc(disp(s0.name))}" genera el ${(s0.total/st.total*100).toFixed(1)}% del tráfico${s1?`, y junto a "${esc(disp(s1.name))}" suman el ${((s0.total+s1.total)/st.total*100).toFixed(1)}%`:''}.</li>
+<li><b>Audios:</b> ${st.mt.audio} notas de voz (${(st.mt.audio/st.total*100).toFixed(1)}%). No se pueden buscar ni escanear; en ráfaga convierten el grupo en un podcast.</li>
+<li><b>Ráfagas:</b> ${st.bursts.length} ráfagas con ${st.bmsg} mensajes (${(st.bmsg/st.total*100).toFixed(1)}% del total). Esa parte del grupo es monólogo, no conversación.</li>
+<li><b>Reenviados:</b> ${st.fwd} mensajes reenviados.</li>
+<li><b>Multimedia:</b> ${st.mt.image+st.mt.video+st.mt.sticker+st.mt.document} archivos/stickers/videos.</li>
+<li><b>Eliminados:</b> ${st.mt.deleted} mensajes borrados (${(st.mt.deleted/st.total*100).toFixed(1)}%).</li>
+${br[0]?`<li><b>Mayor emisor de ráfagas:</b> ${esc(disp(br[0][0]))} — ${br[0][1].msgs} msgs en ${br[0][1].bursts} ráfagas (máx ${br[0][1].max}), ${br[0][1].audioMsgs} audios y ${br[0][1].mediaMsgs} multimedia dentro de ellas.</li>`:''}
+</ul></div>
+<h2>7. Sugerencias</h2>
+<div class="card ok"><ul>
+<li><b>Regla "un mensaje, una idea":</b> redactar antes de enviar en vez de frase por frase.</li>
+<li><b>Limitar notas de voz:</b> resumen escrito tras cada audio largo, o hilo/grupo aparte para voz.</li>
+<li><b>Desactivar descarga automática</b> de multimedia (Ajustes → Almacenamiento y datos).</li>
+<li><b>Dos canales:</b> grupo de anuncios (solo admins) + grupo de debate libre.</li>
+<li><b>Encuestas y eventos de WhatsApp</b> para decisiones y reuniones.</li>
+<li><b>Norma de reenviados:</b> prohibir cadenas sin contexto.</li>
+<li><b>Resumen semanal fijado</b> con decisiones y archivos clave.</li>
+<li><b>Hablar en privado con los top emisores de ráfagas:</b> las 2-3 personas que más saturan concentran la mayor parte del ruido.</li>
+</ul></div>`;
+  const ps=$('personaSel');
+  if(ps){ps.value=SEL_PERSON;ps.addEventListener('change',()=>{SEL_PERSON=ps.value;DETAIL_FILTER='all';SHOWN=200;renderDetail()})}
+  renderDetail();
+  renderChart();
+  if(FIRST_RENDER){FIRST_RENDER=false;R.scrollIntoView({behavior:'smooth'})}
+}
+
+/* ===================== SELECTOR DE GRÁFICOS ===================== */
+const CHARTS=[
+ ['top','Más activos'],['bottom','Menos activos'],['audios','Audios'],['stickers','Stickers'],
+ ['files','Archivos'],['bursts','Ráfagas'],['zeros','Sin mensajes'],['gone','Salieron (msgs)'],['gonedias','Salieron (días)'],
+ ['day','Por día'],['hour','Por hora'],
+];
+function renderChart(){
+  const box=$('chartBox');if(!box||!GST)return;
+  const st=GST,t1=GT1;let h='',note='';
+  const bc=(arr,color)=>{const a=arr.filter(x=>x.value>0);return a.length?barChart(a.map(x=>({...x,color}))):'<p class="small">Sin datos en el período.</p>'};
+  if(CHART_KEY==='top'){
+    const s5=st.sorted.slice(0,5).reduce((s,a)=>s+a.total,0);
+    h=stackedBar(st.sorted.slice(0,15).map(a=>({label:disp(a.name),name:a.name,parts:{text:a.text,audio:a.audio,media:(a.image||0)+(a.video||0),sticker:a.sticker,doc:a.document}})),
+      [{key:'text',color:C.text,label:'Texto'},{key:'audio',color:C.audio,label:'Audio'},{key:'media',color:C.image,label:'Imagen/Video'},{key:'sticker',color:C.sticker,label:'Sticker'},{key:'doc',color:C.document,label:'Documento'}]);
+    note=`Los 15 más activos por tipo de mensaje. Los 5 primeros concentran el ${(s5/st.total*100).toFixed(1)}% del total. Clic en un nombre para ver su detalle.`;
+  }else if(CHART_KEY==='bottom'){
+    h=bc([...st.sorted].slice(-15).sort((a,b)=>a.total-b.total).map(a=>({label:disp(a.name),name:a.name,value:a.total})),'#4aa3ff');
+    note='Los 15 con menos mensajes (los que tienen 0 aparecen en "Sin mensajes").';
+  }else if(CHART_KEY==='audios'){
+    h=bc(st.sorted.map(a=>({label:disp(a.name),name:a.name,value:a.audio})),C.audio);
+    note='Notas de voz enviadas por cada persona.';
+  }else if(CHART_KEY==='stickers'){
+    h=bc(st.sorted.map(a=>({label:disp(a.name),name:a.name,value:a.sticker})),C.sticker);
+    note='Stickers enviados por cada persona.';
+  }else if(CHART_KEY==='files'){
+    h=bc(st.sorted.map(a=>({label:disp(a.name),name:a.name,value:a.document+a.image+a.video})),C.document);
+    note='Documentos + imágenes + videos por persona.';
+  }else if(CHART_KEY==='bursts'){
+    const br=[...st.bs.entries()].sort((a,b)=>b[1].msgs-a[1].msgs);
+    h=br.length?barChart(br.slice(0,15).map(([n,s])=>({label:`${disp(n)} (${s.bursts} ráfagas, máx ${s.max})`,name:n,value:s.msgs,color:'#ee5253'}))):'<p class="small">Sin ráfagas en el período.</p>';
+    note='Mensajes enviados en ráfaga (≥3 seguidos con <5 min entre cada uno).';
+  }else if(CHART_KEY==='zeros'){
+    const zs=GZERO.map(n=>{const j=JOINED.filter(x=>x.name===n&&x.ts<=t1).pop();
+      const lv=LEFT.filter(l=>l.name===n&&l.ts<=t1).pop();
+      const dias=j?Math.max(0,((lv?lv.ts:t1)-j.ts)/864e5):null;
+      return{label:disp(n),name:n,value:dias===null?0:Math.round(dias),
+        l:dias===null?'sin dato de entrada':(dias<1?'<1 día':Math.round(dias)+' días')}}).sort((a,b)=>b.value-a.value);
+    h=zs.length?barChart(zs.map(z=>({...z,color:'#8395a7'})),{valW:110}):'<p class="small">Todos los miembros registrados escribieron algo.</p>';
+    note='Estas personas NO escribieron nada. La barra indica cuántos días llevan (o estuvieron) en el grupo: desde que entraron hasta que salieron o hasta el fin del período elegido. Más barra = más tiempo callados dentro del grupo.';
+  }else if(CHART_KEY==='gone'){
+    const gr=GGONE.map(g=>({label:disp(g.name),name:g.name,value:g.msgs,color:'#ee5253',
+      l:`${g.msgs} msgs · ${g.dias!==null?Math.round(g.dias)+' días':'≥'+Math.round(Math.max(0,(g.leaveTs-GT0)/864e5))+' días'}`})).sort((a,b)=>b.value-a.value);
+    h=gr.length?barChart(gr,{valW:150}):'<p class="small">Nadie salió del grupo en el período.</p>';
+    note='Mensajes que envió cada persona antes de salir del grupo (barra = mensajes; la etiqueta indica también los días que estuvo dentro).';
+  }else if(CHART_KEY==='gonedias'){
+    const gr=GGONE.map(g=>{const d=g.dias!==null?g.dias:Math.max(0,(g.leaveTs-GT0)/864e5);
+      return{label:disp(g.name),name:g.name,value:Math.round(d),color:'#ff6b81',
+        l:`${g.dias!==null?'':'≥'}${Math.round(d)} días · ${g.msgs} msgs`}}).sort((a,b)=>b.value-a.value);
+    h=gr.length?barChart(gr,{valW:150}):'<p class="small">Nadie salió del grupo en el período.</p>';
+    note='Cuánto tiempo estuvo cada persona en el grupo (barra = días; ≥ = ya estaba cuando empieza el export) y cuántos mensajes envió antes de irse.';
+  }else if(CHART_KEY==='day'){
+    h=lineChart([...st.perDay.keys()].sort().map(k=>({k,v:st.perDay.get(k)})),{label:'Mensajes por día'});
+  }else if(CHART_KEY==='hour'){
+    h=barChart(st.perHour.map((v,hh)=>({label:String(hh).padStart(2,'0')+':00',value:v,color:'#00d2d3'})),{barH:12,pad:3,labelW:50});
+  }
+  box.innerHTML=(note?`<p class="small" style="margin-bottom:8px">${note}</p>`:'')+h;
+}
+
+/* ===================== AUDITORÍA POR PERSONA ===================== */
+const TIPO_L={audio:'🎤 audio',image:'🖼 imagen',video:'🎬 video',sticker:'🏷 sticker',document:'📄 doc',other_media:'📎 multimedia',deleted:'🚫 eliminado'};
+const FILTROS=[['all','Todo'],['text','Texto'],['audio','Audios'],['media','Multimedia'],['deleted','Eliminados']];
+const fD=ts=>{const d=new Date(ts);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+const bx=(v,l)=>`<div class="box"><div class="num">${v}</div><div class="lbl">${l}</div></div>`;
+
+function renderDetail(){
+  const box=$('detalle');if(!box)return;
+  if(!SEL_PERSON){box.innerHTML='<p class="small">Elige un participante del desplegable o haz clic en su nombre en cualquier tabla o gráfico.</p>';return}
+  const mine=RANGE_MSGS.filter(m=>m.author===SEL_PERSON);
+  const cnt={};mine.forEach(m=>cnt[m.type]=(cnt[m.type]||0)+1);
+  const days=new Set(mine.map(m=>new Date(m.ts).toDateString())).size;
+  const fwd=mine.filter(m=>m.forwarded).length;
+  const textos=cnt.text||0,chars=mine.reduce((s,m)=>s+m.text.length,0);
+  // ráfagas de esta persona (>=3 seguidos, <5 min)
+  let nb=0,bmsgs=0,bmax=0,run=0,prevTs=0;
+  for(const m of RANGE_MSGS){
+    if(m.author===SEL_PERSON){
+      if(run>0&&m.ts-prevTs<=300000)run++;
+      else{if(run>=3){nb++;bmsgs+=run;bmax=Math.max(bmax,run)}run=1}
+      prevTs=m.ts;
+    }else{if(run>=3){nb++;bmsgs+=run;bmax=Math.max(bmax,run)}run=0}
+  }
+  if(run>=3){nb++;bmsgs+=run;bmax=Math.max(bmax,run)}
+  const esMedia=m=>m.type!=='text'&&m.type!=='deleted';
+  const flt=m=>DETAIL_FILTER==='all'?true:(DETAIL_FILTER==='media'?esMedia(m):m.type===DETAIL_FILTER);
+  const show=mine.filter(flt),list=show.slice(0,SHOWN);
+  box.innerHTML=`
+  <div class="minirow">${bx(mine.length,'mensajes')}${bx(cnt.audio||0,'audios')}${bx((cnt.image||0)+(cnt.video||0),'img+video')}${bx(cnt.sticker||0,'stickers')}${bx(cnt.document||0,'docs')}${bx(cnt.deleted||0,'eliminados')}${bx(days,'días activo')}${bx(nb,'ráfagas')}${bx(bmax||'—','ráfaga máx')}${bx(fwd,'reenv.')}</div>
+  <p class="small">${mine.length?`Primero: ${fD(mine[0].ts)} · Último: ${fD(mine[mine.length-1].ts)} · Longitud media de texto: ${textos?Math.round(chars/textos):0} caracteres`:'Este miembro no escribió mensajes en el período.'}${EXCLUDED.has(SEL_PERSON)?' · <b style="color:#ee5253">(excluido de las estadísticas del informe)</b>':''}</p>
+  ${mine.length?`<div class="fbtns">${FILTROS.map(([k,l])=>{const n=k==='all'?mine.length:k==='media'?mine.filter(esMedia).length:(cnt[k]||0);return `<button class="ghost${DETAIL_FILTER===k?' on':''}" data-f="${k}">${l} (${n})</button>`}).join('')}</div>
+  ${list.map(m=>`<div class="bubble"><span class="mtime">${fD(m.ts)}</span>${m.forwarded?'<span class="badge fwd">↪ reenviado</span>':''}${m.type!=='text'?`<span class="badge ${m.type}">${TIPO_L[m.type]||m.type}</span>`:''}${m.text?`<div class="txt">${esc(m.text)}</div>`:''}</div>`).join('')}
+  ${show.length>SHOWN?`<div style="text-align:center;margin:12px"><button id="masBtn">Mostrar más (quedan ${show.length-SHOWN})</button></div>`:''}`:''}`;
+  box.querySelectorAll('[data-f]').forEach(b=>b.addEventListener('click',()=>{DETAIL_FILTER=b.dataset.f;SHOWN=200;renderDetail()}));
+  const mb=$('masBtn');if(mb)mb.addEventListener('click',()=>{SHOWN+=300;renderDetail()});
+}
+
+/* ===================== EXPORTACIÓN ===================== */
+function quoteCSV(v,sep){v=String(v);return /["\n]/.test(v)||v.includes(sep)?'"'+v.replace(/"/g,'""')+'"':v}
+function dl(content,mime,name){
+  const b=new Blob([content],{type:mime});const u=URL.createObjectURL(b);
+  const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);
+}
+function doExport(tipo){
+  const fmt=$('expFmt').value;
+  let head,rows,fname;
+  if(tipo==='persona'){
+    if(!SEL_PERSON){alert('Elige primero un participante en la sección 5 (Auditoría por participante).');return}
+    head=['Fecha','Hora','Tipo','Reenviado','Contenido'];
+    rows=RANGE_MSGS.filter(m=>m.author===SEL_PERSON).map(m=>{const d=new Date(m.ts);
+      return[d.toLocaleDateString('es'),`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`,m.type,m.forwarded?'sí':'',m.text.replace(/\s*\n\s*/g,' | ')]});
+    fname='mensajes_'+disp(SEL_PERSON).replace(/[^\wáéíóúñü-]+/gi,'_');
+  }else{
+    const e=LASTEXP[tipo];if(!e){alert('Genera primero el informe.');return}
+    head=e.head;rows=e.rows;fname=e.fname;
+  }
+  fname+=`_${$('desde').value||''}_a_${$('hasta').value||''}`;
+  if(fmt==='excel'){
+    const h='﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1"><tr>'
+      +head.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr>'
+      +rows.map(r=>'<tr>'+r.map(v=>`<td>${esc(v)}</td>`).join('')+'</tr>').join('')
+      +'</table></body></html>';
+    dl(h,'application/vnd.ms-excel',fname+'.xls');
+  }else{
+    const sep=fmt==='csv-c'?',':fmt==='tsv'?'\t':';';
+    dl('﻿'+head.join(sep)+'\r\n'+rows.map(r=>r.map(v=>quoteCSV(v,sep)).join(sep)).join('\r\n'),
+       'text/csv;charset=utf-8',fname+(fmt==='tsv'?'.tsv':'.csv'));
+  }
+}
+
+/* ===================== UI ===================== */
+function cargar(file){
+  file.text().then(text=>{
+    FMT=detectar(text);
+    if(!FMT){$('fileinfo').classList.remove('hidden');
+      $('fileinfo').innerHTML='⚠️ No reconozco el formato del archivo. Sube el .txt que genera WhatsApp (Más → Exportar chat) o un .md con el formato conocido.';
+      return}
+    SYS={joins:0,leaves:0,notifications:0,other:0};JOINED=[];LEFT=[];SEL_PERSON='';DETAIL_FILTER='all';SHOWN=200;TABLE_ASC=false;SOLO_ACTUALES=false;CHART_KEY='top';FIRST_RENDER=true;
+    const sa=$('soloActuales');if(sa)sa.checked=false;
+    ALL=(FMT==='md'?parseMd:parseTxt)(text).sort((a,b)=>a.ts-b.ts);
+    FILE_NAME=file.name;
+    if(!ALL.length){$('fileinfo').classList.remove('hidden');$('fileinfo').innerHTML='⚠️ El archivo no contiene mensajes reconocibles.';return}
+    MIN=ALL[0].ts;MAX=ALL[ALL.length-1].ts;
+    const au=new Set(ALL.map(m=>m.author)).size;
+    $('fileinfo').classList.remove('hidden');
+    $('fileinfo').innerHTML=`✅ <b>${esc(FILE_NAME)}</b> — formato ${FMT==='md'?'Markdown':'WhatsApp .txt'}<br>
+    ${ALL.length} mensajes · ${au} participantes · del <b>${fmtD(MIN)}</b> al <b>${fmtD(MAX)}</b><br>
+    <span class="small">Sistema: ${SYS.joins} incorporaciones, ${SYS.leaves} salidas, ${SYS.notifications+SYS.other} otros avisos.</span>`;
+    const d=$('desde'),h=$('hasta');
+    d.min=d.value=iso(new Date(MIN));d.max=iso(new Date(MAX));
+    h.min=iso(new Date(MIN));h.max=h.value=iso(new Date(MAX));
+    $('controls').classList.remove('hidden');
+    $('rangoInfo').innerHTML=`El archivo cubre del <b>${fmtD(MIN)}</b> al <b>${fmtD(MAX)}</b>. Los calendarios solo permiten ese rango.`;
+    buildPlist();
+    render(d.value,h.value);
+  });
+}
+function buildPlist(){
+  EXCLUDED=new Set();
+  const cnt=new Map();
+  for(const m of ALL)cnt.set(m.author,(cnt.get(m.author)||0)+1);
+  const names=[...cnt.entries()].sort((a,b)=>b[1]-a[1]);
+  $('plist').innerHTML=names.map(([n,c],i)=>{
+    const aliased=ALIASES.has(n);
+    return `<div class="prow" data-name="${esc(n)}"><input type="checkbox" id="cb${i}" checked value="${esc(n)}"><label class="pname" for="cb${i}" title="${esc(n)}">${esc(disp(n))}</label><span class="cnt" data-c="${c}">${aliased?esc(n)+' · ':''}${c} msgs</span><button class="edit" title="Renombrar" data-name="${esc(n)}">✏️</button></div>`;
+  }).join('');
+  $('exclResumen').textContent='(0 excluidos)';
+  $('plist').querySelectorAll('input').forEach(cb=>cb.addEventListener('change',()=>{
+    if(cb.checked)EXCLUDED.delete(cb.value);else EXCLUDED.add(cb.value);
+    cb.closest('.prow').classList.toggle('off',!cb.checked);
+    $('exclResumen').textContent=`(${EXCLUDED.size} excluido${EXCLUDED.size===1?'':'s'})`;
+    if($('desde').value&&$('hasta').value)render($('desde').value,$('hasta').value);
+  }));
+  $('plist').querySelectorAll('.edit').forEach(b=>b.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    const orig=b.dataset.name;
+    const nuevo=prompt(`Nombre para mostrar de «${orig}»\n(deja vacío para usar el original)`,disp(orig));
+    if(nuevo===null)return;
+    if(nuevo.trim())ALIASES.set(orig,nuevo.trim());else ALIASES.delete(orig);
+    saveAliases();
+    const row=$('plist').querySelector(`.prow[data-name="${CSS.escape(orig)}"]`);
+    if(row){row.querySelector('.pname').textContent=disp(orig);
+      const cntEl=row.querySelector('.cnt');
+      cntEl.textContent=(ALIASES.has(orig)?orig+' · ':'')+cntEl.dataset.c+' msgs'}
+    if($('desde').value&&$('hasta').value)render($('desde').value,$('hasta').value);
+  }));
+}
+$('selTodos').addEventListener('click',()=>{
+  EXCLUDED.clear();
+  $('plist').querySelectorAll('input').forEach(cb=>{cb.checked=true;cb.closest('.prow').classList.remove('off')});
+  $('exclResumen').textContent='(0 excluidos)';
+  if($('desde').value&&$('hasta').value)render($('desde').value,$('hasta').value)});
+$('selNinguno').addEventListener('click',()=>{
+  $('plist').querySelectorAll('input').forEach(cb=>{cb.checked=false;cb.closest('.prow').classList.add('off');EXCLUDED.add(cb.value)});
+  $('exclResumen').textContent=`(${EXCLUDED.size} excluidos)`;
+  if($('desde').value&&$('hasta').value)render($('desde').value,$('hasta').value)});
+$('soloActuales').addEventListener('change',e=>{SOLO_ACTUALES=e.target.checked;if($('desde').value&&$('hasta').value)render($('desde').value,$('hasta').value)});
+$('expBtn').addEventListener('click',()=>doExport($('expTipo').value));
+$('report').addEventListener('click',e=>{
+  const p=e.target.closest('[data-p]');
+  if(p){SEL_PERSON=p.dataset.p;DETAIL_FILTER='all';SHOWN=200;
+    const sel=$('personaSel');if(sel)sel.value=SEL_PERSON;
+    renderDetail();const d=$('detalle');if(d)d.scrollIntoView({behavior:'smooth'});return}
+  const cb=e.target.closest('[data-c]');
+  if(cb){CHART_KEY=cb.dataset.c;
+    document.querySelectorAll('#chartbtns [data-c]').forEach(b=>b.classList.toggle('on',b.dataset.c===CHART_KEY));
+    renderChart();return}
+  const sb=e.target.closest('[data-sort]');
+  if(sb){TABLE_ASC=sb.dataset.sort==='asc';render($('desde').value,$('hasta').value);return}
+  if(e.target.closest('#csvbtn2'))doExport('participantes');
+});
+$('drop').addEventListener('click',()=>$('file').click());
+$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('over')});
+$('drop').addEventListener('dragleave',()=>$('drop').classList.remove('over'));
+$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('over');if(e.dataTransfer.files[0])cargar(e.dataTransfer.files[0])});
+$('file').addEventListener('change',e=>{if(e.target.files[0])cargar(e.target.files[0])});
+$('generar').addEventListener('click',()=>{
+  let d=$('desde').value,h=$('hasta').value;
+  if(!d||!h)return;
+  if(d>h){const t=d;d=h;h=t;$('desde').value=d;$('hasta').value=h}
+  render(d,h)});
+/* ===================== INFORME COMPLETO PARA PDF ===================== */
+function buildPrintArea(){
+  const pa=$('printArea');if(!pa||!GST)return;
+  const prevKey=CHART_KEY;
+  let charts='';
+  for(const [k,l] of CHARTS){CHART_KEY=k;renderChart();charts+=`<h3>${l}</h3>`+$('chartBox').innerHTML}
+  CHART_KEY=prevKey;renderChart();
+  const rep=$('report').cloneNode(true);rep.id='';
+  const cc=rep.querySelector('#chartbtns');if(cc)cc.innerHTML=charts;
+  if(SEL_PERSON){
+    const prevShown=SHOWN,prevF=DETAIL_FILTER;SHOWN=1e9;DETAIL_FILTER='all';renderDetail();
+    const det=rep.querySelector('#detalle');if(det)det.innerHTML=$('detalle').innerHTML;
+    SHOWN=prevShown;DETAIL_FILTER=prevF;renderDetail();
+  }
+  rep.querySelectorAll('button,select,input,.fbtns').forEach(e=>e.remove());
+  pa.innerHTML=`<h1 style="font-size:22px">Informe completo del grupo de WhatsApp</h1>`
+    +`<p class="small">Generado el ${new Date().toLocaleString('es')} — procesado localmente en el navegador.</p>`
+    +rep.innerHTML;
+}
+window.addEventListener('beforeprint',()=>{if(GST)buildPrintArea()});
+$('imprimir').addEventListener('click',()=>window.print());
+document.querySelectorAll('.quick button').forEach(b=>b.addEventListener('click',()=>{
+  const max=new Date(MAX);let d;
+  if(b.dataset.range==='all')d=new Date(MIN);
+  else{d=new Date(MAX);d.setDate(d.getDate()-(+b.dataset.range-1))}
+  if(d.getTime()<MIN)d=new Date(MIN);
+  $('desde').value=iso(d);$('hasta').value=iso(max);
+  render($('desde').value,$('hasta').value)}));
+</script>
+</body>
+</html>
