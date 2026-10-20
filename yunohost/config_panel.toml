@@ -1,0 +1,28 @@
+#:schema https://raw.githubusercontent.com/YunoHost/apps/main/schemas/config_panel.v1.schema.json
+
+version = "1.0"
+
+[main]
+name.en = "Node configuration"
+name.es = "Configuración del nodo"
+services = ["__APP__"]
+
+    [main.identity]
+    name.en = "Node identity"
+    name.es = "Identidad del nodo"
+
+        [main.identity.node_name]
+        ask.en = "Community node name"
+        ask.es = "Nombre del nodo comunitario"
+        type = "string"
+        bind = "node>name:__INSTALL_DIR__/config.yaml"
+
+        [main.identity.default_language]
+        ask.en = "Default interface language"
+        ask.es = "Idioma predeterminado de la interfaz"
+        type = "select"
+        choices.es = "Español"
+        choices.en = "English"
+        choices.pt = "Português"
+        choices.fr = "Français"
+        default = "es"

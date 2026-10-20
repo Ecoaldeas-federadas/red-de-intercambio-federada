@@ -232,8 +232,12 @@ func (h *DocumentsHandler) addMyDocument(w http.ResponseWriter, r *http.Request)
 		file, header, err := r.FormFile("photo")
 		if err == nil {
 			defer file.Close()
-			// Guardar en /app/uploads/documents/
-			uploadDir := "/app/uploads/documents"
+			// Guardar en /app/uploads/documents/ (o ./uploads/documents fuera de Docker)
+			baseUploadDir := "/app/uploads"
+			if _, err := os.Stat(baseUploadDir); err != nil {
+				baseUploadDir = "./uploads"
+			}
+			uploadDir := filepath.Join(baseUploadDir, "documents")
 			os.MkdirAll(uploadDir, 0755)
 			ext := filepath.Ext(header.Filename)
 			filename := fmt.Sprintf("%s_%s_%s%s", userID, docType, docNumber, ext)

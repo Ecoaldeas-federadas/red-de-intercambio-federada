@@ -1,0 +1,82 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# STOP SYSTEMD SERVICE
+#=================================================
+ynh_script_progression "Stopping $app's systemd service..."
+
+ynh_systemctl --service="$app" --action="stop"
+
+#=================================================
+# ENSURE SETTINGS EXIST
+#=================================================
+ynh_script_progression "Validating settings..."
+
+if [ -z "${jwt_secret:-}" ]; then
+    jwt_secret=$(ynh_string_random --length=48)
+    ynh_app_setting_set --key=jwt_secret --value="$jwt_secret"
+fi
+
+if [ -z "${updater_token:-}" ]; then
+    updater_token=$(ynh_string_random --length=32)
+    ynh_app_setting_set --key=updater_token --value="$updater_token"
+fi
+
+if [ -z "${default_language:-}" ]; then
+    default_language="es"
+    ynh_app_setting_set --key=default_language --value="$default_language"
+fi
+
+if [ -z "${node_name:-}" ]; then
+    node_name="Nodo Comunitario"
+    ynh_app_setting_set --key=node_name --value="$node_name"
+fi
+
+#=================================================
+# UPDATE SOURCES AND REBUILD
+#=================================================
+ynh_script_progression "Updating sources and rebuilding $app..."
+
+_setup_app_sources
+
+if [ -z "${node_private_key:-}" ] || [ -z "${node_public_key:-}" ]; then
+    _generate_ed25519_keys
+fi
+
+_build_app
+
+#=================================================
+# UPDATE A CONFIGURATION
+#=================================================
+ynh_script_progression "Updating $app's configuration files..."
+
+ynh_config_add --template="config.yaml" --destination="$install_dir/config.yaml"
+ynh_config_add --template="app.env" --destination="$install_dir/.env"
+chmod 600 "$install_dir/config.yaml" "$install_dir/.env"
+chown "$app:$app" "$install_dir/config.yaml" "$install_dir/.env"
+
+#=================================================
+# REAPPLY SYSTEM CONFIGURATIONS
+#=================================================
+ynh_script_progression "Upgrading system configurations related to $app..."
+
+ynh_config_add_nginx
+
+ynh_config_add_systemd
+
+yunohost service add "$app" --description="Federated Mutual Credit Node" --log="/var/log/$app/$app.log" --need_exposed_ports="$port_federation"
+
+#=================================================
+# START SYSTEMD SERVICE
+#=================================================
+ynh_script_progression "Starting $app's systemd service..."
+
+ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --timeout=180
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+ynh_script_progression "Upgrade of $app completed"

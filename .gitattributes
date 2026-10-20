@@ -1,4 +1,9 @@
-# Forzar LF (Unix) en scripts shell - los contenedores Docker son Linux
+# Forzar LF (Unix) en scripts shell - los contenedores Docker y YunoHost son Linux
 *.sh text eol=lf
+scripts/* text eol=lf
+conf/* text eol=lf
+yunohost/scripts/* text eol=lf
+yunohost/conf/* text eol=lf
+*.toml text eol=lf
 *.ps1 text eol=crlf
 *.md text eol=lf

@@ -1,0 +1,52 @@
+#!/bin/bash
+
+source ../settings/scripts/_common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# RESTORE THE APP MAIN DIR AND DATA
+#=================================================
+ynh_script_progression "Restoring the app files and data..."
+
+ynh_restore_everything
+
+# Re-enlazar carpetas de datos persistentes
+ln -sfn "$data_dir/uploads" "$install_dir/uploads"
+ln -sfn "$data_dir/backups" "$install_dir/backups"
+ln -sfn "$data_dir/secrets" "$install_dir/secrets"
+ln -sfn "$data_dir/html" "$install_dir/html"
+
+chown -R "$app:$app" "$install_dir" "$data_dir"
+chmod 750 "$install_dir" "$data_dir"
+chmod 600 "$install_dir/config.yaml" "$install_dir/.env"
+
+#=================================================
+# RESTORE THE POSTGRESQL DATABASE
+#=================================================
+ynh_script_progression "Restoring the PostgreSQL database..."
+
+ynh_psql_db_shell < ./db.sql
+
+#=================================================
+# RESTORE SYSTEM CONFIGURATIONS
+#=================================================
+ynh_script_progression "Restoring system configurations related to $app..."
+
+systemctl daemon-reload
+systemctl enable "$app.service" --quiet
+
+yunohost service add "$app" --description="Federated Mutual Credit Node" --log="/var/log/$app/$app.log" --need_exposed_ports="$port_federation"
+
+systemctl reload nginx
+
+#=================================================
+# START SYSTEMD SERVICE
+#=================================================
+ynh_script_progression "Starting $app's systemd service..."
+
+ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --timeout=180
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+ynh_script_progression "Restoration completed for $app"

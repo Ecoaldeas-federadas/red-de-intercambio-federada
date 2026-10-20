@@ -1,0 +1,22 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+ynh_abort_if_errors
+
+ynh_app_config_apply() {
+    _ynh_app_config_apply
+
+    ynh_config_add --template="config.yaml" --destination="$install_dir/config.yaml"
+    ynh_config_add --template="app.env" --destination="$install_dir/.env"
+    chmod 600 "$install_dir/config.yaml" "$install_dir/.env"
+    chown "$app:$app" "$install_dir/config.yaml" "$install_dir/.env"
+
+    local escaped_name="${node_name//\'/\'\'}"
+    local escaped_lang="${default_language//\'/\'\'}"
+    ynh_psql_db_shell <<< "UPDATE node_config SET node_name = '$escaped_name', default_language = '$escaped_lang', updated_at = NOW() WHERE initialized = true;"
+    ynh_psql_db_shell <<< "UPDATE languages SET is_default = false; UPDATE languages SET is_default = true, enabled = true WHERE code = '$escaped_lang';"
+}
+
+ynh_app_config_run "$1"

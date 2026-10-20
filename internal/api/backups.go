@@ -24,9 +24,16 @@ type BackupsHandler struct {
 
 // NewBackupsHandler crea un nuevo handler de backups
 func NewBackupsHandler(pool *pgxpool.Pool) *BackupsHandler {
+	backupsDir := os.Getenv("BACKUPS_DIR")
+	if backupsDir == "" {
+		backupsDir = "/backups"
+		if _, err := os.Stat(backupsDir); err != nil {
+			backupsDir = "./backups"
+		}
+	}
 	return &BackupsHandler{
 		Pool:       pool,
-		BackupsDir: "/backups",
+		BackupsDir: backupsDir,
 	}
 }
 

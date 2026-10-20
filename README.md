@@ -1,5 +1,7 @@
 # Red de Intercambio Federada
 
+[![Instalar Red de Intercambio Federada con YunoHost](https://install-app.yunohost.org/install-with-yunohost.svg)](https://install-app.yunohost.org/?app=https://github.com/discapacidad5/red-de-intercambio-federada)
+
 Sistema de contabilidad descentralizada y crédito mutuo de suma cero para redes de trueque federadas.
 Cada nodo opera de forma independiente y gestiona su propio libro contable de "Mano Vuelta" (saldo cero), federándose con otros nodos vía protocolo mTLS para el intercambio multilateral.
 
@@ -34,13 +36,33 @@ Cada nodo opera de forma independiente y gestiona su propio libro contable de "M
 
 ## Requisitos
 
-- **Docker** y **Docker Compose** (recomendado — instala todo automaticamente)
-- **Go** 1.21+ (solo si compilas manualmente, no necesario con Docker)
+- **YunoHost** >= 11.2.8 (para instalacion directa con el boton de YunoHost), **o**
+- **Docker** y **Docker Compose** (recomendado en servidores independientes — instala todo automaticamente)
+- **Go** 1.21+ (solo si compilas manualmente, no necesario con Docker ni YunoHost)
 - **Git**
 
-## Instalac Alion rapida (recomendado)
+## Instalacion rapida (recomendado)
 
-### Opcion A — Script de instalacion (1 comando)
+### Opcion YunoHost — Boton de 1 clic o linea de comandos
+
+Si tienes un servidor [YunoHost](https://yunohost.org/), puedes instalar el nodo directamente sin configurar base de datos, proxy NGINX ni certificados SSL manualmente:
+
+[![Instalar Red de Intercambio Federada con YunoHost](https://install-app.yunohost.org/install-with-yunohost.svg)](https://install-app.yunohost.org/?app=https://github.com/discapacidad5/red-de-intercambio-federada)
+
+**Desde la administracion web de YunoHost:**
+1. Haz clic en el boton **Install with YunoHost** de arriba (o entra a **Aplicaciones > Instalar > Aplicacion personalizada** en tu panel YunoHost).
+2. Pega la URL del repositorio: `https://github.com/discapacidad5/red-de-intercambio-federada`
+3. Elige el dominio/subdominio, el usuario administrador, su contrasena, el nombre de tu nodo comunitario y el idioma predeterminado.
+
+**Desde SSH en tu servidor YunoHost:**
+```bash
+sudo yunohost app install https://github.com/discapacidad5/red-de-intercambio-federada
+```
+*(Tambien disponible como paquete independiente dentro de la carpeta [`yunohost/`](yunohost/) para publicar en el catalogo de `YunoHost-Apps` o instalar localmente con `sudo yunohost app install ./yunohost`).*
+
+---
+
+### Opcion A — Script de instalacion con Docker (1 comando)
 
 **Windows (PowerShell):**
 ```powershell

@@ -1,0 +1,91 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# GENERATE SECRETS AND NODE KEYS
+#=================================================
+ynh_script_progression "Generating cryptographic keys and secrets..."
+
+jwt_secret=$(ynh_string_random --length=48)
+updater_token=$(ynh_string_random --length=32)
+ynh_app_setting_set --key=jwt_secret --value="$jwt_secret"
+ynh_app_setting_set --key=updater_token --value="$updater_token"
+
+_setup_app_sources
+_generate_ed25519_keys
+
+#=================================================
+# BUILD BACKEND AND FRONTEND
+#=================================================
+ynh_script_progression "Building Go backend and React frontend..."
+
+_build_app
+
+#=================================================
+# ADD A CONFIGURATION
+#=================================================
+ynh_script_progression "Adding $app's configuration files..."
+
+ynh_config_add --template="config.yaml" --destination="$install_dir/config.yaml"
+ynh_config_add --template="app.env" --destination="$install_dir/.env"
+chmod 600 "$install_dir/config.yaml" "$install_dir/.env"
+chown "$app:$app" "$install_dir/config.yaml" "$install_dir/.env"
+
+#=================================================
+# SYSTEM CONFIGURATION
+#=================================================
+ynh_script_progression "Adding system configurations related to $app..."
+
+ynh_config_add_nginx
+
+ynh_config_add_systemd
+
+yunohost service add "$app" --description="Federated Mutual Credit Node" --log="/var/log/$app/$app.log" --need_exposed_ports="$port_federation"
+
+#=================================================
+# START SYSTEMD SERVICE
+#=================================================
+ynh_script_progression "Starting $app's systemd service..."
+
+ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --timeout=180
+
+#=================================================
+# INITIALIZE NODE AND ADMIN USER
+#=================================================
+ynh_script_progression "Initializing node and administrator account..."
+
+admin_fullname=$(ynh_user_get_info --username="$admin" --key=fullname 2>/dev/null || echo "$admin")
+if [ -z "$admin_fullname" ]; then
+    admin_fullname="$admin"
+fi
+
+# Esperar a que el endpoint /api/setup/status responda tras las migraciones SQL
+for _ in $(seq 1 30); do
+    if curl -sf "http://127.0.0.1:$port/api/setup/status" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
+
+init_payload=$(python3 -c '
+import json, sys
+print(json.dumps({
+    "admin_username": sys.argv[1],
+    "admin_display_name": sys.argv[2],
+    "admin_password": sys.argv[3],
+    "node_name": sys.argv[4],
+    "node_domain": sys.argv[5],
+    "default_language": sys.argv[6],
+}))
+' "$admin" "$admin_fullname" "$password" "$node_name" "$domain" "$default_language")
+
+curl -sf -X POST "http://127.0.0.1:$port/api/setup/init" \
+    -H "Content-Type: application/json" \
+    -d "$init_payload" >/dev/null || ynh_print_warn "Could not auto-initialize admin user; you can complete setup via https://$domain/setup"
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+ynh_script_progression "Installation of $app completed"
