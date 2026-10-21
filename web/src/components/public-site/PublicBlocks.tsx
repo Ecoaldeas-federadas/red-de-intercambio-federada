@@ -1661,9 +1661,10 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
 // -------------------------------------------------------------
 const SERVICE_CATEGORY_LABELS: Record<string, string> = {
   social: 'social',
-  communication: 'communication',
-  productivity: 'productivity',
-  infrastructure: 'infrastructure',
+  comunicacion: 'communication',
+  productividad: 'productivity',
+  multimedia: 'multimedia',
+  desarrollo: 'desarrollo',
 }
 
 export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData }) {
