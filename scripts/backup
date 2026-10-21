@@ -8,13 +8,13 @@ source /usr/share/yunohost/helpers
 #=================================================
 ynh_script_progression "Declaring files to be backed up..."
 
-ynh_backup --src_path="$install_dir"
+ynh_backup "$install_dir"
 
-ynh_backup --src_path="$data_dir"
+ynh_backup "$data_dir"
 
-ynh_backup --src_path="/etc/nginx/conf.d/$domain.d/$app.conf"
+ynh_backup "/etc/nginx/conf.d/$domain.d/$app.conf"
 
-ynh_backup --src_path="/etc/systemd/system/$app.service"
+ynh_backup "/etc/systemd/system/$app.service"
 
 #=================================================
 # BACKUP THE POSTGRESQL DATABASE
