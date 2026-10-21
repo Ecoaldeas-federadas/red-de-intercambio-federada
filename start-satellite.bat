@@ -23,14 +23,13 @@ docker compose -f docker-compose.satellite.yml up -d
 
 echo.
 echo === Nodo Satelite iniciado ===
-echo Web:        http://localhost:8080
-echo Federation: https://localhost:8443
+echo Web y Federacion: http://localhost:8080
 echo.
 echo Proximos pasos:
 echo   1. Abre http://localhost:8080 en el navegador
 echo   2. Inicia sesion con la cuenta admin del satelite
 echo   3. Ve a Federacion ^> Satelite ^> Descargar Snapshot
-echo   4. Ingresa la URL del nodo origen (ej: https://nodo1.com:8443)
+echo   4. Ingresa la URL del nodo origen (ej: https://nodo1.com)
 echo   5. Desconecta y lleva el equipo a la feria
 echo.
 pause

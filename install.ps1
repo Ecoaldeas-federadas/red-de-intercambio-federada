@@ -251,8 +251,8 @@ api:
     - "http://$nodeDomain"
 
 federation:
-  listen_port: 8443
-  mtls_required: true
+  listen_port: 8080
+  mtls_required: false
   known_nodes: []
   gossip_interval: "60s"
   balance_sync_enabled: true

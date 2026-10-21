@@ -46,17 +46,17 @@ chmod +x start-satellite.sh
 
 Esto inicia:
 - PostgreSQL local (puerto 5433)
-- App del satelite (puerto 8080 web, 8443 federation)
+- App del satelite (puerto 8080 web y federacion)
 
 ## Operacion en la feria
 
-### Antes de desconectar (con internet)
+### Antes de desconectar (con internet o red local)
 
 1. Abrir `http://localhost:8080`
 2. Iniciar sesion con la cuenta admin del satelite
 3. Ir a **Federacion > Satelite**
 4. En "Descargar Snapshot", ingresar la URL del nodo origen:
-   - Ej: `https://nodo1.com:8443`
+   - Ej: `https://nodo1.com` (o `http://192.168.1.10:8080` en red local)
 5. Clic en "Descargar Snapshot"
 6. Verificar que se cachearon usuarios y tarjetas
 7. **Desconectar** el equipo de internet

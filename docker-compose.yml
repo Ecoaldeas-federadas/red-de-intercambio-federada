@@ -24,10 +24,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         - BUILD_COMMIT=${BUILD_COMMIT:-unknown}
-    # El puerto 8080 ya no se expone en el host — Caddy lo proxya.
-    # El puerto 8443 se mantiene para federation mTLS (conexion directa).
-    ports:
-      - "8443:8443"
+    # El puerto 8080 se expone internamente — Caddy lo proxya (incluyendo /api/federation/* y /federation/* con cifrado E2E).
     expose:
       - "8080"
     volumes:

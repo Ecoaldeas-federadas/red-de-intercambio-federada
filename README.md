@@ -3,7 +3,7 @@
 [![Instalar Red de Intercambio Federada con YunoHost](https://install-app.yunohost.org/install-with-yunohost.svg)](https://install-app.yunohost.org/?app=https://github.com/discapacidad5/red-de-intercambio-federada)
 
 Sistema de contabilidad descentralizada y crédito mutuo de suma cero para redes de trueque federadas.
-Cada nodo opera de forma independiente y gestiona su propio libro contable de "Mano Vuelta" (saldo cero), federándose con otros nodos vía protocolo mTLS para el intercambio multilateral.
+Cada nodo opera de forma independiente en casa o en una red local/intranet comunitaria y gestiona su propio libro contable de "Mano Vuelta" (saldo cero), federándose con otros nodos mediante cifrado de extremo a extremo (Ed25519 + X25519 + AES-256-GCM) sobre su mismo puerto web (sin requerir IP pública ni puertos especiales).
 
 ## Características
 
@@ -338,7 +338,7 @@ Ver [docs/api.md](docs/api.md) para la lista completa de endpoints.
 
 ## Federation (entre nodos)
 
-Los nodos se comunican via mTLS en el puerto `8443`:
+Los nodos se comunican sobre el mismo puerto web (HTTP/HTTPS estándar) usando firmas criptográficas Ed25519 y cifrado de extremo a extremo (`EncryptedTransport` con X25519 + AES-256-GCM). No requiere IP pública ni abrir puertos adicionales (funciona detrás de Cloudflare Tunnel, proxies inversos de YunoHost/Caddy o en intranets comunitarias OpenWrt):
 
 | Metodo | Endpoint | Descripcion |
 |--------|----------|-------------|

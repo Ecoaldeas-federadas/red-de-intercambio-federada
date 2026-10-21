@@ -7,8 +7,7 @@
   - Uploaded images & documents: `__DATA_DIR__/uploads`
   - Database backups: `__DATA_DIR__/backups`
   - Node Ed25519 federation keys: `__DATA_DIR__/secrets/node_keys.txt`
-- **Internal HTTP port**: `__PORT__`
-- **Federation TCP port**: `__PORT_FEDERATION__`
+- **Internal HTTP port**: `__PORT__` (reverse-proxied by NGINX on standard HTTPS; federation uses E2E Ed25519 + X25519 + AES-256-GCM encryption over the same web endpoint without requiring any extra open port or public IP)
 
 ### Federation Public Key
 

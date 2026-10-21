@@ -79,8 +79,6 @@ ram.runtime = "256M"
 
     [resources.ports]
     main.default = 8080
-    federation.default = 8443
-    federation.exposed = "TCP"
 
     [resources.apt]
     packages = [

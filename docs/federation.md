@@ -499,22 +499,22 @@ El **nodo satelite** es diferente:
 ### Arquitectura
 
 ```
-[Nodo Origen] <--mTLS--> [Nodo Satelite]
-  - DB autoritativa         - Cache local (PostgreSQL)
-  - Usuarios reales         - satellite_cached_users
-  - Ledger TQ               - satellite_cached_cards
-  - NFC cards               - satellite_pending_tx
-                            - Procesa pagos offline
-                            - Firma transacciones con Ed25519
+[Nodo Origen] <--HTTP/HTTPS + Firma Ed25519--> [Nodo Satelite]
+  - DB autoritativa                             - Cache local (PostgreSQL)
+  - Usuarios reales                             - satellite_cached_users
+  - Ledger TQ                                   - satellite_cached_cards
+  - NFC cards                                   - satellite_pending_tx
+                                                - Procesa pagos offline
+                                                - Firma transacciones con Ed25519
 ```
 
 ### Flujo de operacion
 
-1. **Antes de la feria** (con internet):
+1. **Antes de la feria** (con internet o en la red local del nodo):
    - Iniciar el nodo satelite: `docker compose -f docker-compose.satellite.yml up -d`
    - Abrir la web: `http://localhost:8080`
    - Ir a **Federacion > Satelite > Descargar Snapshot**
-   - Ingresar la URL del nodo origen (ej: `https://nodo1.com:8443`)
+   - Ingresar la URL del nodo origen (ej: `https://nodo1.com` o `http://192.168.1.10:8080`)
    - El satelite descarga usuarios activos, saldos actuales y tarjetas NFC
    - Desconectar y llevar el equipo a la feria
 

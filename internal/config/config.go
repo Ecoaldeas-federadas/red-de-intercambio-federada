@@ -164,8 +164,8 @@ func defaultConfig() *Config {
 			SSLMode:  "disable",
 		},
 		Federation: FederationConfig{
-			ListenPort:         8443,
-			MTLSRequired:       true,
+			ListenPort:         8080,
+			MTLSRequired:       false,
 			KnownNodes:         []string{},
 			GossipInterval:     "60s",
 			BalanceSyncEnabled: true,
@@ -249,7 +249,7 @@ func Load(path string) (*Config, error) {
 		cfg.API.Port = 8080
 	}
 	if cfg.Federation.ListenPort == 0 {
-		cfg.Federation.ListenPort = 8443
+		cfg.Federation.ListenPort = cfg.API.Port
 	}
 	if cfg.Database.Port == 0 {
 		cfg.Database.Port = 5433

@@ -19,6 +19,8 @@ type FederationHandler struct {
 	Pool       *pgxpool.Pool
 	Protocol   *federation.Protocol
 	Gossip     *federation.Gossip
+	Reconciler *federation.Reconciler
+	FedServer  *federation.Server
 	NodeLevels *federation.NodeLevels
 	FedPairing *federation.FederationPairing
 	Propagator *federation.Propagator
@@ -33,13 +35,20 @@ func NewFederationHandler(pool *pgxpool.Pool, nodeDomain string) *FederationHand
 	fedPairing := federation.NewFederationPairing(pool, nodeDomain, nodeLevels)
 	transport := federation.NewEncryptedTransport(pool, nodeDomain)
 	propagator := federation.NewPropagator(pool, nodeDomain, transport)
-	// Wire up: pairing propagates new peers, gossip uses propagator for catch-up
+	reconciler := federation.NewReconciler(pool, nodeDomain)
+	reconciler.Client = transport
+	fedServer := federation.NewServerHandler(pool, nodeDomain, proto, gossip, reconciler)
+
+	// Wire up: pairing propagates new peers, gossip uses propagator + transport + reconciler
 	fedPairing.SetPropagator(propagator)
 	gossip.SetPropagator(propagator)
+	gossip.SetClient(transport, reconciler)
 	return &FederationHandler{
 		Pool:       pool,
 		Protocol:   proto,
 		Gossip:     gossip,
+		Reconciler: reconciler,
+		FedServer:  fedServer,
 		NodeLevels: nodeLevels,
 		FedPairing: fedPairing,
 		Propagator: propagator,
@@ -140,6 +149,14 @@ func (fh *FederationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddle
 	r.Post("/api/federation/propagate/block", fh.receivePropagatedBlock)
 	r.Post("/api/federation/propagate/expulsion", fh.receivePropagatedExpulsion)
 	r.Post("/api/federation/propagate/catch-up", fh.handleCatchUpRequest)
+
+	// === ENDPOINTS SERVIDOR-A-SERVIDOR (/federation/*) ===
+	// Servidos directamente en el puerto HTTP principal (sin requerir puerto 8443 ni IP publica).
+	// Compatible con proxies inversos (Cloudflare Tunnel, NGINX, Caddy) e intranets locales.
+	if fh.FedServer != nil {
+		fedMux := fh.FedServer.Handler()
+		r.Handle("/federation/*", fedMux)
+	}
 
 	// === BLOQUEO UNILATERAL (requiere auth de usuario) ===
 	r.Get("/api/federation/blocks", fh.listUnilateralBlocks)

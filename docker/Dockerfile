@@ -42,6 +42,6 @@ COPY --from=go-builder /app/firmware /app/firmware
 COPY --from=frontend-builder /web/dist /app/web/dist
 COPY --from=frontend-builder /web/src/locales /app/web/src/locales
 
-EXPOSE 8080 8443
+EXPOSE 8080
 
 CMD ["/app/fmc-node"]

@@ -29,6 +29,29 @@ type Server struct {
 	ListenPort int
 }
 
+// NewServerHandler creates a federation Server handler that mounts directly on
+// the main HTTP server (port 8080 / reverse proxy HTTPS 443), without requiring
+// a separate port 8443 or raw mTLS certificates. Authentication and integrity
+// are guaranteed at the message level via Ed25519 signatures and E2E encryption.
+func NewServerHandler(pool *pgxpool.Pool, nodeDomain string, proto *Protocol, gossip *Gossip, reconciler *Reconciler) *Server {
+	if proto == nil {
+		proto = New(pool, nodeDomain)
+	}
+	if reconciler == nil {
+		reconciler = NewReconciler(pool, nodeDomain)
+	}
+	if gossip != nil {
+		gossip.Reconciler = reconciler
+	}
+	return &Server{
+		Pool:       pool,
+		NodeDomain: nodeDomain,
+		Protocol:   proto,
+		Gossip:     gossip,
+		Reconciler: reconciler,
+	}
+}
+
 func NewServer(pool *pgxpool.Pool, nodeDomain string, listenPort int, certPath, keyPath, caCertPath string) (*Server, error) {
 	tlsConfig, err := buildTLSConfig(certPath, keyPath, caCertPath)
 	if err != nil {
@@ -50,6 +73,49 @@ func NewServer(pool *pgxpool.Pool, nodeDomain string, listenPort int, certPath, 
 		Reconciler: reconciler,
 		ListenPort: listenPort,
 	}, nil
+}
+
+// Handler returns an http.Handler serving all /federation/* endpoints so they
+// can be mounted on the main HTTP router (compatible with reverse proxies,
+// Cloudflare Tunnel, YunoHost NGINX, and local intranets without port 8443).
+func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/federation/inbox", s.handleInbox)
+	mux.HandleFunc("/federation/limits", s.handleLimits)
+	mux.HandleFunc("/federation/balance", s.handleBalance)
+	mux.HandleFunc("/federation/bilateral/propose", s.handleBilateralPropose)
+	mux.HandleFunc("/federation/bilateral/confirm", s.handleBilateralConfirm)
+	mux.HandleFunc("/federation/bilateral/query", s.handleBilateralQuery)
+	mux.HandleFunc("/federation/card/lookup", s.handleCardLookup)
+	mux.HandleFunc("/federation/user/lookup", s.handleUserLookup)
+	mux.HandleFunc("/federation/parity", s.handleParity)
+	mux.HandleFunc("/federation/warnings", s.handleWarnings)
+	mux.HandleFunc("/federation/health", s.handleHealth)
+	mux.HandleFunc("/federation/reconcile/compare", s.handleReconcileCompare)
+	mux.HandleFunc("/federation/reconcile/chain", s.handleReconcileChain)
+	mux.HandleFunc("/federation/reconcile/import", s.handleReconcileImport)
+	mux.HandleFunc("/federation/audit/chain", s.handleAuditChain)
+
+	// NFC driver sharing (auto-instalable .nfcpkg packages)
+	mux.HandleFunc("/federation/drivers/list", s.handleDriversList)
+	mux.HandleFunc("/federation/drivers/download/", s.handleDriversDownload)
+	mux.HandleFunc("/federation/drivers/sync", s.handleDriversSync)
+
+	// Translation sharing (manual download, no auto-install)
+	mux.HandleFunc("/federation/translations/list", s.handleTranslationsList)
+	mux.HandleFunc("/federation/translations/download/", s.handleTranslationsDownload)
+	mux.HandleFunc("/federation/translations/sync", s.handleTranslationsSync)
+
+	// Node profile sharing (perfiles de fe + prohibiciones de productos)
+	mux.HandleFunc("/federation/faith-profiles/list", s.handleFaithProfilesList)
+	mux.HandleFunc("/federation/faith-profiles/sync", s.handleFaithProfilesSync)
+	mux.HandleFunc("/federation/profile-prohibitions/list", s.handleProfileProhibitionsList)
+	mux.HandleFunc("/federation/profile-prohibitions/sync", s.handleProfileProhibitionsSync)
+
+	// Satellite endpoints (snapshot pull + sync push)
+	s.RegisterSatelliteEndpoints(mux)
+
+	return mux
 }
 
 func buildTLSConfig(certPath, keyPath, caCertPath string) (*tls.Config, error) {

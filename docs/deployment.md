@@ -85,7 +85,6 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "8080:8080"
-      - "8443:8443"
     volumes:
       - ./secrets:/secrets:ro
       - ./config.yaml:/app/config.yaml:ro

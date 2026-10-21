@@ -178,6 +178,12 @@ func (t *EncryptedTransport) getPeerEndpoint(ctx context.Context, peerDomain str
 		return endpoint, nil
 	}
 
+	// Fallback: standard HTTPS on the peer's domain (works with reverse proxies,
+	// Cloudflare Tunnel, YunoHost NGINX, or local intranet without special ports)
+	if peerDomain != "" {
+		return "https://" + peerDomain, nil
+	}
+
 	return "", fmt.Errorf("endpoint not found for peer %s", peerDomain)
 }
 
@@ -500,4 +506,63 @@ func GenerateMessageID() string {
 // but cannot decrypt or sign outgoing messages.
 func (t *EncryptedTransport) HasPrivateKey() bool {
 	return t.PrivateKey != nil
+}
+
+// GetFromPeer performs an HTTP GET request to a peer node over its standard HTTP/HTTPS endpoint.
+// Implements PeerClient for Reconciler and Gossip without requiring a dedicated mTLS port.
+func (t *EncryptedTransport) GetFromPeer(ctx context.Context, peerDomain, path string) ([]byte, error) {
+	endpoint, err := t.getPeerEndpoint(ctx, peerDomain)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Node-Domain", t.NodeDomain)
+	resp, err := t.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("peer %s returned %d: %s", peerDomain, resp.StatusCode, string(body))
+	}
+	return body, nil
+}
+
+// PostToPeer performs an HTTP POST request to a peer node over its standard HTTP/HTTPS endpoint.
+// Implements PeerPoster for Gossip synchronization.
+func (t *EncryptedTransport) PostToPeer(ctx context.Context, peerDomain, path string, payload interface{}) ([]byte, error) {
+	endpoint, err := t.getPeerEndpoint(ctx, peerDomain)
+	if err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint+path, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Node-Domain", t.NodeDomain)
+	resp, err := t.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("peer %s returned %d: %s", peerDomain, resp.StatusCode, string(body))
+	}
+	return body, nil
 }

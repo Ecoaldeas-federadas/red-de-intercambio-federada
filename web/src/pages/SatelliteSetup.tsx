@@ -159,7 +159,7 @@ export default function SatelliteSetup() {
           <label className="label">{t('node_url_label')}</label>
           <input
             className="input"
-            placeholder="https://nodo1.com:8443"
+            placeholder="https://nodo1.com"
             value={nodeUrl}
             onChange={(e) => setNodeUrl(e.target.value)}
           />
@@ -185,7 +185,7 @@ export default function SatelliteSetup() {
           <label className="label">{t('sync_url_label')}</label>
           <input
             className="input"
-            placeholder="https://nodo1.com:8443"
+            placeholder="https://nodo1.com"
             value={syncUrl}
             onChange={(e) => setSyncUrl(e.target.value)}
           />

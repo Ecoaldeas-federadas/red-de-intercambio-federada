@@ -42,7 +42,7 @@ ynh_config_add_nginx
 
 ynh_config_add_systemd
 
-yunohost service add "$app" --description="Federated Mutual Credit Node" --log="/var/log/$app/$app.log" --need_exposed_ports="$port_federation"
+yunohost service add "$app" --description="Federated Mutual Credit Node" --log="/var/log/$app/$app.log"
 
 #=================================================
 # START SYSTEMD SERVICE

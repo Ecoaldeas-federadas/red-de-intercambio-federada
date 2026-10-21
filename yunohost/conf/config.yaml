@@ -17,8 +17,8 @@ api:
     - "http://localhost:__PORT__"
 
 federation:
-  listen_port: __PORT_FEDERATION__
-  mtls_required: true
+  listen_port: __PORT__
+  mtls_required: false
   known_nodes: []
   gossip_interval: "60s"
   balance_sync_enabled: true

@@ -7,8 +7,7 @@
   - Imágenes y documentos subidos: `__DATA_DIR__/uploads`
   - Respaldos de base de datos: `__DATA_DIR__/backups`
   - Claves Ed25519 de federación: `__DATA_DIR__/secrets/node_keys.txt`
-- **Puerto HTTP interno**: `__PORT__`
-- **Puerto TCP de federación**: `__PORT_FEDERATION__`
+- **Puerto HTTP interno**: `__PORT__` (servido por NGINX en HTTPS estándar; la federación viaja cifrada extremo a extremo con Ed25519 + X25519 + AES-256-GCM sobre el mismo puerto web, sin requerir abrir puertos adicionales ni tener IP pública)
 
 ### Clave pública de federación
 
