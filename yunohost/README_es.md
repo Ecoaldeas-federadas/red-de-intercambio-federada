@@ -1,9 +1,5 @@
 # Red de Intercambio Federada para YunoHost
 
-[![Nivel de integración](https://dash.yunohost.org/integration/red-intercambio.svg)](https://dash.yunohost.org/appci/app/red-intercambio) ![Estado de funcionamiento](https://ci-apps.yunohost.org/ci/badges/red-intercambio.status.svg) ![Estado de mantenimiento](https://ci-apps.yunohost.org/ci/badges/red-intercambio.maintain.svg)
-
-[![Instalar Red de Intercambio Federada con YunoHost](https://install-app.yunohost.org/install-with-yunohost.svg)](https://install-app.yunohost.org/?app=https://github.com/discapacidad5/red-de-intercambio-federada)
-
 *[Read this README in English.](./README.md)*
 
 > *Este paquete te permite instalar **Red de Intercambio Federada** de forma rápida y sencilla en un servidor YunoHost.*  
@@ -11,34 +7,35 @@
 
 ## Descripción general
 
-**Red de Intercambio Federada** es un sistema de contabilidad descentralizada y crédito mutuo de suma cero ("Mano Vuelta") para redes de trueque federadas.
+**Red de Intercambio Federada** es un sistema de contabilidad descentralizada y crédito mutuo de suma cero ("Mano Vuelta") para redes de trueque federadas. Funciona sobre HTTPS normal: la federación viaja cifrada de extremo a extremo por el mismo puerto web, sin necesidad de IP pública ni puertos adicionales.
 
 **Versión incluida:** 1.0.0~ynh1
 
+> **Nota:** esta aplicación aún **no está en el catálogo oficial de YunoHost**, por lo que se instala como "aplicación personalizada". El botón público `install-app.yunohost.org` solo funciona para apps del catálogo; no uses esa URL.
+
 ## Instalación en YunoHost
 
-### Desde la interfaz web de YunoHost (Botón de 1 clic)
+### Desde la interfaz web de YunoHost (recomendado)
 
-Haz clic en el botón **Install with YunoHost** de arriba o pega la URL del repositorio en **Aplicaciones > Instalar > Aplicación personalizada**:
+1. Entra a tu webadmin → **Aplicaciones → + Instalar**.
+2. Baja hasta el final del catálogo y pega la URL en el campo **"Aplicación personalizada"**:
 
 ```text
-https://github.com/discapacidad5/red-de-intercambio-federada
+https://github.com/discapacidad5/red-intercambio_ynh
 ```
+
+3. Acepta el aviso de aplicación de terceros, completa el formulario (dominio, administrador, contraseña, nombre del nodo, idioma) e instala.
 
 ### Desde la línea de comandos (SSH)
 
 ```bash
-sudo yunohost app install https://github.com/discapacidad5/red-de-intercambio-federada
+sudo yunohost app install https://github.com/discapacidad5/red-intercambio_ynh
 ```
 
-O instalando localmente desde esta carpeta `yunohost/`:
-
-```bash
-sudo yunohost app install ./yunohost
-```
+Si pide confirmación de aplicación no catalogada, escribe `Yes, I understand` (o añade `--force`).
 
 ### Actualizar la aplicación
 
 ```bash
-sudo yunohost app upgrade red-intercambio -u https://github.com/discapacidad5/red-de-intercambio-federada
+sudo yunohost app upgrade red-intercambio -u https://github.com/discapacidad5/red-intercambio_ynh
 ```

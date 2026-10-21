@@ -1,9 +1,5 @@
 # Red de Intercambio Federada for YunoHost
 
-[![Integration level](https://dash.yunohost.org/integration/red-intercambio.svg)](https://dash.yunohost.org/appci/app/red-intercambio) ![Working status](https://ci-apps.yunohost.org/ci/badges/red-intercambio.status.svg) ![Maintenance status](https://ci-apps.yunohost.org/ci/badges/red-intercambio.maintain.svg)
-
-[![Install Red de Intercambio Federada with YunoHost](https://install-app.yunohost.org/install-with-yunohost.svg)](https://install-app.yunohost.org/?app=https://github.com/discapacidad5/red-de-intercambio-federada)
-
 *[Leer este README en español.](./README_es.md)*
 
 > *This package allows you to install **Red de Intercambio Federada** quickly and simply on a YunoHost server.*  
@@ -11,36 +7,37 @@
 
 ## Overview
 
-**Red de Intercambio Federada** is a decentralized mutual-credit accounting system (zero-sum "Mano Vuelta" ledger) designed for federated community barter networks.
+**Red de Intercambio Federada** is a decentralized mutual-credit accounting system (zero-sum "Mano Vuelta" ledger) designed for federated community barter networks. It runs over plain HTTPS: federation traffic travels end-to-end encrypted on the same web port — no public IP or extra ports required.
 
 **Shipped version:** 1.0.0~ynh1
 
+> **Note:** this app is **not yet in the official YunoHost catalog**, so it must be installed as a "custom app". The public `install-app.yunohost.org` badge only works for cataloged apps; do not use that URL.
+
 ## Installing on YunoHost
 
-### From the YunoHost Webadmin (1-click button)
+### From the YunoHost Webadmin (recommended)
 
-Click the button above or paste the repository URL into **Applications > Install > Custom app**:
+1. Open your webadmin → **Applications → + Install**.
+2. Scroll to the bottom of the catalog and paste the URL into the **"Custom app"** field:
 
 ```text
-https://github.com/discapacidad5/red-de-intercambio-federada
+https://github.com/discapacidad5/red-intercambio_ynh
 ```
+
+3. Accept the third-party app warning, fill in the form (domain, administrator, password, node name, language) and install.
 
 ### From the command line (SSH)
 
 ```bash
-sudo yunohost app install https://github.com/discapacidad5/red-de-intercambio-federada
+sudo yunohost app install https://github.com/discapacidad5/red-intercambio_ynh
 ```
 
-Or from a local clone using this `yunohost/` folder:
-
-```bash
-sudo yunohost app install ./yunohost
-```
+If it asks for confirmation of an uncataloged app, type `Yes, I understand` (or add `--force`).
 
 ### Upgrading
 
 ```bash
-sudo yunohost app upgrade red-intercambio -u https://github.com/discapacidad5/red-de-intercambio-federada
+sudo yunohost app upgrade red-intercambio -u https://github.com/discapacidad5/red-intercambio_ynh
 ```
 
 ## Documentation and resources
