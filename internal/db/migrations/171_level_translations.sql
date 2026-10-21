@@ -46,6 +46,8 @@ BEGIN
   BEGIN
     SELECT COALESCE(default_language, 'es') INTO default_lang
     FROM node_config LIMIT 1;
+    -- En instalacion limpia node_config esta vacia y SELECT INTO asigna NULL
+    default_lang := COALESCE(default_lang, 'es');
   EXCEPTION WHEN OTHERS THEN
     default_lang := 'es';
   END;

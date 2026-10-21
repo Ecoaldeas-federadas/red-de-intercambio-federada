@@ -69,6 +69,15 @@ for _ in $(seq 1 30); do
     sleep 2
 done
 
+# Aplicar el preset elegido ANTES de inicializar: el endpoint publico
+# /api/setup/apply-preset solo funciona mientras no exista un admin.
+if [ -n "$preset" ] && [ "$preset" != "vacio" ]; then
+    curl -sf -X POST "http://127.0.0.1:$port/api/setup/apply-preset" \
+        -H "Content-Type: application/json" \
+        -d "{\"preset_id\":\"$preset\",\"node_domain\":\"$domain\"}" >/dev/null \
+        || ynh_print_warn "Could not apply preset '$preset'; the node will be installed empty"
+fi
+
 init_payload=$(python3 -c '
 import json, sys
 print(json.dumps({
