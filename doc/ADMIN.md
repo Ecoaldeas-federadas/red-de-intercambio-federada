@@ -12,3 +12,10 @@
 ### Federation Public Key
 
 To federate this node with other nodes in the network, share the public key stored in `__DATA_DIR__/secrets/node_keys.txt` or retrieve it from the node administration panel under **Federation**.
+
+### Federated Services (suggested apps)
+
+The node's **Federated Services** tab lists self-hosted alternatives (PeerTube, Mastodon, Nextcloud, Jellyfin, etc.). Since this node runs on YunoHost, the **Install** button opens the native YunoHost installer for the equivalent app (`/yunohost/admin/#/apps/install/<app>`), which asks for the domain, path and permissions and manages the full lifecycle (start, stop, update, logs, remove) from the YunoHost admin panel.
+
+- Services without a YunoHost app yet (VoIP, Sylk, BigBlueButton, POS Web...) are marked **"YunoHost app pending"**; the **Download** button still provides a docker-compose package to install them on another server.
+- Mailu/Mailcow are marked **"Already included"** because YunoHost ships a complete mail stack (Postfix + Dovecot + Rspamd).

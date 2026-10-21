@@ -20,6 +20,9 @@ interface ServiceItem {
   subdomain: string
   status: string
   port?: number
+  install_method?: 'docker' | 'yunohost' | 'builtin' | 'pending' | 'download'
+  ynh_app?: string
+  ynh_install_url?: string
 }
 
 interface VoIPConfig {
@@ -65,6 +68,7 @@ export default function FederatedServices() {
   const { node_domain: nodeDomain } = useConfig()
   const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
   const [services, setServices] = useState<ServiceItem[]>([])
+  const [deployment, setDeployment] = useState<string>('docker')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
@@ -117,6 +121,7 @@ export default function FederatedServices() {
     try {
       const res: any = await api.get('/services/catalog')
       setServices(res.services || res || [])
+      setDeployment(res.deployment || 'docker')
     } catch (e) {
       setMsg({ type: 'error', text: t('error_loading_services', 'Error al cargar servicios') })
     } finally {
@@ -375,6 +380,20 @@ export default function FederatedServices() {
         </div>
       )}
 
+      {deployment === 'yunohost' && !isDemoNode && (
+        <div className="bg-indigo-50 border border-indigo-300 rounded-lg p-4 text-sm text-indigo-800 flex items-start gap-2">
+          <Server size={16} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <strong>{t('ynh_banner_title', 'Este nodo corre en YunoHost:')}</strong>{' '}
+            {t('ynh_banner_desc', 'los servicios se instalan como apps de YunoHost usando su propio instalador (el que pregunta dominio, ruta y permisos), y se gestionan desde el panel de administracion de YunoHost: iniciar, detener, actualizar, ver logs y desinstalar.')}
+            {' '}
+            <a href="/yunohost/admin/#/apps" target="_blank" rel="noopener noreferrer" className="underline font-medium">
+              {t('ynh_manage_apps', 'Abrir panel de apps de YunoHost')}
+            </a>
+          </div>
+        </div>
+      )}
+
       {showHelp && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4 text-sm">
           <div className="flex items-center gap-2 text-blue-700 font-semibold text-base">
@@ -554,6 +573,7 @@ export default function FederatedServices() {
           const isInstalled = svc.status === 'running' || svc.status === 'stopped' || svc.status === 'error'
           const isRunning = svc.status === 'running'
           const isExclusive = svc.id === 'pos-web'
+          const method = svc.install_method || (svc.docker ? 'docker' : 'download')
           return (
             <div key={svc.id} className={`card p-4 flex flex-col ${isExclusive ? 'border-2 border-trueque-400 ring-2 ring-trueque-100' : ''}`}>
               <div className="flex items-start justify-between mb-3">
@@ -622,7 +642,7 @@ export default function FederatedServices() {
               </div>
 
               <div className="mt-auto flex gap-2 flex-wrap">
-                {!isInstalled && !isDemoNode && (
+                {!isInstalled && !isDemoNode && method === 'docker' && (
                   <button
                     onClick={() => installService(svc)}
                     disabled={installing}
@@ -634,6 +654,32 @@ export default function FederatedServices() {
                       <><Download size={12} /> {t('install', 'Instalar')}</>
                     )}
                   </button>
+                )}
+                {!isInstalled && !isDemoNode && method === 'yunohost' && (
+                  <a
+                    href={svc.ynh_install_url || `/yunohost/admin/#/apps/install/${svc.ynh_app}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-xs flex items-center gap-1"
+                    title={t('install_ynh_title', 'Abre el instalador de esta app en el panel de YunoHost')}
+                  >
+                    <ExternalLink size={12} /> {t('install_ynh', 'Instalar en YunoHost')}
+                  </a>
+                )}
+                {!isInstalled && method === 'builtin' && (
+                  <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs flex items-center gap-1">
+                    <CheckCircle size={12} /> {t('builtin_ynh', 'Ya incluido en YunoHost')}
+                  </span>
+                )}
+                {!isInstalled && !isDemoNode && method === 'pending' && (
+                  <span
+                    className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs flex items-center gap-1 cursor-help"
+                    title={svc.id === 'pos-web'
+                      ? t('pending_pos_desc', 'Se creara una app YunoHost propia para el Punto de Venta. Mientras tanto puedes descargar el paquete para instalarlo en otro servidor con Docker.')
+                      : t('pending_desc', 'Todavia no existe una app YunoHost para este servicio. Mientras tanto puedes descargar el paquete para instalarlo en otro servidor con Docker.')}
+                  >
+                    <AlertTriangle size={12} /> {t('pending_ynh', 'App YunoHost pendiente')}
+                  </span>
                 )}
                 {!isInstalled && isDemoNode && (
                   <span className="px-3 py-1.5 bg-gray-100 text-gray-400 rounded-lg text-xs flex items-center gap-1 cursor-not-allowed">

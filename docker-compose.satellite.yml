@@ -23,6 +23,7 @@ services:
     depends_on:
       - satellite-db
     environment:
+      - DEPLOYMENT=docker
       - DB_HOST=satellite-db
       - DB_PORT=5432
       - DB_NAME=fmc_satellite

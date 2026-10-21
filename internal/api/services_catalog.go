@@ -39,6 +39,117 @@ type FederatedServicesHandler struct {
 	NodeDomain string
 }
 
+// serviceYunoHostApp mapea servicios del catalogo a su app equivalente en el
+// catalogo oficial de YunoHost. Vacio/ausente = todavia no existe app YNH
+// (queda marcado como "pendiente"; en el futuro se crearan apps _ynh propias,
+// ej. pos-web). Verificado contra apps.json del catalogo YNH.
+var serviceYunoHostApp = map[string]string{
+	"peertube":      "peertube",
+	"mastodon":      "mastodon",
+	"pixelfed":      "pixelfed",
+	"friendica":     "friendica",
+	"lemmy":         "lemmy",
+	"bookwyrm":      "bookwyrm",
+	"writefreely":   "writefreely",
+	"mobilizon":     "mobilizon",
+	"matrix":        "synapse",
+	"jitsi":         "jitsi",
+	"mumble":        "mumbleserver",
+	"snappymail":    "snappymail",
+	"nextcloud":     "nextcloud",
+	"collabora":     "collabora",
+	"bookstack":     "bookstack",
+	"mediawiki":     "mediawiki",
+	"jellyfin":      "jellyfin",
+	"funkwhale":     "funkwhale",
+	"gitea":         "forgejo",
+	"homeassistant": "homeassistant",
+	"vaultwarden":   "vaultwarden",
+}
+
+// deploymentMode detecta como esta desplegado este nodo:
+//   - "yunohost": instalado como app de YunoHost (los servicios sugeridos se
+//     instalan como apps YNH desde el webadmin)
+//   - "docker": instalado con docker-compose (los servicios usan docker compose)
+//   - "manual": instalacion manual/binario (los servicios solo se pueden descargar)
+//
+// Se puede forzar con la variable de entorno DEPLOYMENT; si no existe se
+// detecta por los binarios disponibles.
+func deploymentMode() string {
+	switch d := strings.ToLower(strings.TrimSpace(os.Getenv("DEPLOYMENT"))); d {
+	case "yunohost", "docker", "manual":
+		return d
+	}
+	if _, err := exec.LookPath("yunohost"); err == nil {
+		return "yunohost"
+	}
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return "docker"
+	}
+	if _, err := exec.LookPath("docker"); err == nil {
+		return "docker"
+	}
+	return "manual"
+}
+
+// installMethodFor indica como se instala un servicio en este despliegue:
+//   - "yunohost": existe app YNH (el boton abre el instalador del webadmin)
+//   - "builtin": ya incluido en YunoHost (correo: Postfix/Dovecot/Rspamd)
+//   - "pending": aun no hay app YNH; marcado para crearla a futuro
+//   - "docker": instala con docker compose (despliegue Docker)
+//   - "download": solo descarga del paquete para instalacion manual
+func installMethodFor(svc ServiceCatalogItem, deployment string) string {
+	switch deployment {
+	case "yunohost":
+		if svc.ID == "mailu" || svc.ID == "mailcow" {
+			return "builtin"
+		}
+		if serviceYunoHostApp[svc.ID] != "" {
+			return "yunohost"
+		}
+		if svc.Docker {
+			return "pending"
+		}
+		return "download"
+	case "docker":
+		if svc.Docker {
+			return "docker"
+		}
+		return "download"
+	default:
+		return "download"
+	}
+}
+
+// writeManagedElsewhere bloquea una operacion de ciclo de vida cuando el nodo
+// no corre en Docker. Devuelve true si ya escribio la respuesta.
+func writeManagedElsewhere(w http.ResponseWriter, serviceID, action string) bool {
+	dep := deploymentMode()
+	if dep == "docker" {
+		return false
+	}
+	resp := map[string]interface{}{
+		"success":    false,
+		"error_code": "no_docker_deployment",
+		"deployment": dep,
+		"service_id": serviceID,
+		"message":    fmt.Sprintf("La accion '%s' requiere Docker y este nodo no esta desplegado con Docker. Usa 'Descargar' para instalar el servicio manualmente.", action),
+	}
+	if dep == "yunohost" {
+		resp["error_code"] = "managed_by_yunohost"
+		resp["message"] = "Este nodo corre en YunoHost: los servicios se instalan y gestionan desde el panel de administracion de YunoHost."
+		resp["manage_url"] = "/yunohost/admin/#/apps"
+		if svc := findService(serviceID); svc != nil {
+			if app := serviceYunoHostApp[svc.ID]; app != "" {
+				resp["ynh_app"] = app
+				resp["install_url"] = "/yunohost/admin/#/apps/install/" + app
+			}
+		}
+	}
+	writeJSON(w, 400, resp)
+	return true
+}
+
 // NewFederatedServicesHandler crea un nuevo handler de servicios.
 func NewFederatedServicesHandler(pool *pgxpool.Pool, nodeDomain string) *FederatedServicesHandler {
 	return &FederatedServicesHandler{Pool: pool, NodeDomain: nodeDomain}
@@ -384,24 +495,30 @@ func (sh *FederatedServicesHandler) getCatalog(w http.ResponseWriter, r *http.Re
 	}
 
 	// Combinar catalogo con estado
+	dep := deploymentMode()
 	result := make([]map[string]interface{}, len(catalog))
 	for i, svc := range catalog {
 		info := installed[svc.ID]
 		item := map[string]interface{}{
-			"id":           svc.ID,
-			"name":         svc.Name,
-			"category":     svc.Category,
-			"icon":         svc.Icon,
-			"what_is":      svc.WhatIs,
-			"replaces":     svc.Replaces,
-			"used_for":     svc.UsedFor,
-			"protocol":     svc.Protocol,
-			"docker":       svc.Docker,
-			"min_ram_mb":   svc.MinRAM,
-			"min_disk_gb":  svc.MinDisk,
-			"default_port": svc.DefaultPort,
-			"subdomain":    svc.Subdomain,
-			"status":       info.status,
+			"id":             svc.ID,
+			"name":           svc.Name,
+			"category":       svc.Category,
+			"icon":           svc.Icon,
+			"what_is":        svc.WhatIs,
+			"replaces":       svc.Replaces,
+			"used_for":       svc.UsedFor,
+			"protocol":       svc.Protocol,
+			"docker":         svc.Docker,
+			"min_ram_mb":     svc.MinRAM,
+			"min_disk_gb":    svc.MinDisk,
+			"default_port":   svc.DefaultPort,
+			"subdomain":      svc.Subdomain,
+			"status":         info.status,
+			"install_method": installMethodFor(svc, dep),
+		}
+		if app := serviceYunoHostApp[svc.ID]; app != "" {
+			item["ynh_app"] = app
+			item["ynh_install_url"] = "/yunohost/admin/#/apps/install/" + app
 		}
 		for _, field := range translatedFields {
 			if v := values["service_catalog:"+svc.ID+":"+field]; v != "" {
@@ -417,7 +534,7 @@ func (sh *FederatedServicesHandler) getCatalog(w http.ResponseWriter, r *http.Re
 		result[i] = item
 	}
 
-	writeJSON(w, 200, map[string]interface{}{"services": result})
+	writeJSON(w, 200, map[string]interface{}{"services": result, "deployment": dep})
 }
 
 // listInstalled lista los servicios instalados.
@@ -485,6 +602,9 @@ func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *htt
 	svc := findService(serviceID)
 	if svc == nil {
 		writeError(w, 404, "servicio no encontrado")
+		return
+	}
+	if writeManagedElsewhere(w, serviceID, "install") {
 		return
 	}
 
@@ -568,6 +688,9 @@ func (sh *FederatedServicesHandler) uninstallService(w http.ResponseWriter, r *h
 		return
 	}
 	serviceID := chi.URLParam(r, "serviceID")
+	if writeManagedElsewhere(w, serviceID, "uninstall") {
+		return
+	}
 	ctx := r.Context()
 
 	// Detener y eliminar contenedor
@@ -590,6 +713,9 @@ func (sh *FederatedServicesHandler) startService(w http.ResponseWriter, r *http.
 		return
 	}
 	serviceID := chi.URLParam(r, "serviceID")
+	if writeManagedElsewhere(w, serviceID, "start") {
+		return
+	}
 	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "start")
 	output, err := cmd.CombinedOutput()
 
@@ -610,6 +736,9 @@ func (sh *FederatedServicesHandler) stopService(w http.ResponseWriter, r *http.R
 		return
 	}
 	serviceID := chi.URLParam(r, "serviceID")
+	if writeManagedElsewhere(w, serviceID, "stop") {
+		return
+	}
 	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "stop")
 	cmd.Run()
 
@@ -626,6 +755,9 @@ func (sh *FederatedServicesHandler) restartService(w http.ResponseWriter, r *htt
 		return
 	}
 	serviceID := chi.URLParam(r, "serviceID")
+	if writeManagedElsewhere(w, serviceID, "restart") {
+		return
+	}
 	composePath := findComposeFile(serviceID)
 	if composePath == "" {
 		writeError(w, 404, "docker-compose.yml no encontrado para el servicio")
@@ -646,6 +778,9 @@ func (sh *FederatedServicesHandler) restartService(w http.ResponseWriter, r *htt
 // getServiceLogs devuelve los logs recientes de un servicio.
 func (sh *FederatedServicesHandler) getServiceLogs(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
+	if writeManagedElsewhere(w, serviceID, "logs") {
+		return
+	}
 	containerName := fmt.Sprintf("aldea-%s", serviceID)
 	// Ultimas 200 lineas de logs del contenedor
 	cmd := exec.Command("docker", "logs", "--tail", "200", containerName)
@@ -666,6 +801,16 @@ func (sh *FederatedServicesHandler) getServiceLogs(w http.ResponseWriter, r *htt
 // getServiceStatus devuelve el estado de un servicio.
 func (sh *FederatedServicesHandler) getServiceStatus(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
+	if dep := deploymentMode(); dep != "docker" {
+		writeJSON(w, 200, map[string]interface{}{
+			"service_id": serviceID,
+			"deployment": dep,
+			"managed_by": dep,
+			"running":    false,
+			"status":     "external",
+		})
+		return
+	}
 	containerName := fmt.Sprintf("aldea-%s", serviceID)
 
 	// Verificar si el contenedor esta corriendo

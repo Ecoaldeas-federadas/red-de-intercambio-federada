@@ -12,3 +12,10 @@
 ### Clave pública de federación
 
 Para federar este nodo con otros nodos de la red, comparte la clave pública guardada en `__DATA_DIR__/secrets/node_keys.txt` o consúltala directamente desde el panel de administración del nodo en la sección **Federación**.
+
+### Servicios Federados (apps sugeridas)
+
+La pestaña **Servicios Federados** del nodo lista alternativas autohospedadas (PeerTube, Mastodon, Nextcloud, Jellyfin, etc.). Como este nodo corre en YunoHost, el botón **Instalar** abre el instalador nativo de YunoHost de la app equivalente (`/yunohost/admin/#/apps/install/<app>`), que pregunta dominio, ruta y permisos y gestiona todo el ciclo de vida (iniciar, detener, actualizar, logs, desinstalar) desde el panel de administración de YunoHost.
+
+- Los servicios que aún no tienen app en YunoHost (VoIP, Sylk, BigBlueButton, Punto de Venta...) aparecen como **"App YunoHost pendiente"**; el botón **Descargar** sigue ofreciendo un paquete docker-compose para instalarlos en otro servidor.
+- Mailu/Mailcow aparecen como **"Ya incluido"** porque YunoHost incluye de fábrica un servidor de correo completo (Postfix + Dovecot + Rspamd).
