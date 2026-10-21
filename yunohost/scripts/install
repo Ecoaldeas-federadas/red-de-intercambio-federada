@@ -49,7 +49,7 @@ yunohost service add "$app" --description="Federated Mutual Credit Node" --log=s
 #=================================================
 ynh_script_progression "Starting $app's systemd service..."
 
-ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --timeout=180
+ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --log_path=systemd --timeout=300
 
 #=================================================
 # INITIALIZE NODE AND ADMIN USER
@@ -62,7 +62,7 @@ if [ -z "$admin_fullname" ]; then
 fi
 
 # Esperar a que el endpoint /api/setup/status responda tras las migraciones SQL
-for _ in $(seq 1 30); do
+for _ in $(seq 1 90); do
     if curl -sf "http://127.0.0.1:$port/api/setup/status" >/dev/null 2>&1; then
         break
     fi

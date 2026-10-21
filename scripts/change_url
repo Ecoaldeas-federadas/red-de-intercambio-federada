@@ -30,7 +30,7 @@ ynh_psql_db_shell <<< "UPDATE node_config SET node_domain = '$new_domain', updat
 #=================================================
 ynh_script_progression "Starting $app's systemd service..."
 
-ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --timeout=180
+ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --log_path=systemd --timeout=300
 
 #=================================================
 # END OF SCRIPT
