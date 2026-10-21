@@ -35,7 +35,7 @@ ynh_script_progression "Restoring system configurations related to $app..."
 systemctl daemon-reload
 systemctl enable "$app.service" --quiet
 
-yunohost service add "$app" --description="Federated Mutual Credit Node" --log="/var/log/$app/$app.log"
+yunohost service add "$app" --description="Federated Mutual Credit Node" --log=systemd
 
 systemctl reload nginx
 
