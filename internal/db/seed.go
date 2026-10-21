@@ -2086,8 +2086,8 @@ func getSeedPages() []seedPage {
   },
   {
     "type": "services_dynamic",
-    "title": "Servicios Disponibles",
-    "subtitle": "Catalogo real del nodo. Los servicios instalados se muestran al publico. Usa el editor para ocultar o mostrar servicios."
+    "title": "Catalogo de Servicios",
+    "subtitle": "Estos son todos los servicios que el nodo puede instalar. Los marcados como Instalado ya estan activos en esta aldea. Usa el editor para ocultar o mostrar servicios."
   },
   {
     "type": "features_grid",
@@ -2095,11 +2095,17 @@ func getSeedPages() []seedPage {
     "subtitle": "Instalacion y gestion de servicios",
     "columns": 2,
     "items": [
-      {"icon":"server","title":"Instalacion con un Clic","description":"Cada servicio se instala con un clic desde el panel de administracion. El sistema genera el docker-compose.yml y las instrucciones. Solo necesitas un servidor con suficiente RAM y disco.","badge":"1 clic"},
-      {"icon":"settings","title":"Gestion Centralizada","description":"Desde el panel puedes iniciar, detener, desinstalar y ver el estado de cada servicio. Tambien puedes descargar el docker-compose para instalarlo manualmente en otro servidor.","badge":"Gestion"},
+      {"icon":"server","title":"Instalacion con un Clic","description":"Cada servicio se instala con un clic desde el panel de administracion. En nodos Docker se genera el docker-compose; en nodos YunoHost se instala como app de YunoHost desde su instalador nativo. Solo necesitas un servidor con suficiente RAM y disco.","badge":"1 clic"},
+      {"icon":"settings","title":"Gestion Centralizada","description":"En nodos Docker puedes iniciar, detener, desinstalar y ver el estado de cada servicio desde el panel. En nodos YunoHost la gestion completa se hace desde el panel de administracion de YunoHost.","badge":"Gestion"},
       {"icon":"shield","title":"Sin Empresas Intermediarias","description":"Todos los servicios se hospedan en el servidor de la aldea. No hay anuncios, no hay recopilacion de datos, no hay empresas vigilando. Los datos pertenecen a la comunidad.","badge":"Soberano"},
       {"icon":"link","title":"Federacion entre Aldeas","description":"Los servicios que soportan ActivityPub (PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm) pueden federarse con otras aldeas. El contenido se comparte entre nodos federados.","badge":"Federado"}
     ]
+  },
+  {
+    "type": "richtext",
+    "title": "Que es la Federacion?",
+    "subtitle": "La misma tecnologia que conecta las aldeas entre si",
+    "content": "<p>La federacion permite que cada comunidad mantenga su propio servidor, sus propias normas y su propia gobernanza, pero pueda compartir contenido y comerciar con las demas comunidades de la red — igual que el correo electronico conecta servidores distintos sin que ninguno dependa del otro.</p><ul><li><strong>Autonomia:</strong> cada nodo es soberano; nadie impone reglas sobre los demas.</li><li><strong>Comercio entre nodos:</strong> los miembros pueden usar su saldo TQ en cualquier aldea federada.</li><li><strong>Seguridad:</strong> las transacciones entre nodos viajan firmadas con Ed25519 y cifradas de extremo a extremo.</li><li><strong>Sin punto unico de fallo:</strong> si un nodo se cae, los demas siguen funcionando.</li></ul><p><a href=\"/p/federacion\">Conoce en detalle como funciona la federacion de ecoaldeas →</a></p>"
   },
   {
     "type": "cta_banner",

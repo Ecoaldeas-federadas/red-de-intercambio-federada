@@ -37,6 +37,7 @@ export function PublicFederationPage({
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
   const [copiedMsg, setCopiedMsg] = useState(false)
   const [demoState, setDemoState] = useState<'unknown' | 'stopped' | 'starting' | 'running'>('unknown')
+  const [demoAvailable, setDemoAvailable] = useState(true)
   const [demoStarting, setDemoStarting] = useState(false)
   const [demoStartLog, setDemoStartLog] = useState('')
   const [demoStartMsg, setDemoStartMsg] = useState('')
@@ -168,6 +169,11 @@ export function PublicFederationPage({
 
   const checkDemoStatus = () => {
     api.get('/demo/status').then((d: any) => {
+      if (d?.demo_available === false) {
+        setDemoAvailable(false)
+        return
+      }
+      setDemoAvailable(true)
       if (d?.running) {
         setDemoState('running')
       } else {
@@ -948,8 +954,9 @@ export function PublicFederationPage({
         </div>
       </section>
 
-      {/* Demo - solo se muestra en el nodo principal, no en el demo */}
-      {(window as any).__BASE_PATH__ !== '/demo' && (
+      {/* Demo - solo se muestra en el nodo principal, no en el demo,
+          y solo en despliegues Docker (el demo es un contenedor) */}
+      {(window as any).__BASE_PATH__ !== '/demo' && demoAvailable && (
       <section className="bg-emerald-700 text-white py-16">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold mb-4">{t('fed_demo_title')}</h2>

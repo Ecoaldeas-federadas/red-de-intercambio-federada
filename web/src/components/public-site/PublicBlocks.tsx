@@ -1692,10 +1692,12 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
     ? services.filter((s) => data.categories!.includes(s.category))
     : services
 
-  // En modo publico: solo mostrar servicios no ocultos E instalados
+  // En modo publico: mostrar todos los servicios del catalogo no ocultos.
+  // Los instalados se marcan con insignia; los demas se muestran como
+  // "Disponible" para que la pagina siempre muestre la oferta completa.
   const visibleServices = editMode
     ? filteredServices
-    : filteredServices.filter((s) => !hiddenIds.includes(s.id) && s.status === 'installed')
+    : filteredServices.filter((s) => !hiddenIds.includes(s.id))
 
   // Agrupar por categoria
   const grouped = SERVICE_CATEGORY_LABELS
@@ -1758,7 +1760,7 @@ export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData 
             {group.items.map((svc: any) => {
               const IconComp = ICON_MAP[String(svc.icon || '').toLowerCase()] || Server
               const isHidden = hiddenIds.includes(svc.id)
-              const isInstalled = svc.status === 'installed'
+              const isInstalled = svc.status === 'running' || svc.status === 'installed'
               return (
                 <div
                   key={svc.id}

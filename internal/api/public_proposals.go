@@ -271,6 +271,8 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 // getDemoStatus devuelve si el nodo demo esta corriendo y disponible
 func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Request) {
 	running := false
+	dep := deploymentMode()
+	demoAvailable := dep == "docker"
 
 	// Verificar si el contenedor demo-app esta corriendo usando docker CLI.
 	// Usar el nombre dinamico del proyecto (ej: red-de-intercambio-federada-demo-app-1).
@@ -298,10 +300,12 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"running":      running,
-		"is_demo_node": isDemoNode,
-		"node_domain":  nodeDomain,
-		"demo_url":     "http://localhost:9091/demo",
+		"running":        running,
+		"is_demo_node":   isDemoNode,
+		"node_domain":    nodeDomain,
+		"demo_url":       "http://localhost:9091/demo",
+		"deployment":     dep,
+		"demo_available": demoAvailable,
 	})
 }
 
@@ -318,6 +322,15 @@ var demoStartStatus = struct {
 // Es ASINCRONO: responde inmediatamente y el progreso se consulta con
 // GET /api/demo/start/status
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
+	// El nodo demo es un contenedor Docker; solo existe en despliegues Docker
+	if deploymentMode() != "docker" {
+		writeJSON(w, 403, map[string]interface{}{
+			"success": false,
+			"message": "El nodo demo solo esta disponible en despliegues Docker (el demo es un contenedor independiente).",
+		})
+		return
+	}
+
 	// Leer preset_id del body (opcional)
 	presetID := ""
 	if r.Body != nil {
