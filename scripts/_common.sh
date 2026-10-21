@@ -66,9 +66,11 @@ func main() {
 	fmt.Println(base64.StdEncoding.EncodeToString(priv))
 }
 GOEOF
-    local output
-    output=$(go run "$key_gen_file")
+    local tmp_cache output
+    tmp_cache=$(mktemp -d)
+    output=$(env HOME="$tmp_cache" GOCACHE="$tmp_cache/gocache" GOPATH="$tmp_cache/gopath" go run "$key_gen_file")
     rm -f "$key_gen_file"
+    ynh_safe_rm "$tmp_cache"
 
     node_public_key=$(echo "$output" | head -n 1 | tr -d '\r\n')
     node_private_key=$(echo "$output" | tail -n 1 | tr -d '\r\n')
