@@ -43,24 +43,13 @@ Cada nodo opera de forma independiente en casa o en una red local/intranet comun
 
 ## Instalacion rapida (recomendado)
 
-### Opcion YunoHost — Boton de 1 clic o linea de comandos
+### Opcion YunoHost — Instalacion grafica
 
 Si tienes un servidor [YunoHost](https://yunohost.org/), puedes instalar el nodo directamente sin configurar base de datos, proxy NGINX ni certificados SSL manualmente:
 
 [![Instalar Red de Intercambio Federada con YunoHost](https://install-app.yunohost.org/install-with-yunohost.svg)](https://github.com/discapacidad5/red-intercambio_ynh)
 
-> La app aun no esta en el catalogo oficial de YunoHost, por lo que se instala como **aplicacion personalizada** desde el paquete [`red-intercambio_ynh`](https://github.com/discapacidad5/red-intercambio_ynh). (El servicio `install-app.yunohost.org` solo funciona con apps del catalogo.)
-
-**Desde la administracion web de YunoHost:**
-1. Entra a **Aplicaciones > + Instalar** y baja hasta el campo **"Aplicacion personalizada"** al final del catalogo.
-2. Pega la URL del paquete: `https://github.com/discapacidad5/red-intercambio_ynh`
-3. Acepta el aviso de aplicacion de terceros, elige el dominio/subdominio, el usuario administrador, su contrasena, el nombre de tu nodo comunitario y el idioma predeterminado.
-
-**Desde SSH en tu servidor YunoHost:**
-```bash
-sudo yunohost app install https://github.com/discapacidad5/red-intercambio_ynh
-```
-*(Si pide confirmacion de app no catalogada, escribe `Yes, I understand`. Tambien existe una copia del paquete dentro de la carpeta [`yunohost/`](yunohost/) para instalar localmente con `sudo yunohost app install ./yunohost` o para una futura publicacion en `YunoHost-Apps`.)*
+**Toda la documentacion de instalacion en YunoHost (instalador web, linea de comandos, actualizaciones, respaldos y administracion) esta en el repositorio del paquete:** [`discapacidad5/red-intercambio_ynh`](https://github.com/discapacidad5/red-intercambio_ynh)
 
 ---
 
