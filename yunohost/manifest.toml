@@ -29,6 +29,10 @@ disk = "500M"
 ram.build = "1G"
 ram.runtime = "256M"
 
+[antifeatures]
+not-totally-free-upstream.en = "Upstream uses the LPF-1.0 license (AGPL-style copyleft with mandatory federation interoperability, no-code-sale and SaaS royalty clauses above USD 12,000/year)."
+not-totally-free-upstream.es = "El proyecto usa la licencia LPF-1.0 (copyleft estilo AGPL con interoperabilidad de federación obligatoria, prohibición de venta del código y regalías SaaS sobre USD 12.000/año)."
+
 [install]
     [install.domain]
     type = "domain"

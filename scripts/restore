@@ -4,13 +4,22 @@ source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
 #=================================================
-# RESTORE THE APP MAIN DIR AND DATA
+# RESTORE THE APP MAIN DIR
 #=================================================
-ynh_script_progression "Restoring the app files and data..."
+ynh_script_progression "Restoring the app main directory..."
 
-ynh_restore_everything
+ynh_restore "$install_dir"
 
-# Re-enlazar carpetas de datos persistentes
+chown -R "$app:$app" "$install_dir"
+
+#=================================================
+# RESTORE THE DATA DIRECTORY
+#=================================================
+ynh_script_progression "Restoring the data directory..."
+
+ynh_restore "$data_dir"
+
+mkdir -p "$data_dir/uploads" "$data_dir/backups" "$data_dir/secrets" "$data_dir/html"
 ln -sfn "$data_dir/uploads" "$install_dir/uploads"
 ln -sfn "$data_dir/backups" "$install_dir/backups"
 ln -sfn "$data_dir/secrets" "$install_dir/secrets"
@@ -32,19 +41,21 @@ ynh_psql_db_shell < ./db.sql
 #=================================================
 ynh_script_progression "Restoring system configurations related to $app..."
 
-systemctl daemon-reload
+ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
+
+ynh_restore "/etc/systemd/system/$app.service"
 systemctl enable "$app.service" --quiet
 
 yunohost service add "$app" --description="Federated Mutual Credit Node" --log=systemd
 
-systemctl reload nginx
-
 #=================================================
-# START SYSTEMD SERVICE
+# RELOAD NGINX AND START THE APP SERVICE
 #=================================================
-ynh_script_progression "Starting $app's systemd service..."
+ynh_script_progression "Reloading NGINX web server and $app's service..."
 
 ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --log_path=systemd --timeout=300
+
+ynh_systemctl --service=nginx --action=reload
 
 #=================================================
 # END OF SCRIPT
