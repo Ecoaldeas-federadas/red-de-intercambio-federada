@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import { reloadLanguageBundles, getCurrentLanguage } from '../i18n/TranslationProvider'
 import { Languages, Download, CheckCircle, AlertCircle, Loader2, Save, Plus, Network, Search, Database, X, Pencil, Info, ArrowRight, Upload, ArrowLeft, CheckSquare } from 'lucide-react'
 
 type KeyEntry = {
@@ -8,6 +9,7 @@ type KeyEntry = {
   value: string
   is_default: boolean
   json_value: string
+  reference_value?: string
 }
 
 type NSResult = {
@@ -236,6 +238,9 @@ export default function TranslationEditor() {
     try {
       await api.put(`/translations/${selectedLang}/${ns}/key`, { key, value })
       markSaved(ns, key, value)
+      if (selectedLang === getCurrentLanguage()) {
+        reloadLanguageBundles(selectedLang)
+      }
       setSaveMsg(t('key_saved'))
       loadAuditData()
     } catch (e: any) {
@@ -339,7 +344,10 @@ export default function TranslationEditor() {
 
   const handleDownload = async (lang: string) => {
     try {
-      const res = await fetch(`/api/translations/${lang}/download`)
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/translations/${encodeURIComponent(lang)}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error('Download failed')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -376,17 +384,19 @@ export default function TranslationEditor() {
 
   const handleAddLanguage = async () => {
     if (!newLangCode || !newLangName) return
+    const code = newLangCode.trim().toLowerCase()
     try {
       await api.post('/languages', {
-        code: newLangCode,
-        name: newLangName,
-        native_name: newLangNative || newLangName,
+        code,
+        name: newLangName.trim(),
+        native_name: (newLangNative || newLangName).trim(),
         enabled: true,
       })
       setNewLangCode('')
       setNewLangName('')
       setNewLangNative('')
-      loadLanguages()
+      await loadLanguages()
+      setSelectedLang(code)
       setSaveError(false)
       setSaveMsg(t('language_added', 'Language added'))
     } catch (e: any) {
@@ -402,6 +412,10 @@ export default function TranslationEditor() {
     setUploadError(false)
     try {
       const formData = new FormData()
+      formData.append('language', selectedLang)
+      if (selectedNs) {
+        formData.append('namespace', selectedNs)
+      }
       formData.append('file', file)
       const res = await fetch('/api/translations/upload', {
         method: 'POST',
@@ -414,12 +428,17 @@ export default function TranslationEditor() {
         const err = await res.json()
         throw new Error(err.error || 'Upload failed')
       }
+      if (selectedLang === getCurrentLanguage()) {
+        reloadLanguageBundles(selectedLang)
+      }
       setUploadMsg(t('upload_success', 'File uploaded successfully'))
       loadAllKeys()
       loadAuditData()
     } catch (err: any) {
       setUploadError(true)
       setUploadMsg(err.message || t('upload_error', 'Error uploading file'))
+    } finally {
+      e.target.value = ''
     }
   }
 
@@ -451,12 +470,12 @@ export default function TranslationEditor() {
     })
   }
 
-  // Divide las claves: en BD (oficiales) vs diferencias (BD != JSON)
+  // Divide las claves: todas las claves editables (BD + pendientes del idioma) vs diferencias (BD != JSON)
   const { dbData, diffData } = useMemo(() => {
     const db: NSResult[] = []
     const dif: NSResult[] = []
     for (const ns of allKeys) {
-      const dbKeys = ns.keys.filter((k) => !k.is_default)
+      const dbKeys = ns.keys
       const diffKeys = ns.keys.filter((k) => !k.is_default && k.json_value && k.value !== k.json_value)
       if (dbKeys.length) db.push({ namespace: ns.namespace, keys: dbKeys })
       if (diffKeys.length) dif.push({ namespace: ns.namespace, keys: diffKeys })
@@ -970,7 +989,7 @@ export default function TranslationEditor() {
                           )
                         }
 
-                        // ---- Fila de clave EN BD (oficial) ----
+                        // ---- Fila de clave EN BD / pendiente de traducir ----
                         return (
                           <div key={entry.key} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 p-2 items-start">
                             <div className="min-w-0">
@@ -979,14 +998,28 @@ export default function TranslationEditor() {
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
                                   {t('badge_unsaved', 'Edited unsaved')}
                                 </span>
-                              ) : (
+                              ) : !entry.is_default ? (
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
                                   {t('badge_saved', 'In DB')}
                                 </span>
+                              ) : entry.value ? (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
+                                  JSON
+                                </span>
+                              ) : (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                  {t('content_missing', 'Missing')}
+                                </span>
+                              )}
+                              {entry.reference_value && entry.reference_value !== (editingValues[editKey] ?? entry.value) && (
+                                <p className="text-xs text-gray-400 mt-1 line-clamp-2" title={entry.reference_value}>
+                                  {entry.reference_value}
+                                </p>
                               )}
                             </div>
                             <textarea
                               className={`input text-sm py-1 ${dirty ? 'border-amber-400 bg-amber-50' : ''}`}
+                              placeholder={entry.reference_value || ''}
                               value={editingValues[editKey] ?? entry.value}
                               onChange={(e) => handleEdit(ns.namespace, entry.key, e.target.value)}
                               rows={1}

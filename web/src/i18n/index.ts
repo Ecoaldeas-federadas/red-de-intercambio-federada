@@ -107,9 +107,33 @@ const enResources: Record<string, any> = {
   translations: enTranslations,
 }
 
+// Aplana recursivamente objetos anidados en claves separadas por puntos
+// (ej: { nav: { dashboard: "Inicio" } } -> { "nav.dashboard": "Inicio" })
+// para que coincidan con el formato plano que devuelve /api/translations/{lang}/{ns}.
+export function flattenResource(obj: Record<string, any>, prefix = ''): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(obj || {})) {
+    const key = prefix ? `${prefix}.${k}` : k
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      Object.assign(out, flattenResource(v, key))
+    } else if (v !== undefined && v !== null) {
+      out[key] = String(v)
+    }
+  }
+  return out
+}
+
+function flattenNamespaceMap(nsMap: Record<string, any>): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {}
+  for (const [ns, data] of Object.entries(nsMap)) {
+    out[ns] = flattenResource(data)
+  }
+  return out
+}
+
 export const embeddedResources = {
-  es: esResources,
-  en: enResources,
+  es: flattenNamespaceMap(esResources),
+  en: flattenNamespaceMap(enResources),
 }
 
 i18n.use(initReactI18next).init({
@@ -118,6 +142,7 @@ i18n.use(initReactI18next).init({
   fallbackLng: 'es',
   defaultNS: 'common',
   ns: ALL_NS,
+  keySeparator: false, // Todas las claves (embebidas y de API) se normalizan a formato plano con punto
   interpolation: {
     escapeValue: false, // React ya escapa por defecto
   },

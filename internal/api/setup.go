@@ -362,10 +362,25 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Si el idioma no es 'es', marcarlo como default en la tabla languages
+	// Si el idioma no es 'es', asegurar que exista en la tabla languages y marcarlo como default
 	if defaultLang != "es" {
+		langNames := map[string][2]string{
+			"en": {"English", "English"},
+			"pt": {"Portuguese", "Português"},
+			"fr": {"French", "Français"},
+			"de": {"German", "Deutsch"},
+			"it": {"Italian", "Italiano"},
+		}
+		pair, ok := langNames[defaultLang]
+		if !ok {
+			pair = [2]string{defaultLang, defaultLang}
+		}
 		_, _ = sh.Pool.Exec(ctx, `UPDATE languages SET is_default = false`)
-		_, _ = sh.Pool.Exec(ctx, `UPDATE languages SET is_default = true, enabled = true WHERE code = $1`, defaultLang)
+		_, _ = sh.Pool.Exec(ctx, `
+			INSERT INTO languages (code, name, native_name, enabled, is_default)
+			VALUES ($1, $2, $3, true, true)
+			ON CONFLICT (code) DO UPDATE SET is_default = true, enabled = true`,
+			defaultLang, pair[0], pair[1])
 	}
 
 	am := NewAuthMiddleware(jwtSecret)

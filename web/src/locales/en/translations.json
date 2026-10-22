@@ -90,5 +90,18 @@
   "saved_tooltip": "No changes to save",
   "save_to_db": "Save to DB",
   "key_applied": "Translation applied to the database",
-  "seed_force_confirm": "This will overwrite ALL translations for \"{{lang}}\" in the database with the values from the JSON files. Continue?"
+  "seed_force_confirm": "This will overwrite ALL translations for \"{{lang}}\" in the database with the values from the JSON files. Continue?",
+  "tab_content": "Database content",
+  "content_tab_hint": "Visible texts stored in the database. If no translation exists, the application shows the node's primary language.",
+  "content_search": "Search key or text...",
+  "content_all_statuses": "All statuses",
+  "content_missing": "Missing",
+  "content_translated": "Translated",
+  "content_stale": "Outdated",
+  "content_all_modules": "All modules",
+  "content_results": "texts found",
+  "content_empty": "No content matches these filters.",
+  "content_source": "Original",
+  "content_saved": "Content translation saved",
+  "content_load_error": "Could not load translatable content"
 }

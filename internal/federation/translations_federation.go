@@ -20,27 +20,27 @@ import (
 
 // TranslationSyncPayload es el payload que se envia/recibe via gossip.
 type TranslationSyncPayload struct {
-	FromNode    string                  `json:"from_node"`
+	FromNode     string                 `json:"from_node"`
 	Translations []TranslationSyncEntry `json:"translations"`
 }
 
 // TranslationSyncEntry es una traduccion individual en el payload de sync.
 type TranslationSyncEntry struct {
-	LanguageCode  string `json:"language_code"`
-	DisplayName   string `json:"display_name"`
-	Version       string `json:"version"`
-	FileHash      string `json:"file_hash"`
-	SignedBy      string `json:"signed_by"`
-	Signature     string `json:"signature"`
-	NumKeys       int    `json:"num_keys"`
-	LastUpdated   string `json:"last_updated"`
+	LanguageCode string `json:"language_code"`
+	DisplayName  string `json:"display_name"`
+	Version      string `json:"version"`
+	FileHash     string `json:"file_hash"`
+	SignedBy     string `json:"signed_by"`
+	Signature    string `json:"signature"`
+	NumKeys      int    `json:"num_keys"`
+	LastUpdated  string `json:"last_updated"`
 }
 
 // handleTranslationsList responde con la lista de traducciones compartidas.
 func (s *Server) handleTranslationsList(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.Pool.Query(r.Context(),
-		`SELECT l.code, l.native_name, l.version, l.file_hash, l.signed_by, l.signature,
-		        (SELECT COUNT(*) FROM translations t WHERE t.language_code = l.code AND t.is_published = true),
+		`SELECT l.code, l.native_name, COALESCE(l.version, '1.0.0'), COALESCE(l.file_hash, ''), COALESCE(l.signed_by, ''), COALESCE(l.signature, ''),
+		        (SELECT COUNT(DISTINCT t.namespace || '.' || t.key) FROM translations t WHERE t.language = l.code),
 		        COALESCE(l.updated_at::text, '')
 		 FROM languages l
 		 WHERE l.enabled = true AND l.shared_with_federation = true`)
@@ -80,7 +80,7 @@ func (s *Server) handleTranslationsDownload(w http.ResponseWriter, r *http.Reque
 	rows, err := s.Pool.Query(r.Context(),
 		`SELECT namespace, key, value
 		 FROM translations
-		 WHERE language_code = $1 AND is_published = true
+		 WHERE language = $1
 		 ORDER BY namespace, key`, langCode)
 	if err != nil {
 		http.Error(w, "error consultando traducciones", 500)

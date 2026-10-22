@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -395,6 +397,8 @@ func (th *TranslationHandler) updateTranslations(w http.ResponseWriter, r *http.
 }
 
 // uploadTranslations sube un archivo JSON de traducciones.
+// Soporta tanto un JSON de un solo namespace ({"key": "val"} o anidado)
+// como un paquete completo multi-namespace ({"common": {"key": "val"}, "dashboard": {...}}).
 // POST /api/translations/upload (requiere translations.manage)
 func (th *TranslationHandler) uploadTranslations(w http.ResponseWriter, r *http.Request) {
 	// Limitar a 10MB
@@ -405,14 +409,11 @@ func (th *TranslationHandler) uploadTranslations(w http.ResponseWriter, r *http.
 		return
 	}
 
-	lang := r.FormValue("language")
-	ns := r.FormValue("namespace")
+	lang := strings.TrimSpace(r.FormValue("language"))
+	ns := strings.TrimSpace(r.FormValue("namespace"))
 	if lang == "" {
 		writeJSON(w, 400, map[string]string{"error": "language is required"})
 		return
-	}
-	if ns == "" {
-		ns = "common"
 	}
 
 	file, _, err := r.FormFile("file")
@@ -428,27 +429,59 @@ func (th *TranslationHandler) uploadTranslations(w http.ResponseWriter, r *http.
 		return
 	}
 
-	var translations map[string]string
-	if err := json.Unmarshal(data, &translations); err != nil {
+	knownNS := map[string]bool{
+		"common": true, "dashboard": true, "transfer": true, "nfc": true, "federation": true, "assembly": true,
+		"organizations": true, "products": true, "settings": true, "profile": true, "notifications": true,
+		"external": true, "services": true, "website": true, "public": true, "errors": true, "audit": true,
+		"satellite": true, "translations": true,
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "invalid JSON format"})
 		return
+	}
+
+	// Detectar si es un paquete multi-namespace (todas o la mayoria de claves top-level son namespaces conocidos con objetos)
+	byNamespace := map[string]map[string]string{}
+	isMultiNS := ns == "" && len(raw) > 0
+	if isMultiNS {
+		matchedNS := 0
+		for k, v := range raw {
+			if subObj, ok := v.(map[string]interface{}); ok && knownNS[k] {
+				matchedNS++
+				byNamespace[k] = flattenJSON(subObj, "")
+			}
+		}
+		if matchedNS == 0 {
+			isMultiNS = false
+		}
+	}
+
+	if !isMultiNS {
+		if ns == "" {
+			ns = "common"
+		}
+		byNamespace[ns] = flattenJSON(raw, "")
 	}
 
 	userID, _ := getUserID(r)
 	actualDomain := th.NodeDomain
 
 	inserted := 0
-	for key, value := range translations {
-		_, err := th.Pool.Exec(r.Context(), `
-			INSERT INTO translations (key, namespace, language, value, node_domain, updated_by)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			ON CONFLICT (key, namespace, language, node_domain) DO UPDATE SET
-				value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
-			key, ns, lang, value, actualDomain, userID)
-		if err != nil {
-			continue
+	for targetNS, kv := range byNamespace {
+		for key, value := range kv {
+			_, err := th.Pool.Exec(r.Context(), `
+				INSERT INTO translations (key, namespace, language, value, node_domain, updated_by)
+				VALUES ($1, $2, $3, $4, $5, $6)
+				ON CONFLICT (key, namespace, language, node_domain) DO UPDATE SET
+					value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
+				key, targetNS, lang, value, actualDomain, userID)
+			if err != nil {
+				continue
+			}
+			inserted++
 		}
-		inserted++
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
@@ -459,6 +492,7 @@ func (th *TranslationHandler) uploadTranslations(w http.ResponseWriter, r *http.
 }
 
 // downloadTranslations descarga un JSON con el merge de defaults + overrides.
+// Si ?namespace= esta vacio, descarga el paquete completo con los 19 namespaces.
 // GET /api/translations/{lang}/download (requiere translations.manage)
 func (th *TranslationHandler) downloadTranslations(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
@@ -467,20 +501,38 @@ func (th *TranslationHandler) downloadTranslations(w http.ResponseWriter, r *htt
 		return
 	}
 
-	ns := r.URL.Query().Get("namespace")
-	if ns == "" {
-		ns = "common"
+	ns := strings.TrimSpace(r.URL.Query().Get("namespace"))
+	if ns != "" {
+		result := th.loadJSONDefaults(lang, ns)
+		overrides := th.loadDBOverrides(r, lang, ns)
+		for k, v := range overrides {
+			result[k] = v
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s_%s.json", lang, ns))
+		json.NewEncoder(w).Encode(result)
+		return
 	}
 
-	result := th.loadJSONDefaults(lang, ns)
-	overrides := th.loadDBOverrides(r, lang, ns)
-	for k, v := range overrides {
-		result[k] = v
+	namespaces := []string{
+		"common", "dashboard", "transfer", "nfc", "federation", "assembly",
+		"organizations", "products", "settings", "profile", "notifications",
+		"external", "services", "website", "public", "errors", "audit",
+		"satellite", "translations",
+	}
+	full := map[string]map[string]string{}
+	for _, itemNS := range namespaces {
+		merged := th.loadJSONDefaults(lang, itemNS)
+		overrides := th.loadDBOverrides(r, lang, itemNS)
+		for k, v := range overrides {
+			merged[k] = v
+		}
+		full[itemNS] = merged
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s_%s.json", lang, ns))
-	json.NewEncoder(w).Encode(result)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.json", lang))
+	json.NewEncoder(w).Encode(full)
 }
 
 // getTranslationStatus devuelve el % de completitud por namespace.
@@ -517,8 +569,11 @@ func (th *TranslationHandler) getTranslationStatus(w http.ResponseWriter, r *htt
 
 	var statuses []NSStatus
 	for _, ns := range namespaces {
-		// total = claves del idioma origen (default)
+		// total = claves del idioma origen (default); si el idioma default no tiene JSON en disco, usar 'es'
 		sourceKeys := th.loadJSONDefaults(defaultLang, ns)
+		if len(sourceKeys) == 0 && defaultLang != "es" {
+			sourceKeys = th.loadJSONDefaults("es", ns)
+		}
 		total := len(sourceKeys)
 
 		// Si no se pueden leer los JSON, usar el conteo de la BD como fallback
@@ -636,8 +691,11 @@ func (th *TranslationHandler) getMissingTranslations(w http.ResponseWriter, r *h
 
 	var missing []MissingEntry
 	for _, ns := range namespaces {
-		// Claves del idioma origen (conjunto total a traducir)
+		// Claves del idioma origen (conjunto total a traducir); fallback a 'es' si el default no tiene JSON en disco
 		sourceKeys := th.loadJSONDefaults(defaultLang, ns)
+		if len(sourceKeys) == 0 && defaultLang != "es" {
+			sourceKeys = th.loadJSONDefaults("es", ns)
+		}
 		if len(sourceKeys) == 0 {
 			continue
 		}
@@ -840,6 +898,64 @@ func (th *TranslationHandler) installFederatedTranslation(w http.ResponseWriter,
 		return
 	}
 
+	var displayName string
+	_ = th.Pool.QueryRow(r.Context(),
+		`SELECT COALESCE(display_name, $2) FROM federated_translations WHERE source_node = $1 AND language_code = $2`,
+		req.SourceNode, req.LanguageCode).Scan(&displayName)
+	if displayName == "" {
+		displayName = req.LanguageCode
+	}
+
+	// Descargar el paquete de traducciones desde el nodo par (HTTPS primero, luego HTTP)
+	client := &http.Client{Timeout: 20 * time.Second}
+	cleanHost := strings.TrimPrefix(strings.TrimPrefix(req.SourceNode, "https://"), "http://")
+	cleanHost = strings.TrimRight(cleanHost, "/")
+	var bodyBytes []byte
+	for _, scheme := range []string{"https", "http"} {
+		url := fmt.Sprintf("%s://%s/federation/translations/download/%s", scheme, cleanHost, req.LanguageCode)
+		resp, err := client.Get(url)
+		if err != nil {
+			continue
+		}
+		data, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK && readErr == nil && len(data) > 0 {
+			bodyBytes = data
+			break
+		}
+	}
+
+	inserted := 0
+	if len(bodyBytes) > 0 {
+		var byNS map[string]map[string]string
+		if err := json.Unmarshal(bodyBytes, &byNS); err == nil {
+			userID, _ := getUserID(r)
+			for ns, kv := range byNS {
+				for k, v := range kv {
+					if strings.TrimSpace(v) == "" {
+						continue
+					}
+					_, execErr := th.Pool.Exec(r.Context(), `
+						INSERT INTO translations (key, namespace, language, value, node_domain, updated_by)
+						VALUES ($1, $2, $3, $4, $5, $6)
+						ON CONFLICT (key, namespace, language, node_domain) DO UPDATE SET
+							value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
+						k, ns, req.LanguageCode, v, th.NodeDomain, userID)
+					if execErr == nil {
+						inserted++
+					}
+				}
+			}
+		}
+	}
+
+	// Asegurar que el idioma exista y quede habilitado en la tabla languages
+	_, _ = th.Pool.Exec(r.Context(), `
+		INSERT INTO languages (code, name, native_name, enabled, is_default)
+		VALUES ($1, $2, $2, true, false)
+		ON CONFLICT (code) DO UPDATE SET enabled = true`,
+		req.LanguageCode, displayName)
+
 	// Marcar como instalado
 	_, err := th.Pool.Exec(r.Context(),
 		`UPDATE federated_translations
@@ -851,17 +967,30 @@ func (th *TranslationHandler) installFederatedTranslation(w http.ResponseWriter,
 		return
 	}
 
-	writeJSON(w, 200, map[string]string{"status": "installed"})
+	writeJSON(w, 200, map[string]interface{}{
+		"status":   "installed",
+		"inserted": inserted,
+	})
 }
 
 // getAllKeys devuelve TODAS las claves de todos los namespaces para un idioma,
 // combinando JSON defaults + BD overrides, con indicador de origen.
+// Para idiomas nuevos que no tienen carpeta en web/src/locales/{lang}/,
+// incluye el catalogo completo de claves base (de defaultLang / 'es') con su
+// reference_value para que el administrador pueda traducirlas desde la UI.
 // GET /api/translations/{lang}/all
 func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 	if lang == "" {
 		writeJSON(w, 400, map[string]string{"error": "lang required"})
 		return
+	}
+
+	refLang := "es"
+	var dl string
+	_ = th.Pool.QueryRow(r.Context(), `SELECT code FROM languages WHERE is_default = true LIMIT 1`).Scan(&dl)
+	if dl != "" && dirExists(filepath.Join(th.LocaleDir, dl)) {
+		refLang = dl
 	}
 
 	namespaces := []string{
@@ -872,10 +1001,11 @@ func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request)
 	}
 
 	type KeyEntry struct {
-		Key       string `json:"key"`
-		Value     string `json:"value"`
-		IsDefault bool   `json:"is_default"`
-		JSONValue string `json:"json_value"`
+		Key            string `json:"key"`
+		Value          string `json:"value"`
+		IsDefault      bool   `json:"is_default"`
+		JSONValue      string `json:"json_value"`
+		ReferenceValue string `json:"reference_value,omitempty"`
 	}
 
 	type NSResult struct {
@@ -886,10 +1016,17 @@ func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request)
 	var results []NSResult
 	for _, ns := range namespaces {
 		defaults := th.loadJSONDefaults(lang, ns)
+		refDefaults := th.loadJSONDefaults(refLang, ns)
+		if len(refDefaults) == 0 && refLang != "es" {
+			refDefaults = th.loadJSONDefaults("es", ns)
+		}
 		overrides := th.loadDBOverrides(r, lang, ns)
 
-		// Merge: empezar con defaults, sobrescribir con BD
+		// Merge: empezar con claves base de referencia + defaults del idioma + overrides de BD
 		allKeys := map[string]bool{}
+		for k := range refDefaults {
+			allKeys[k] = true
+		}
 		for k := range defaults {
 			allKeys[k] = true
 		}
@@ -925,10 +1062,11 @@ func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request)
 				isDefault = false
 			}
 			entries = append(entries, KeyEntry{
-				Key:       k,
-				Value:     val,
-				IsDefault: isDefault,
-				JSONValue: defaults[k],
+				Key:            k,
+				Value:          val,
+				IsDefault:      isDefault,
+				JSONValue:      defaults[k],
+				ReferenceValue: refDefaults[k],
 			})
 		}
 		// Ordenar claves alfabeticamente
@@ -1067,6 +1205,11 @@ func (th *TranslationHandler) seedTranslations(w http.ResponseWriter, r *http.Re
 	for _, lang := range langs {
 		for _, ns := range namespaces {
 			defaults := th.loadJSONDefaults(lang, ns)
+			if len(defaults) == 0 && lang != "es" {
+				// Si el idioma no tiene archivos JSON propios en disco (ej. pt, fr),
+				// inicializar con las claves base en espanol para que aparezcan en la BD
+				defaults = th.loadJSONDefaults("es", ns)
+			}
 			for key, value := range defaults {
 				if force {
 					// Sobrescribir siempre con el valor del JSON

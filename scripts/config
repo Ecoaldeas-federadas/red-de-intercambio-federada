@@ -15,8 +15,16 @@ ynh_app_config_apply() {
 
     local escaped_name="${node_name//\'/\'\'}"
     local escaped_lang="${default_language//\'/\'\'}"
+    local lang_name="$escaped_lang"
+    local lang_native="$escaped_lang"
+    case "$escaped_lang" in
+        es) lang_name="Spanish"; lang_native="Español" ;;
+        en) lang_name="English"; lang_native="English" ;;
+        pt) lang_name="Portuguese"; lang_native="Português" ;;
+        fr) lang_name="French"; lang_native="Français" ;;
+    esac
     ynh_psql_db_shell <<< "UPDATE node_config SET node_name = '$escaped_name', default_language = '$escaped_lang', updated_at = NOW() WHERE initialized = true;"
-    ynh_psql_db_shell <<< "UPDATE languages SET is_default = false; UPDATE languages SET is_default = true, enabled = true WHERE code = '$escaped_lang';"
+    ynh_psql_db_shell <<< "UPDATE languages SET is_default = false; INSERT INTO languages (code, name, native_name, enabled, is_default) VALUES ('$escaped_lang', '$lang_name', '$lang_native', true, true) ON CONFLICT (code) DO UPDATE SET is_default = true, enabled = true;"
 }
 
 ynh_app_config_run "$1"
