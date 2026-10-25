@@ -104,10 +104,11 @@ _build_app() {
     chmod +x "$install_dir/fmc-node"
 }
 
-# Copia el logo de la app a /usr/share/yunohost/applogos/$app.png para que el
-# webadmin y el portal SSO muestren el icono aunque la app no este aun en el
-# catalogo oficial. Truco soportado por YunoHost (src/app.py): si existe
-# $app.png en APPS_CATALOG_LOGOS, se usa en lugar del logo del catalogo.
+# Instala el logo de la app para el webadmin y el portal SSO aunque la app no
+# este aun en el catalogo oficial. YunoHost usa dos mecanismos (src/app.py):
+#  - webadmin/app_info: /usr/share/yunohost/applogos/<app>.png si existe
+#  - portal SSO: 'logo_hash' en _permissions.main de settings.yml, servido
+#    como applogos/<sha256>.png (mismo mecanismo que usa el config panel)
 _install_app_logo() {
     local logo_src="" candidate
     for candidate in \
@@ -126,4 +127,22 @@ _install_app_logo() {
     fi
     mkdir -p /usr/share/yunohost/applogos
     cp -f "$logo_src" "/usr/share/yunohost/applogos/$app.png"
+
+    local logo_hash
+    logo_hash=$(sha256sum "$logo_src" | cut -d' ' -f1)
+    cp -f "$logo_src" "/usr/share/yunohost/applogos/$logo_hash.png"
+
+    python3 - "$app" "$logo_hash" <<'PYEOF'
+import sys, yaml
+app, logo_hash = sys.argv[1], sys.argv[2]
+path = f"/etc/yunohost/apps/{app}/settings.yml"
+with open(path) as f:
+    settings = yaml.safe_load(f) or {}
+settings.setdefault("_permissions", {}).setdefault("main", {})["logo_hash"] = logo_hash
+with open(path, "w") as f:
+    yaml.safe_dump(settings, f)
+PYEOF
+
+    # Regenerar los JSON del portal para que el tile tome el logo nuevo
+    ynh_hide_warnings yunohost app ssowatconf || true
 }

@@ -16,7 +16,10 @@ ynh_config_remove_systemd
 
 ynh_config_remove_nginx
 
-rm -f "/usr/share/yunohost/applogos/$app.png"
+if [ -f "/usr/share/yunohost/applogos/$app.png" ]; then
+    logo_hash=$(sha256sum "/usr/share/yunohost/applogos/$app.png" | cut -d' ' -f1)
+    rm -f "/usr/share/yunohost/applogos/$app.png" "/usr/share/yunohost/applogos/$logo_hash.png"
+fi
 
 #=================================================
 # END OF SCRIPT
