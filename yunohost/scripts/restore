@@ -58,6 +58,13 @@ ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" 
 ynh_systemctl --service=nginx --action=reload
 
 #=================================================
+# INSTALL APP LOGO
+#=================================================
+ynh_script_progression "Installing $app's logo..."
+
+_install_app_logo
+
+#=================================================
 # END OF SCRIPT
 #=================================================
 ynh_script_progression "Restoration completed for $app"

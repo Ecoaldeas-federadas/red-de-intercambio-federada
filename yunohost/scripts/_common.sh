@@ -103,3 +103,27 @@ _build_app() {
     chmod 750 "$install_dir" "$data_dir"
     chmod +x "$install_dir/fmc-node"
 }
+
+# Copia el logo de la app a /usr/share/yunohost/applogos/$app.png para que el
+# webadmin y el portal SSO muestren el icono aunque la app no este aun en el
+# catalogo oficial. Truco soportado por YunoHost (src/app.py): si existe
+# $app.png en APPS_CATALOG_LOGOS, se usa en lugar del logo del catalogo.
+_install_app_logo() {
+    local logo_src="" candidate
+    for candidate in \
+        "${YNH_APP_BASEDIR:-}/doc/logo.png" \
+        "${YNH_APP_BASEDIR:-}/logo.png" \
+        "/etc/yunohost/apps/$app/doc/logo.png" \
+        "$install_dir/doc/logo.png"; do
+        if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+            logo_src="$candidate"
+            break
+        fi
+    done
+    if [ -z "$logo_src" ]; then
+        ynh_print_warn "App logo not found; the default placeholder icon will be shown"
+        return 0
+    fi
+    mkdir -p /usr/share/yunohost/applogos
+    cp -f "$logo_src" "/usr/share/yunohost/applogos/$app.png"
+}

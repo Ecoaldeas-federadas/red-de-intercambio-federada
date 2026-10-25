@@ -77,6 +77,13 @@ ynh_script_progression "Starting $app's systemd service..."
 ynh_systemctl --service="$app" --action="start" --wait_until="starting on port" --log_path=systemd --timeout=300
 
 #=================================================
+# INSTALL APP LOGO
+#=================================================
+ynh_script_progression "Installing $app's logo..."
+
+_install_app_logo
+
+#=================================================
 # END OF SCRIPT
 #=================================================
 ynh_script_progression "Upgrade of $app completed"

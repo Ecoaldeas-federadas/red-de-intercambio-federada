@@ -95,6 +95,13 @@ curl -sf -X POST "http://127.0.0.1:$port/api/setup/init" \
     -d "$init_payload" >/dev/null || ynh_print_warn "Could not auto-initialize admin user; you can complete setup via https://$domain/setup"
 
 #=================================================
+# INSTALL APP LOGO
+#=================================================
+ynh_script_progression "Installing $app's logo..."
+
+_install_app_logo
+
+#=================================================
 # END OF SCRIPT
 #=================================================
 ynh_script_progression "Installation of $app completed"
