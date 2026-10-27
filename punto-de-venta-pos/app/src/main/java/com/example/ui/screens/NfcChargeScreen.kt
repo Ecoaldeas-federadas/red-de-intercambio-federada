@@ -643,16 +643,19 @@ fun NfcChargeScreen(
                 when (uiState.nfcStep) {
                     1 -> {
                         // -------------------------------------------------------------
-                        // PASO 1: MONTO A COBRAR
+                        // PASO 1: CANASTA DE PRODUCTOS Y SERVICIOS (SIN MONTO LIBRE)
                         // -------------------------------------------------------------
-                        KioskAmountDisplay(
-                            amountInput = uiState.amountInput,
-                            label = "Monto a Cobrar por NFC"
-                        )
-
-                        KioskNumericKeypad(
-                            currentInput = uiState.amountInput,
-                            onInputChange = { viewModel.setAmountInput(it) }
+                        PosCartBuilderSection(
+                            catalog = uiState.vendorCatalog,
+                            cartItems = uiState.cartItems,
+                            pendingWriteNfcPayload = uiState.pendingWriteNfcPayload,
+                            onAddCatalogItem = { item, qty -> viewModel.addCatalogItemToCart(item, qty) },
+                            onRemoveCartItem = { idx -> viewModel.removeCartItem(idx) },
+                            onClearCart = { viewModel.clearCart() },
+                            onScanOrCode = { code -> viewModel.scanOrParsePosCode(code) },
+                            onPrepareWriteNfcTag = { viewModel.prepareWriteNfcTagForCurrentCart() },
+                            onCancelWriteNfcTag = { viewModel.cancelPendingWriteNfcTag() },
+                            onReloadCatalog = { viewModel.loadVendorCatalog() }
                         )
 
                         Button(
@@ -660,7 +663,7 @@ fun NfcChargeScreen(
                                 FeedbackHelper.playButtonClick(context)
                                 viewModel.setNfcStep(2)
                             },
-                            enabled = hasAmount,
+                            enabled = uiState.cartItems.isNotEmpty() && hasAmount,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp)
@@ -668,7 +671,7 @@ fun NfcChargeScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
                         ) {
-                            Text("Continuar a Usuario", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Continuar a Usuario con Canasta", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(Icons.Default.ArrowForward, contentDescription = null)
                         }

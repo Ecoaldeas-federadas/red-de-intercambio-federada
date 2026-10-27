@@ -438,11 +438,79 @@ class PosRepository(
         }
     }
 
-    // --- QR PAYMENT FLOW ---
-    suspend fun createQrCharge(amountCentavos: Long, description: String?): Result<CreateChargeResponse> = withContext(Dispatchers.IO) {
+    // --- VENDOR LIGHTWEIGHT CATALOG & BARCODE / QR / NFC TAG PARSING ---
+    private val defaultDemoCatalog = listOf(
+        VendorCatalogCompactItemDto(id = "demo-univ-conuco", productId = "demo-univ-conuco", code = "90001", name = "Trabajo en el Conuco (Hora)", category = "Trabajo Agricola", unit = "hora", priceCents = 100L, stock = -1L, isService = true, isUniversal = true),
+        VendorCatalogCompactItemDto(id = "demo-univ-general", productId = "demo-univ-general", code = "90002", name = "Trabajo General / Mano Vuelta", category = "Trabajo General", unit = "hora", priceCents = 100L, stock = -1L, isService = true, isUniversal = true),
+        VendorCatalogCompactItemDto(id = "demo-item-1", productId = "demo-prod-1", code = "10001", name = "Tomate Agroecológico", category = "Cosecha Fresca", unit = "kg", priceCents = 300L, stock = 50L, isService = false),
+        VendorCatalogCompactItemDto(id = "demo-item-2", productId = "demo-prod-2", code = "10002", name = "Harina de Yuca Artesanal", category = "Gastronomia", unit = "kg", priceCents = 450L, stock = 30L, isService = false),
+        VendorCatalogCompactItemDto(id = "demo-item-3", productId = "demo-prod-3", code = "10003", name = "Pan Integral de Masa Madre", category = "Panaderia", unit = "unidad", priceCents = 250L, stock = 20L, isService = false),
+        VendorCatalogCompactItemDto(id = "demo-item-4", productId = "demo-prod-4", code = "10004", name = "Miel Pura de Conuco", category = "Apicultura", unit = "L", priceCents = 1000L, stock = 12L, isService = false)
+    )
+
+    suspend fun fetchVendorCatalog(
+        sellerId: String? = null,
+        sellerCardUid: String? = null
+    ): Result<VendorCatalogResponseDto> = withContext(Dispatchers.IO) {
         try {
             val service = apiClient.getService()
-            val response = service.createCharge(CreateChargeRequest(amountCentavos, description))
+            val res = service.getVendorCatalog(sellerId = sellerId, sellerCardUid = sellerCardUid)
+            if (res.isSuccessful && res.body() != null && res.body()!!.items.isNotEmpty()) {
+                Result.success(res.body()!!)
+            } else {
+                Result.success(
+                    VendorCatalogResponseDto(
+                        versionEtag = "local-fallback",
+                        sellerId = sellerId ?: currentUser?.id ?: "demo-seller",
+                        sellerName = currentUser?.displayName ?: currentUser?.username ?: "Tienda del Vendedor",
+                        items = defaultDemoCatalog
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Result.success(
+                VendorCatalogResponseDto(
+                    versionEtag = "offline-fallback",
+                    sellerId = sellerId ?: currentUser?.id ?: "demo-seller",
+                    sellerName = currentUser?.displayName ?: currentUser?.username ?: "Tienda del Vendedor",
+                    items = defaultDemoCatalog
+                )
+            )
+        }
+    }
+
+    suspend fun parsePosCode(code: String, sellerId: String? = null): Result<ParsePosCodeResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val res = service.parsePosCode(ParsePosCodeRequest(code = code, sellerId = sellerId))
+            if (res.isSuccessful && res.body() != null) {
+                Result.success(res.body()!!)
+            } else {
+                val err = res.errorBody()?.string() ?: res.body()?.error ?: "Código no reconocido"
+                Result.failure(Exception(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("No se pudo decodificar el código: ${e.localizedMessage}"))
+        }
+    }
+
+    // --- QR PAYMENT FLOW ---
+    suspend fun createQrCharge(
+        amountCentavos: Long,
+        description: String?,
+        items: List<PosCartItemDto> = emptyList(),
+        sellerId: String? = null
+    ): Result<CreateChargeResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.createCharge(
+                CreateChargeRequest(
+                    amount = amountCentavos,
+                    description = description,
+                    sellerId = sellerId,
+                    items = items
+                )
+            )
             if (response.isSuccessful && response.body()?.chargeToken != null) {
                 Result.success(response.body()!!)
             } else if (apiClient.isDemoNode) {
@@ -732,7 +800,8 @@ class PosRepository(
         pin: String,
         amountCentavos: Long,
         idDocType: String? = null,
-        idDocNumber: String? = null
+        idDocNumber: String? = null,
+        items: List<PosCartItemDto> = emptyList()
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()
@@ -749,7 +818,8 @@ class PosRepository(
                 timestamp = timestamp,
                 nonce = nonce,
                 idDocumentType = idDocType,
-                idDocumentNumber = idDocNumber
+                idDocumentNumber = idDocNumber,
+                items = items
             )
 
             val adapter = apiClient.moshi.adapter(SinglePaymentDecryptedPayload::class.java)
@@ -930,7 +1000,9 @@ class PosRepository(
         buyerPin: String,
         amountCentavos: Long,
         buyerIdDocType: String? = null,
-        buyerIdDocNumber: String? = null
+        buyerIdDocNumber: String? = null,
+        sellerUserId: String? = null,
+        items: List<PosCartItemDto> = emptyList()
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()
@@ -940,6 +1012,7 @@ class PosRepository(
 
             val decryptedPayload = CommunityPaymentDecryptedPayload(
                 sellerCardUid = sellerCardUid,
+                sellerUserId = sellerUserId,
                 sellerCryptoToken = "desfire_auth_ok",
                 sellerPin = sellerPin,
                 buyerCardUid = buyerCardUid,
@@ -949,7 +1022,8 @@ class PosRepository(
                 timestamp = timestamp,
                 nonce = nonce,
                 buyerIdDocumentType = buyerIdDocType,
-                buyerIdDocumentNumber = buyerIdDocNumber
+                buyerIdDocumentNumber = buyerIdDocNumber,
+                items = items
             )
 
             val adapter = apiClient.moshi.adapter(CommunityPaymentDecryptedPayload::class.java)

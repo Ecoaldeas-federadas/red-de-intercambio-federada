@@ -29,10 +29,23 @@ import Login from './Login'
 // IMPORTANTE: El sistema almacena montos en CENTAVOS internamente.
 // 1.00 TQ = 100 centavos. Para mostrar, dividir por 100.
 
+type ChargeItem = {
+  store_item_id?: string
+  product_id?: string
+  item_code?: string
+  item_name: string
+  unit: string
+  quantity: number
+  unit_price_cents: number
+  subtotal_cents: number
+  is_service?: boolean
+}
+
 type ChargeInfo = {
   amount: number
   status: string
   description?: string
+  items?: ChargeItem[]
   merchant_name?: string
   expires_at?: string
 }
@@ -261,7 +274,20 @@ export default function Pay() {
                 <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.merchant', 'Comerciante')}</span>
                 <span style={{ fontSize: 14 }}>{charge?.merchant_name || 'POS'}</span>
               </div>
-              {charge?.description && (
+              {charge?.items && charge.items.length > 0 && (
+                <div style={{ marginTop: 12, borderTop: '1px solid #2a2a2a', paddingTop: 12 }}>
+                  <p style={{ color: '#a0a0a0', fontSize: 12, marginBottom: 8, fontWeight: 700 }}>
+                    {t('pay.basket_items_title', 'PRODUCTOS / SERVICIOS EN LA CANASTA')}
+                  </p>
+                  {charge.items.map((it, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                      <span>{it.item_name} <span style={{ color: '#888' }}>× {it.quantity} {it.unit}</span></span>
+                      <span style={{ fontWeight: 600 }}>{fmtTQ(it.subtotal_cents)} TQ</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {charge?.description && (!charge?.items || charge.items.length === 0) && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.concept', 'Concepto')}</span>
                   <span style={{ fontSize: 14 }}>{charge.description}</span>
@@ -365,7 +391,20 @@ export default function Pay() {
               <span style={{ fontSize: 14 }}>{me.display_name}</span>
             </div>
           )}
-          {charge?.description && (
+          {charge?.items && charge.items.length > 0 && (
+            <div style={{ marginTop: 12, borderTop: '1px solid #2a2a2a', paddingTop: 12 }}>
+              <p style={{ color: '#a0a0a0', fontSize: 12, marginBottom: 8, fontWeight: 700 }}>
+                {t('pay.basket_items_title', 'PRODUCTOS / SERVICIOS EN LA CANASTA')}
+              </p>
+              {charge.items.map((it, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <span>{it.item_name} <span style={{ color: '#888' }}>× {it.quantity} {it.unit}</span></span>
+                  <span style={{ fontWeight: 600 }}>{fmtTQ(it.subtotal_cents)} TQ</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {charge?.description && (!charge?.items || charge.items.length === 0) && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.concept', 'Concepto')}</span>
               <span style={{ fontSize: 14 }}>{charge.description}</span>

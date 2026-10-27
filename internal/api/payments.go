@@ -49,42 +49,7 @@ type GenerateQRRequest struct {
 }
 
 func (ph *PaymentsHandler) generateQR(w http.ResponseWriter, r *http.Request) {
-	var req GenerateQRRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, 400, "invalid request body")
-		return
-	}
-
-	// Obtener user del contexto (auth middleware)
-	userID, err := ph.Auth.GetUserID(r)
-	if err != nil {
-		writeError(w, 401, "authentication required")
-		return
-	}
-
-	// Obtener datos del usuario desde la BD
-	user, err := ph.Accounts.GetUser(r.Context(), userID)
-	if err != nil {
-		writeError(w, 500, "failed to get user info")
-		return
-	}
-
-	paymentReq, qrBase64, err := ph.Payments.GenerateQR(r.Context(), payments.GenerateQRParams{
-		UserID:      userID,
-		Username:    user.Username,
-		DisplayName: req.DisplayName,
-		Amount:      req.Amount,
-		Label:       req.Label,
-	})
-	if err != nil {
-		writeError(w, 500, err.Error())
-		return
-	}
-
-	writeJSON(w, 200, map[string]interface{}{
-		"qr_data":     qrBase64,
-		"payment_req": paymentReq,
-	})
+	writeError(w, 403, "Los codigos QR de monto libre estan deshabilitados. Todo cobro debe generarse desde la tienda o el Punto de Venta seleccionando los productos o servicios de la canasta.")
 }
 
 type ParseQRRequest struct {
@@ -122,43 +87,7 @@ type POSGenerateQRRequest struct {
 }
 
 func (ph *PaymentsHandler) posGenerateQR(w http.ResponseWriter, r *http.Request) {
-	var req POSGenerateQRRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, 400, "invalid request body")
-		return
-	}
-	if req.Amount <= 0 {
-		writeError(w, 400, "amount must be positive for POS QR")
-		return
-	}
-
-	userID, err := ph.Auth.GetUserID(r)
-	if err != nil {
-		writeError(w, 401, "authentication required")
-		return
-	}
-	user, err := ph.Accounts.GetUser(r.Context(), userID)
-	if err != nil {
-		writeError(w, 500, "failed to get user info")
-		return
-	}
-
-	paymentReq, qrBase64, err := ph.Payments.GenerateQR(r.Context(), payments.GenerateQRParams{
-		UserID:      userID,
-		Username:    user.Username,
-		DisplayName: req.DisplayName,
-		Amount:      &req.Amount,
-		Label:       req.Label,
-	})
-	if err != nil {
-		writeError(w, 500, err.Error())
-		return
-	}
-
-	writeJSON(w, 200, map[string]interface{}{
-		"qr_data":     qrBase64,
-		"payment_req": paymentReq,
-	})
+	writeError(w, 403, "Los cobros POS de monto libre estan deshabilitados. Seleccione los productos o servicios en la canasta del Punto de Venta.")
 }
 
 type ManualPaymentRequest struct {
@@ -168,30 +97,7 @@ type ManualPaymentRequest struct {
 }
 
 func (ph *PaymentsHandler) manualPayment(w http.ResponseWriter, r *http.Request) {
-	var req ManualPaymentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, 400, "invalid request body")
-		return
-	}
-
-	// Obtener sender del contexto (auth middleware)
-	senderID, err := ph.Auth.GetUserID(r)
-	if err != nil {
-		writeError(w, 401, "authentication required")
-		return
-	}
-
-	if err := ph.Payments.ManualPayment(r.Context(), payments.ManualPaymentParams{
-		SenderID:   senderID,
-		ReceiverID: req.ReceiverID,
-		Amount:     req.Amount,
-		Reference:  req.Reference,
-	}); err != nil {
-		writeError(w, 400, err.Error())
-		return
-	}
-
-	writeJSON(w, 200, map[string]string{"status": "validated"})
+	writeError(w, 403, "Las transferencias y pagos manuales de monto libre entre miembros estan deshabilitados. Todo intercambio debe realizarse por productos o servicios reales de la tienda.")
 }
 
 type IssueNFCRequest struct {

@@ -4,6 +4,7 @@ import { fmtTQ } from '../utils/format'
 
 interface Props {
   amount: number
+  cartItems?: any[]
   onBack: () => void
   onPaid: () => void
   api: API
@@ -33,7 +34,7 @@ interface UserLookupResult {
   message?: string
 }
 
-export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode }: Props) {
+export function NFCScreen({ amount, cartItems = [], onBack, onPaid, api, terminalID, isDemoNode }: Props) {
   const [status, setStatus] = useState<FlowStatus>('username')
   const [username, setUsername] = useState('')
   const [userLookup, setUserLookup] = useState<UserLookupResult | null>(null)
@@ -269,6 +270,7 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
           card_type: cardType,
           pin,
           amount,
+          items: cartItems,
           timestamp: Date.now(),
           nonce: Math.random().toString(36).substring(7),
           username: username.trim(),

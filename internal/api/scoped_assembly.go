@@ -1173,10 +1173,12 @@ func (h *ScopedAssemblyHandler) getProposalTypes(w http.ResponseWriter, r *http.
 }
 
 // executeScopedDecision ejecuta la decision segun su tipo para org/depto
-// Reglas de transferencia:
-// - Organizacion: puede transferir a organizaciones, departamentos y personas
-// - Departamento: puede transferir a organizaciones, departamentos y personas
-// - Asamblea del nodo: SOLO organizaciones y departamentos, NUNCA personas
+// Reglas estrictas de transferencia institucional:
+//   - Asamblea del nodo: SOLO a organizaciones y departamentos, NUNCA a personas.
+//   - Organizacion: SOLO a la Asamblea General, a sus propios departamentos, o a sus propios miembros
+//     (NUNCA a otra organizacion privada ni a usuarios ajenos), siempre por acuerdo aprobado con motivo.
+//   - Departamento: SOLO a su organizacion padre, a la Asamblea General, o a miembros de su propio
+//     departamento/organizacion, siempre por acuerdo aprobado con motivo.
 func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope string, scopeID uuid.UUID, decisionType string, params map[string]interface{}) error {
 	switch decisionType {
 	case "fund_distribution":
@@ -1187,15 +1189,82 @@ func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope str
 		if toAccountStr == "" || amount <= 0 {
 			return fmt.Errorf("cuenta destino y monto son obligatorios")
 		}
+		if strings.TrimSpace(reason) == "" {
+			return fmt.Errorf("el motivo de la transferencia aprobada es obligatorio")
+		}
 
 		toAccountID, err := uuid.Parse(toAccountStr)
 		if err != nil {
 			return fmt.Errorf("cuenta destino invalida")
 		}
 
-		// Organizaciones y departamentos PUEDEN transferir a personas
-		// (a diferencia de la asamblea del nodo que no puede)
-		// No hay validacion de tipo de cuenta aqui
+		var destUsername, destAccountType string
+		_ = h.Pool.QueryRow(r.Context(), `
+			SELECT COALESCE(username, ''), COALESCE(account_type, 'individual')
+			FROM users WHERE id = $1`, toAccountID).Scan(&destUsername, &destAccountType)
+
+		isAssemblyDest := (destUsername == "asamblea")
+
+		switch scope {
+		case "organization":
+			if !isAssemblyDest {
+				// 1. Verificar si el destino es un departamento propio de esta organizacion
+				var isOwnDept bool
+				_ = h.Pool.QueryRow(r.Context(), `
+					SELECT EXISTS(
+						SELECT 1 FROM departments
+						WHERE id = $1 AND parent_organization_id = $2 AND is_active = true
+					)`, toAccountID, scopeID).Scan(&isOwnDept)
+
+				// 2. Verificar si el destino es un miembro propio de esta organizacion
+				// (en organization_board_members o en department_members de un depto de esta org)
+				var isOwnMember bool
+				if !isOwnDept && destAccountType == "individual" {
+					_ = h.Pool.QueryRow(r.Context(), `
+						SELECT EXISTS(
+							SELECT 1 FROM organization_board_members
+							WHERE organization_id = $1 AND user_id = $2 AND is_active = true
+							UNION
+							SELECT 1 FROM department_members dm
+							JOIN departments d ON d.id = dm.department_id
+							WHERE d.parent_organization_id = $1 AND dm.user_id = $2
+						)`, scopeID, toAccountID).Scan(&isOwnMember)
+				}
+
+				if !isOwnDept && !isOwnMember {
+					if destAccountType == "organization" {
+						return fmt.Errorf("una organizacion no puede transferir saldo a otra organizacion privada; solo puede transferir a la Asamblea General, a sus propios departamentos o a sus propios miembros")
+					}
+					return fmt.Errorf("la organizacion solo puede transferir saldo a la Asamblea General, a sus propios departamentos o a miembros de su propia organizacion")
+				}
+			}
+
+		case "department":
+			if !isAssemblyDest {
+				// Obtener organizacion padre del departamento
+				var parentOrgID *uuid.UUID
+				_ = h.Pool.QueryRow(r.Context(), `
+					SELECT parent_organization_id FROM departments WHERE id = $1`, scopeID).Scan(&parentOrgID)
+
+				isParentOrg := (parentOrgID != nil && *parentOrgID == toAccountID)
+
+				var isDeptMember bool
+				if !isParentOrg && destAccountType == "individual" {
+					_ = h.Pool.QueryRow(r.Context(), `
+						SELECT EXISTS(
+							SELECT 1 FROM department_members
+							WHERE department_id = $1 AND user_id = $2
+							UNION
+							SELECT 1 FROM organization_board_members
+							WHERE organization_id = $3 AND user_id = $2 AND is_active = true
+						)`, scopeID, toAccountID, parentOrgID).Scan(&isDeptMember)
+				}
+
+				if !isParentOrg && !isDeptMember {
+					return fmt.Errorf("el departamento solo puede transferir saldo a su organizacion, a la Asamblea General o a miembros de su propio departamento/organizacion")
+				}
+			}
+		}
 
 		// Realizar la transferencia desde la cuenta de la org/depto
 		_, err = h.Pool.Exec(r.Context(), `

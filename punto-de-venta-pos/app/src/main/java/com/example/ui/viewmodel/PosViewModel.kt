@@ -51,9 +51,13 @@ data class PosUiState(
     // Shift
     val activeShift: ShiftEntity? = null,
 
-    // Common Amount Input
+    // Common Amount Input & Mandatory Cart (Canasta de Productos y Servicios)
     val amountInput: String = "",
     val chargeDescription: String = "",
+    val vendorCatalog: List<VendorCatalogCompactItemDto> = emptyList(),
+    val cartItems: List<PosCartItemDto> = emptyList(),
+    val sellerUserId: String? = null,
+    val pendingWriteNfcPayload: String? = null,
 
     // QR Charge Flow
     val qrChargeResponse: CreateChargeResponse? = null,
@@ -225,6 +229,7 @@ class PosViewModel(
             if (config.isRegistered && hasActiveSession) {
                 refreshCurrentUser()
             }
+            loadVendorCatalog()
         }
 
         // Heartbeat periodico: cada 60 segundos verifica que el terminal
@@ -451,6 +456,10 @@ class PosViewModel(
             _uiState.value.screenHistory
         }
 
+        if (screen == PosScreen.QrCharge || screen == PosScreen.NfcCharge) {
+            loadVendorCatalog(sellerId = _uiState.value.currentUser?.id)
+        }
+
         _uiState.update {
             it.copy(
                 currentScreen = screen,
@@ -458,6 +467,8 @@ class PosViewModel(
                 errorMessage = null,
                 successMessage = null,
                 amountInput = "",
+                cartItems = emptyList(),
+                pendingWriteNfcPayload = null,
                 customerPin = "",
                 detectedCardUid = null,
                 nfcStep = 1,
@@ -717,6 +728,179 @@ class PosViewModel(
 
     fun setCustomerUsername(username: String) {
         _uiState.update { it.copy(customerUsername = username) }
+    }
+
+    // --- VENDOR STORE CATALOG & MANDATORY CART MANAGEMENT ---
+    fun loadVendorCatalog(sellerId: String? = null, sellerCardUid: String? = null) {
+        viewModelScope.launch {
+            val res = repository.fetchVendorCatalog(
+                sellerId = sellerId ?: _uiState.value.currentUser?.id,
+                sellerCardUid = sellerCardUid
+            )
+            res.onSuccess { cat ->
+                _uiState.update {
+                    it.copy(
+                        vendorCatalog = cat.items,
+                        sellerUserId = cat.sellerId ?: it.sellerUserId,
+                        sellerName = if (!cat.sellerName.isNullOrBlank()) cat.sellerName else it.sellerName
+                    )
+                }
+            }
+        }
+    }
+
+    private fun updateCartState(newItems: List<PosCartItemDto>) {
+        val totalCents = newItems.sumOf { it.subtotalCents }
+        val summary = newItems.joinToString(", ") { "${it.itemName} x${it.quantity} ${it.unit}" }
+        _uiState.update {
+            it.copy(
+                cartItems = newItems,
+                amountInput = if (totalCents > 0L) totalCents.toString() else "",
+                chargeDescription = summary,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun addCatalogItemToCart(item: VendorCatalogCompactItemDto, quantity: Double) {
+        if (quantity <= 0.0) return
+        val subtotal = kotlin.math.max(1L, kotlin.math.round(item.priceCents * quantity).toLong())
+        val line = PosCartItemDto(
+            storeItemId = if (item.isUniversal) null else item.id,
+            productId = item.productId ?: if (item.isUniversal) item.id else null,
+            itemCode = item.code,
+            itemName = item.name,
+            unit = item.unit,
+            quantity = quantity,
+            unitPriceCents = item.priceCents,
+            subtotalCents = subtotal,
+            isService = item.isService
+        )
+        updateCartState(_uiState.value.cartItems + line)
+    }
+
+    fun removeCartItem(index: Int) {
+        val current = _uiState.value.cartItems
+        if (index in current.indices) {
+            updateCartState(current.filterIndexed { i, _ -> i != index })
+        }
+    }
+
+    fun clearCart() {
+        updateCartState(emptyList())
+    }
+
+    /**
+     * Decodifica un código de barras EAN-13 con peso incrustado (prefijos 21, 22, 23),
+     * código corto (#10001) o etiqueta QR / NFC NDEF (tq1:p:..., tq1:b:..., tq1:r:...).
+     * Si la etiqueta trae grabado el vendedor (seller_id) y estamos en MultiVendor,
+     * identifica al vendedor y carga la canasta automáticamente saltando al paso del Comprador.
+     */
+    fun scanOrParsePosCode(rawCode: String) {
+        val code = rawCode.trim()
+        if (code.isEmpty()) return
+        val state = _uiState.value
+        val catalog = state.vendorCatalog
+
+        // 1. EAN-13 con peso/cantidad incrustado (21CCCCCQQQQQD, 22..., 23...)
+        if (code.length == 13 && code.all { it.isDigit() } && code.take(2) in listOf("21", "22", "23")) {
+            val prefix = code.take(2)
+            val itemCode = code.substring(2, 7)
+            val qtyRaw = code.substring(7, 12).toIntOrNull() ?: 1000
+            val qty = when (prefix) {
+                "22" -> qtyRaw / 100.0
+                "23" -> qtyRaw.toDouble()
+                else -> qtyRaw / 1000.0
+            }
+            val found = catalog.find { it.code == itemCode || it.code == itemCode.trimStart('0') }
+            if (found != null) {
+                addCatalogItemToCart(found, if (qty > 0) qty else 1.0)
+                return
+            }
+        }
+
+        // 2. Código corto directo en el catálogo local (ej: "10001" o "10001*2.5")
+        if (!code.startsWith("tq1:")) {
+            val parts = code.split("*", limit = 2)
+            val cleanCode = parts[0].trim()
+            val qty = if (parts.size == 2) parts[1].trim().toDoubleOrNull() ?: 1.0 else 1.0
+            val found = catalog.find { it.code.equals(cleanCode, ignoreCase = true) }
+            if (found != null) {
+                addCatalogItemToCart(found, if (qty > 0) qty else 1.0)
+                return
+            }
+        }
+
+        // 3. Consultar al servidor (soporta tq1:p:..., tq1:b:..., tq1:r:... y EAN-13)
+        viewModelScope.launch {
+            val res = repository.parsePosCode(code, state.sellerUserId ?: state.currentUser?.id)
+            res.onSuccess { parsed ->
+                val newLines = parsed.items.orEmpty()
+                if (newLines.isNotEmpty()) {
+                    val combined = if (code.startsWith("tq1:b:") || code.startsWith("tq1:r:")) {
+                        newLines
+                    } else {
+                        _uiState.value.cartItems + newLines
+                    }
+                    val totalCents = combined.sumOf { it.subtotalCents }
+                    val summary = combined.joinToString(", ") { "${it.itemName} x${it.quantity} ${it.unit}" }
+                    val tagSellerId = parsed.sellerId?.takeIf { it.isNotBlank() }
+                    val tagSellerName = parsed.sellerName?.takeIf { it.isNotBlank() }
+
+                    _uiState.update { s ->
+                        val autoAdvanceStep = if (s.currentScreen == PosScreen.MultiVendor && s.mvStep <= 2 && tagSellerId != null) 3 else s.mvStep
+                        s.copy(
+                            cartItems = combined,
+                            amountInput = totalCents.toString(),
+                            chargeDescription = summary,
+                            sellerUserId = tagSellerId ?: s.sellerUserId,
+                            sellerName = tagSellerName ?: s.sellerName ?: "Vendedor Etiqueta",
+                            mvStep = autoAdvanceStep,
+                            successMessage = if (autoAdvanceStep == 3) "Etiqueta con vendedor leída: canasta cargada. Continúe con el comprador." else "Producto(s) agregados a la canasta",
+                            errorMessage = null
+                        )
+                    }
+                }
+            }.onFailure { err ->
+                _uiState.update { it.copy(errorMessage = err.message ?: "Código no encontrado") }
+            }
+        }
+    }
+
+    fun prepareWriteNfcTagForCurrentCart() {
+        val state = _uiState.value
+        if (state.cartItems.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "Agregue al menos un producto a la canasta antes de grabar la etiqueta NFC") }
+            return
+        }
+        val sellerId = state.sellerUserId ?: state.currentUser?.id.orEmpty()
+        val payload = if (state.cartItems.size == 1) {
+            val it = state.cartItems.first()
+            "tq1:p:$sellerId:${it.itemCode ?: it.storeItemId.orEmpty()}:${it.quantity}"
+        } else {
+            val joined = state.cartItems.joinToString(",") { "${it.itemCode ?: it.storeItemId.orEmpty()}*${it.quantity}" }
+            "tq1:b:$sellerId:$joined"
+        }
+        _uiState.update {
+            it.copy(
+                pendingWriteNfcPayload = payload,
+                successMessage = "Acerque una etiqueta NFC (NTAG213/215) al reverso del teléfono para grabarla con esta canasta y sus datos de vendedor."
+            )
+        }
+    }
+
+    fun cancelPendingWriteNfcTag() {
+        _uiState.update { it.copy(pendingWriteNfcPayload = null, successMessage = null) }
+    }
+
+    fun onNfcTagWrittenResult(success: Boolean, message: String) {
+        _uiState.update {
+            it.copy(
+                pendingWriteNfcPayload = if (success) null else it.pendingWriteNfcPayload,
+                successMessage = if (success) message else null,
+                errorMessage = if (!success) message else null
+            )
+        }
     }
 
     fun setBuyerPin(pin: String) {
@@ -1159,9 +1343,14 @@ class PosViewModel(
 
     // --- QR CHARGE WORKFLOW ---
     fun startQrCharge() {
-        val centavos = CurrencyHelper.parseInputToCentavos(_uiState.value.amountInput)
+        val state = _uiState.value
+        if (state.cartItems.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "Seleccione o escanee al menos un producto o servicio en la canasta") }
+            return
+        }
+        val centavos = state.cartItems.sumOf { it.subtotalCents }
         if (centavos <= 0) {
-            _uiState.update { it.copy(errorMessage = "Ingrese un monto mayor a 0 TQ") }
+            _uiState.update { it.copy(errorMessage = "El total de la canasta debe ser mayor a 0 TQ") }
             return
         }
 
@@ -1170,8 +1359,13 @@ class PosViewModel(
             if (!verifyTerminalStatus()) return@launch
 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val desc = _uiState.value.chargeDescription.ifBlank { "Cobro POS" }
-            val res = repository.createQrCharge(centavos, desc)
+            val desc = _uiState.value.chargeDescription.ifBlank { "Canasta POS" }
+            val res = repository.createQrCharge(
+                amountCentavos = centavos,
+                description = desc,
+                items = _uiState.value.cartItems,
+                sellerId = _uiState.value.sellerUserId ?: _uiState.value.currentUser?.id
+            )
 
             res.onSuccess { charge ->
                 val payUrl = repository.apiClient.getPayQrUrl(charge.chargeToken ?: "")
@@ -1688,7 +1882,8 @@ class PosViewModel(
                 pin = state.customerPin,
                 amountCentavos = centavos,
                 idDocType = state.selectedDocType,
-                idDocNumber = state.idDocNumber
+                idDocNumber = state.idDocNumber,
+                items = state.cartItems
             )
 
             result.onSuccess { res ->
@@ -2284,18 +2479,26 @@ class PosViewModel(
             it.copy(
                 sellerCardUid = cardUid,
                 sellerName = "Vendedor @${cardUid.take(6).uppercase()}",
-                mvStep = 2 // Move to Amount Entry
+                cartItems = emptyList(),
+                amountInput = "",
+                mvStep = 2 // Move to Seller Store / Basket Builder
             )
         }
+        loadVendorCatalog(sellerCardUid = cardUid)
     }
 
     fun onMultiVendorAmountSet() {
-        val centavos = CurrencyHelper.parseInputToCentavos(_uiState.value.amountInput)
-        if (centavos <= 0) {
-            _uiState.update { it.copy(errorMessage = "Ingrese un monto válido") }
+        val state = _uiState.value
+        if (state.cartItems.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "Agregue al menos un producto o servicio a la canasta del vendedor") }
             return
         }
-        _uiState.update { it.copy(mvStep = 3, errorMessage = null) } // Move to Buyer Document ID
+        val centavos = state.cartItems.sumOf { it.subtotalCents }
+        if (centavos <= 0) {
+            _uiState.update { it.copy(errorMessage = "El total de la canasta debe ser mayor a 0 TQ") }
+            return
+        }
+        _uiState.update { it.copy(amountInput = centavos.toString(), mvStep = 3, errorMessage = null) } // Move to Buyer Document ID
     }
 
     fun onMultiVendorDocSet() {
@@ -2366,13 +2569,15 @@ class PosViewModel(
 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val res = repository.processCommunityPayment(
-                sellerCardUid = state.sellerCardUid ?: "SELLER001",
+                sellerCardUid = state.sellerCardUid ?: "",
                 sellerPin = state.sellerPin,
                 buyerCardUid = state.buyerCardUid ?: "BUYER001",
                 buyerPin = state.buyerPin,
                 amountCentavos = centavos,
                 buyerIdDocType = state.buyerDocType,
-                buyerIdDocNumber = state.buyerDocNumber
+                buyerIdDocNumber = state.buyerDocNumber,
+                sellerUserId = state.sellerUserId,
+                items = state.cartItems
             )
 
             res.onSuccess { r ->
@@ -2442,7 +2647,10 @@ class PosViewModel(
             it.copy(
                 mvStep = 1,
                 amountInput = "",
+                cartItems = emptyList(),
+                pendingWriteNfcPayload = null,
                 sellerCardUid = null,
+                sellerUserId = null,
                 buyerCardUid = null,
                 buyerPin = "",
                 customerPin = "",

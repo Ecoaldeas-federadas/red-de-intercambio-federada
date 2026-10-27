@@ -187,6 +187,30 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         val cardUid = CryptoEngine.bytesToHex(tagId)
         val techList = tag.techList.toList()
 
+        // 1. Si el vendedor activo el modo "Grabar Etiqueta NFC" para guardar un producto o canasta:
+        val pendingPayload = viewModel.uiState.value.pendingWriteNfcPayload
+        if (!pendingPayload.isNullOrBlank()) {
+            val ok = writeNdefTextToTag(tag, pendingPayload)
+            runOnUiThread {
+                if (ok) {
+                    viewModel.onNfcTagWrittenResult(true, "Etiqueta NFC grabada correctamente con la canasta/producto.")
+                } else {
+                    viewModel.onNfcTagWrittenResult(false, "No se pudo escribir en la etiqueta NFC (verifique que sea NTAG213/215 y no esté protegida).")
+                }
+            }
+            return
+        }
+
+        // 2. Si el tag acercado es una Etiqueta NFC de producto o canasta (contiene registro NDEF "tq1:..."),
+        // cargarla en la canasta (y si trae vendedor en modo MultiVendor, saltar directo al paso del Comprador).
+        val ndefText = readNdefTextFromTag(tag)
+        if (!ndefText.isNullOrBlank() && ndefText.trim().startsWith("tq1:")) {
+            runOnUiThread {
+                viewModel.scanOrParsePosCode(ndefText.trim())
+            }
+            return
+        }
+
         // Detectar tipo de tarjeta usando el registry modular
         val detectedReader = com.example.data.nfc.CardReaderRegistry.detectReader(tag)
         val cardType = detectedReader?.cardType
@@ -258,6 +282,75 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             else -> {
                 // SILENTLY IGNORE on all other screens
             }
+        }
+    }
+
+    private fun readNdefTextFromTag(tag: Tag): String? {
+        return try {
+            val ndef = android.nfc.tech.Ndef.get(tag) ?: return null
+            ndef.connect()
+            val msg = ndef.ndefMessage ?: ndef.cachedNdefMessage
+            ndef.close()
+            if (msg == null || msg.records.isEmpty()) return null
+            for (rec in msg.records) {
+                val payload = rec.payload ?: continue
+                if (payload.isEmpty()) continue
+                // Registro NDEF Text ("T") tiene byte 0 = longitud del codigo de idioma
+                val text = if (rec.tnf == android.nfc.NdefRecord.TNF_WELL_KNOWN &&
+                    rec.type.contentEquals(android.nfc.NdefRecord.RTD_TEXT)
+                ) {
+                    val langLen = payload[0].toInt() and 0x3F
+                    if (payload.size > langLen + 1) {
+                        String(payload, langLen + 1, payload.size - langLen - 1, Charsets.UTF_8)
+                    } else ""
+                } else {
+                    String(payload, Charsets.UTF_8)
+                }
+                if (text.contains("tq1:")) {
+                    return text.substring(text.indexOf("tq1:")).trim()
+                }
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun writeNdefTextToTag(tag: Tag, text: String): Boolean {
+        return try {
+            val langBytes = "es".toByteArray(Charsets.US_ASCII)
+            val textBytes = text.toByteArray(Charsets.UTF_8)
+            val payload = ByteArray(1 + langBytes.size + textBytes.size)
+            payload[0] = langBytes.size.toByte()
+            System.arraycopy(langBytes, 0, payload, 1, langBytes.size)
+            System.arraycopy(textBytes, 0, payload, 1 + langBytes.size, textBytes.size)
+            val record = android.nfc.NdefRecord(
+                android.nfc.NdefRecord.TNF_WELL_KNOWN,
+                android.nfc.NdefRecord.RTD_TEXT,
+                ByteArray(0),
+                payload
+            )
+            val message = android.nfc.NdefMessage(arrayOf(record))
+
+            val ndef = android.nfc.tech.Ndef.get(tag)
+            if (ndef != null) {
+                ndef.connect()
+                if (!ndef.isWritable || ndef.maxSize < message.toByteArray().size) {
+                    ndef.close()
+                    return false
+                }
+                ndef.writeNdefMessage(message)
+                ndef.close()
+                true
+            } else {
+                val formatable = android.nfc.tech.NdefFormatable.get(tag) ?: return false
+                formatable.connect()
+                formatable.format(message)
+                formatable.close()
+                true
+            }
+        } catch (e: Exception) {
+            false
         }
     }
 }

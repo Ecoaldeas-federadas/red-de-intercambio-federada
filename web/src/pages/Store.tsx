@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package, Layers, X } from 'lucide-react'
+import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package, Layers, X, QrCode, Nfc, Briefcase } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { assetUrl } from '../utils/assetUrl'
 import { fmtTQ, toCents, fmtNumber } from '../lib/format'
 
@@ -40,7 +41,26 @@ export default function Store() {
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
-  const [formMode, setFormMode] = useState<'simple' | 'composite'>('composite')
+  const [successMsg, setSuccessMsg] = useState('')
+  const [formMode, setFormMode] = useState<'simple' | 'composite' | 'service'>('composite')
+  const [servicesCatalog, setServicesCatalog] = useState<any[]>([])
+  const [selectedServiceId, setSelectedServiceId] = useState('')
+  const [serviceExtraDesc, setServiceExtraDesc] = useState('')
+
+  // Modal de generacion de etiqueta (Codigo de barras con peso / QR / Etiqueta NFC)
+  const [tagModalItem, setTagModalItem] = useState<any>(null)
+  const [tagQty, setTagQty] = useState<number>(1)
+  const [tagIncludeSeller, setTagIncludeSeller] = useState<boolean>(true)
+  const [generatedTag, setGeneratedTag] = useState<any>(null)
+  const [nfcWriteStatus, setNfcWriteStatus] = useState('')
+
+  // Constructor de etiqueta de canasta completa (para grabar en etiqueta NFC o QR)
+  const [showBasketBuilder, setShowBasketBuilder] = useState(false)
+  const [basketLabel, setBasketLabel] = useState('')
+  const [basketLines, setBasketLines] = useState<{ item: any; qty: number }[]>([])
+  const [basketSelId, setBasketSelId] = useState('')
+  const [basketSelQty, setBasketSelQty] = useState<number>(1)
+  const [savedBasketTag, setSavedBasketTag] = useState<any>(null)
   const [form, setForm] = useState({
     product_id: '',
     stock: 0,
@@ -89,6 +109,118 @@ export default function Store() {
     api.get('/store/items').then((d: any) => setItems(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
     api.get('/store/all').then((d: any) => setAllStores(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/store/services-catalog').then((d: any) => setServicesCatalog(Array.isArray(d) ? d : [])).catch(() => {})
+  }
+
+  const addServiceToMyStore = async () => {
+    setError('')
+    const svc = servicesCatalog.find((s) => s.id === selectedServiceId)
+    if (!svc) {
+      setError(t('store_select_service_err', 'Selecciona un servicio del catalogo'))
+      return
+    }
+    try {
+      await api.post('/store/items', {
+        product_id: svc.id,
+        product_name: svc.name,
+        description: svc.description || '',
+        parent_category: svc.parent_category || 'Servicios',
+        category: svc.category || 'Servicios',
+        subcategory: svc.subcategory || '',
+        origin: 'internal',
+        unit: svc.unit || 'hora',
+        quantity_per_unit: 1,
+        base_price: svc.price_per_unit || 0,
+        extra_costs: 0,
+        final_price: svc.price_per_unit || 0,
+        extra_description: serviceExtraDesc || '',
+        price_trueque: svc.price_per_unit || 0,
+        stock: 999999,
+      })
+      setShowForm(false)
+      setSelectedServiceId('')
+      setServiceExtraDesc('')
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al agregar servicio')
+    }
+  }
+
+  const openTagModal = async (item: any) => {
+    setTagModalItem(item)
+    setTagQty(1)
+    setTagIncludeSeller(true)
+    setNfcWriteStatus('')
+    try {
+      const res = await api.post('/pos/code/generate', {
+        include_seller: true,
+        item_code: item.item_code || item.id,
+        quantity: 1,
+      })
+      setGeneratedTag(res)
+    } catch {
+      setGeneratedTag(null)
+    }
+  }
+
+  const refreshGeneratedTag = async (qty: number, includeSeller: boolean) => {
+    if (!tagModalItem) return
+    try {
+      const res = await api.post('/pos/code/generate', {
+        include_seller: includeSeller,
+        item_code: tagModalItem.item_code || tagModalItem.id,
+        quantity: qty > 0 ? qty : 1,
+      })
+      setGeneratedTag(res)
+    } catch {}
+  }
+
+  const writePayloadToNfcTag = async (payload: string) => {
+    setNfcWriteStatus('')
+    const anyWin = window as any
+    if (!('NDEFReader' in anyWin)) {
+      setNfcWriteStatus(t('store_nfc_not_supported', 'Tu navegador no soporta Web NFC directo. Usa Chrome en Android o la App POS Android para grabar la etiqueta NFC, o copia el codigo: ') + payload)
+      return
+    }
+    try {
+      setNfcWriteStatus(t('store_nfc_approach_tag', 'Acerca la etiqueta NFC (NTAG213/215) al reverso del telefono...'))
+      const ndef = new anyWin.NDEFReader()
+      await ndef.write({ records: [{ recordType: 'text', data: payload }] })
+      setNfcWriteStatus(t('store_nfc_write_ok', 'Etiqueta NFC grabada correctamente con: ') + payload)
+    } catch (err: any) {
+      setNfcWriteStatus(t('store_nfc_write_err', 'Error al grabar etiqueta NFC: ') + (err?.message || String(err)))
+    }
+  }
+
+  const addLineToBasketBuilder = () => {
+    const found = items.find((it) => String(it.id) === basketSelId)
+    if (!found || basketSelQty <= 0) return
+    setBasketLines([...basketLines, { item: found, qty: basketSelQty }])
+    setBasketSelId('')
+    setBasketSelQty(1)
+  }
+
+  const savePresetBasketTag = async () => {
+    if (basketLines.length === 0) return
+    setError('')
+    try {
+      const res = await api.post('/pos/baskets', {
+        label: basketLabel,
+        is_reusable: true,
+        items: basketLines.map((l) => ({
+          store_item_id: l.item.is_universal_service ? '' : String(l.item.id),
+          product_id: l.item.product_id ? String(l.item.product_id) : '',
+          item_code: l.item.item_code || '',
+          item_name: l.item.product_name,
+          unit: l.item.unit || 'unidad',
+          quantity: l.qty,
+        })),
+      })
+      setSavedBasketTag(res)
+      setSuccessMsg(t('store_basket_tag_created', 'Canasta generada para codigo de barra, QR y etiqueta NFC.'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al generar canasta')
+    }
   }
 
   useEffect(() => { load() }, [i18n.language])
@@ -363,20 +495,99 @@ export default function Store() {
       {/* VISTA: MI TIENDA */}
       {view === 'mine' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />{t('store_my_personal_store', 'Mi Tienda Personal')}</h2>
-            <button onClick={() => { setShowForm(!showForm); setFormMode('composite') }} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('store_create_composite', 'Crear Producto Compuesto')}</button>
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />{t('store_my_personal_store', 'Mi Tienda Personal (Productos y Servicios)')}</h2>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => { setShowBasketBuilder(!showBasketBuilder); setSavedBasketTag(null) }} className="btn-secondary flex items-center gap-2 text-sm">
+                <QrCode size={16} />{t('store_basket_tag_btn', 'Etiqueta / QR de Canasta')}
+              </button>
+              <button onClick={() => { setShowForm(!showForm); setFormMode('composite') }} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('store_create_composite', 'Agregar Producto o Servicio')}</button>
+            </div>
           </div>
+
+          {successMsg && <div className="text-emerald-700 text-sm bg-emerald-50 border border-emerald-200 p-3 rounded-lg">{successMsg}</div>}
+
+          {/* Constructor de Etiqueta / QR / NFC para una Canasta Completa */}
+          {showBasketBuilder && (
+            <div className="card bg-blue-50 border border-blue-200 space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <QrCode size={18} /> {t('store_basket_builder_title', 'Generar Codigo de Barra / QR / Etiqueta NFC de una Canasta Completa')}
+                </h3>
+                <button onClick={() => setShowBasketBuilder(false)} className="text-gray-500 hover:text-gray-700"><X size={18} /></button>
+              </div>
+              <p className="text-xs text-blue-800">
+                {t('store_basket_builder_desc', 'Arma una lista de productos o servicios con su peso/cantidad. El codigo generado incluye tus datos de vendedor: en el Punto de Venta el comprador solo escanea la etiqueta y acerca su tarjeta para pagar.')}
+              </p>
+              <div>
+                <label className="label text-xs">{t('store_basket_label', 'Nombre de la canasta o pedido (opcional)')}</label>
+                <input className="input" placeholder="Ej: Combo Conuquero Semanal / Pedido Mesa 3" value={basketLabel} onChange={(e) => setBasketLabel(e.target.value)} />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <select className="input flex-1 min-w-[200px]" value={basketSelId} onChange={(e) => setBasketSelId(e.target.value)}>
+                  <option value="">{t('store_select_item_for_basket', '-- Selecciona producto o servicio de tu tienda --')}</option>
+                  {items.map((it) => (
+                    <option key={it.id} value={String(it.id)}>
+                      [{it.item_code || '---'}] {it.product_name} — {it.final_price || it.price_trueque} {currency}/{it.unit || 'unidad'}
+                    </option>
+                  ))}
+                </select>
+                <input type="number" step="any" min="0.001" className="input w-28" placeholder="Peso/Cant." value={basketSelQty} onChange={(e) => setBasketSelQty(parseFloat(e.target.value) || 0)} />
+                <button type="button" onClick={addLineToBasketBuilder} className="btn-secondary text-sm">
+                  + {t('store_add_to_basket_btn', 'Agregar a canasta')}
+                </button>
+              </div>
+              {basketLines.length > 0 && (
+                <div className="space-y-1 bg-white p-3 rounded-lg border">
+                  {basketLines.map((l, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-xs py-1 border-b last:border-b-0">
+                      <span><strong>[{l.item.item_code}]</strong> {l.item.product_name} × {l.qty} {l.item.unit}</span>
+                      <button onClick={() => setBasketLines(basketLines.filter((_, i) => i !== idx))} className="text-red-500"><X size={14} /></button>
+                    </div>
+                  ))}
+                  <div className="pt-2">
+                    <button onClick={savePresetBasketTag} className="btn-primary text-sm w-full">
+                      {t('store_generate_basket_codes', 'Generar Codigo de Barra, QR y Etiqueta NFC de esta Canasta')}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {savedBasketTag && (
+                <div className="bg-white rounded-xl p-4 border space-y-3 text-center">
+                  <p className="text-xs font-bold text-emerald-800">
+                    {t('store_basket_short_code', 'Codigo corto de canasta:')} <span className="font-mono text-base">{savedBasketTag.short_code}</span>
+                    {savedBasketTag.barcode_ean13 && <span className="ml-3">EAN-13: <span className="font-mono">{savedBasketTag.barcode_ean13}</span></span>}
+                  </p>
+                  <div className="flex justify-center">
+                    <QRCodeSVG value={savedBasketTag.qr_payload || savedBasketTag.nfc_payload} size={180} level="M" />
+                  </div>
+                  <p className="text-[11px] font-mono bg-gray-100 p-2 rounded break-all">{savedBasketTag.nfc_inline_payload || savedBasketTag.nfc_payload}</p>
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    <button onClick={() => writePayloadToNfcTag(savedBasketTag.nfc_inline_payload || savedBasketTag.nfc_payload)} className="btn-primary text-xs flex items-center gap-1.5">
+                      <Nfc size={15} /> {t('store_write_nfc_tag_btn', 'Grabar en Etiqueta NFC (con vendedor incluido)')}
+                    </button>
+                  </div>
+                  {nfcWriteStatus && <p className="text-xs text-blue-700 font-medium">{nfcWriteStatus}</p>}
+                </div>
+              )}
+            </div>
+          )}
 
           {showForm && (
             <div className="card space-y-4">
               {/* Selector de modo */}
-              <div className="flex gap-2 border-b pb-3">
+              <div className="flex gap-2 border-b pb-3 flex-wrap">
                 <button
                   onClick={() => setFormMode('composite')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium ${formMode === 'composite' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}
                 >
                   <Layers size={14} className="inline mr-1" />{t('store_composite_product', 'Producto Compuesto')}
+                </button>
+                <button
+                  onClick={() => setFormMode('service')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${formMode === 'service' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  <Briefcase size={14} className="inline mr-1" />{t('store_offer_service_tab', 'Ofrecer Servicio / Horas de Trabajo')}
                 </button>
                 <button
                   onClick={() => setFormMode('simple')}
@@ -595,6 +806,32 @@ export default function Store() {
                     {t('store_publish', 'Publicar en Mi Tienda')} ({fmtNumber(compositeTotalPrice, 2)} {currency})
                   </button>
                 </>
+              ) : formMode === 'service' ? (
+                <>
+                  <h3 className="font-semibold">{t('store_service_title', 'Agregar Servicio Profesional / Oficio a Mi Tienda')}</h3>
+                  <p className="text-xs text-gray-600">
+                    {t('store_service_desc', 'El servicio universal de Trabajo en el Conuco / Mano Vuelta ya esta incluido automaticamente en la tienda de todos los miembros. Aqui puedes agregar los servicios tecnicos, intelectuales u oficios que tu ofreces personalmente para que aparezcan en tu Punto de Venta.')}
+                  </p>
+                  <div>
+                    <label className="label">{t('store_select_service_label', 'Servicio del catalogo federado')}</label>
+                    <select className="input" value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}>
+                      <option value="">{t('store_select_service_ph', '-- Seleccionar servicio que ofreces --')}</option>
+                      {servicesCatalog.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          [{s.item_code || 'SVC'}] {s.name} — {s.price_per_unit} {currency}/{s.unit || 'hora'} ({s.category})
+                          {s.is_universal_service ? ' [Universal]' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">{t('store_service_specialty_label', 'Detalle o especialidad que ofreces (opcional)')}</label>
+                    <input className="input" placeholder="Ej: Clases de matematicas, electricidad residencial, reparacion de bombas..." value={serviceExtraDesc} onChange={(e) => setServiceExtraDesc(e.target.value)} />
+                  </div>
+                  <button onClick={addServiceToMyStore} className="btn-primary" disabled={!selectedServiceId}>
+                    {t('store_add_service_btn', 'Agregar Servicio a Mi Tienda')}
+                  </button>
+                </>
               ) : (
                 <>
                   <h3 className="font-semibold">{t('store_add_catalog_title', 'Agregar Producto del Catalogo')}</h3>
@@ -713,9 +950,28 @@ export default function Store() {
                 const isComposite = !item.product_id && item.extra_description
                 return (
                   <div key={i} className="card">
-                    <h3 className="font-semibold">{item.product_name || product?.name || 'Producto'}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold">{item.product_name || product?.name || 'Producto'}</h3>
+                      {item.item_code && (
+                        <span className="text-[11px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded border">
+                          #{item.item_code}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600">{item.description || product?.description}</p>
-                    {item.category && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">{item.category}</span>}
+                    <div className="flex gap-1.5 flex-wrap mt-1">
+                      {item.category && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded inline-block">{item.category}</span>}
+                      {item.is_universal_service && (
+                        <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                          {t('store_universal_service_badge', 'Servicio Universal (Todos)')}
+                        </span>
+                      )}
+                      {item.is_service && !item.is_universal_service && (
+                        <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
+                          {t('store_service_badge', 'Servicio')}
+                        </span>
+                      )}
+                    </div>
                     {isComposite && (
                       <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded p-2">
                         <p className="text-[10px] font-bold text-emerald-800 uppercase">{t('composite_badge', 'Compuesto')}</p>
@@ -734,13 +990,19 @@ export default function Store() {
                           {item.extra_description && <span className="block italic text-gray-500">{item.extra_description}</span>}
                         </div>
                       )}
-                      <span className={`text-sm ${item.stock === 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                        {t('store_stock', 'Stock:')} {item.stock}{item.stock === 0 ? ` (${t('store_sold_out', 'agotado')})` : ''}
-                      </span>
+                      {!item.is_service && (
+                        <span className={`text-sm ${item.stock === 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                          {t('store_stock', 'Stock:')} {item.stock}{item.stock === 0 ? ` (${t('store_sold_out', 'agotado')})` : ''}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => buy(item)} className="btn-primary flex-1 flex items-center justify-center gap-2"><ShoppingCart size={16} />{t('store_sell', 'Vender')}</button>
-                      <button onClick={() => removeItem(item.id)} className="btn-secondary text-red-600"><Trash2 size={16} /></button>
+                    <div className="flex gap-2 mt-3 flex-wrap">
+                      <button onClick={() => openTagModal(item)} className="btn-secondary flex-1 flex items-center justify-center gap-1.5 text-xs">
+                        <QrCode size={14} /> {t('store_tag_barcode_btn', 'Barra / QR / NFC')}
+                      </button>
+                      {!item.is_universal_service && (
+                        <button onClick={() => removeItem(item.id)} className="btn-secondary text-red-600"><Trash2 size={16} /></button>
+                      )}
                     </div>
                   </div>
                 )
@@ -962,6 +1224,86 @@ export default function Store() {
                       </div>
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para generar Codigo de Barra con peso/cantidad, QR y grabar Etiqueta NFC de un producto/servicio */}
+      {tagModalItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setTagModalItem(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="font-bold text-base">{tagModalItem.product_name}</h3>
+                <p className="text-xs text-gray-500">
+                  Codigo corto: <strong className="font-mono">#{tagModalItem.item_code || '---'}</strong> · {tagModalItem.final_price || tagModalItem.price_trueque} {currency} / {tagModalItem.unit || 'unidad'}
+                </p>
+              </div>
+              <button onClick={() => setTagModalItem(null)} className="text-gray-400 hover:text-gray-600"><X size={22} /></button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="label text-xs">
+                  {t('store_tag_qty_label', `Peso / Cantidad empaquetada en ${tagModalItem.unit || 'unidad'} (ej: 2.5 kg, 10 L, 10 m, 1 unidad)`)}
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.001"
+                  className="input"
+                  value={tagQty}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value) || 1
+                    setTagQty(v)
+                    refreshGeneratedTag(v, tagIncludeSeller)
+                  }}
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={tagIncludeSeller}
+                  onChange={(e) => {
+                    setTagIncludeSeller(e.target.checked)
+                    refreshGeneratedTag(tagQty, e.target.checked)
+                  }}
+                />
+                {t('store_tag_include_seller', 'Incluir mis datos de vendedor en el QR / Etiqueta NFC (el comprador paga directo sin pedir mi tarjeta)')}
+              </label>
+
+              {generatedTag && (
+                <div className="bg-gray-50 rounded-xl p-4 border space-y-3 text-center">
+                  {generatedTag.barcode_ean13 && (
+                    <div className="bg-white p-3 rounded-lg border">
+                      <p className="text-[11px] text-gray-500 uppercase font-semibold">
+                        {t('store_ean13_weight_label', 'Codigo de Barra EAN-13 con peso/cantidad incrustada')}
+                      </p>
+                      <p className="font-mono text-xl font-bold tracking-widest mt-1">{generatedTag.barcode_ean13}</p>
+                      <p className="text-[11px] text-emerald-700 mt-0.5">
+                        {tagModalItem.product_name} × {tagQty} {tagModalItem.unit || 'unidad'} = <strong>{fmtNumber((tagModalItem.final_price || tagModalItem.price_trueque || 0) * tagQty, 2)} {currency}</strong>
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-center bg-white p-3 rounded-lg border">
+                    <QRCodeSVG value={generatedTag.qr_payload || ''} size={160} level="M" />
+                  </div>
+
+                  <p className="text-[11px] font-mono bg-white p-2 rounded border break-all">{generatedTag.nfc_payload}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => writePayloadToNfcTag(generatedTag.nfc_payload)}
+                    className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Nfc size={16} /> {t('store_write_product_nfc_btn', 'Grabar en Etiqueta NFC (NTAG213/215)')}
+                  </button>
+                  {nfcWriteStatus && <p className="text-xs text-blue-700">{nfcWriteStatus}</p>}
                 </div>
               )}
             </div>

@@ -58,6 +58,7 @@ func (eh *ExternalHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddlewa
 	r.Post("/api/store/items", eh.addStoreItem)
 	r.Get("/api/store/items/{id}", eh.getStoreItem)
 	r.Get("/api/store/all", eh.listAllStores)
+	r.Get("/api/store/services-catalog", eh.listServicesCatalog)
 	r.Get("/api/public/store-items", eh.listPublicStoreItems)
 	if am != nil {
 		r.With(am.RequirePermission("store.update_stock")).Put("/api/store/items/{id}/stock", eh.updateStock)
@@ -370,8 +371,101 @@ func (eh *ExternalHandler) listStoreItems(w http.ResponseWriter, r *http.Request
 		writeError(w, 500, err.Error())
 		return
 	}
+
+	// Filtrar por el propietario autenticado si existe (o ?owner_id=...)
+	var filterOwnerID *uuid.UUID
+	if oidStr := r.URL.Query().Get("owner_id"); oidStr != "" {
+		if parsed, err := uuid.Parse(oidStr); err == nil {
+			filterOwnerID = &parsed
+		}
+	} else if eh.Auth != nil {
+		if uid, err := eh.Auth.GetUserID(r); err == nil && uid != uuid.Nil {
+			filterOwnerID = &uid
+		}
+	}
+
+	if filterOwnerID != nil {
+		filtered := make([]external.StoreItem, 0, len(items))
+		for _, it := range items {
+			if it.OwnerID != nil && *it.OwnerID == *filterOwnerID {
+				filtered = append(filtered, it)
+			}
+		}
+		items = filtered
+	}
+
+	// Incluir automaticamente los servicios universales (ej: Trabajo en el Conuco / Mano Vuelta)
+	// para que todo miembro activo los tenga disponibles en su tienda y en su POS.
+	var ownerName string
+	if filterOwnerID != nil {
+		_ = eh.Pool.QueryRow(r.Context(), `SELECT COALESCE(display_name, username, '') FROM users WHERE id = $1`, *filterOwnerID).Scan(&ownerName)
+	}
+	if univ, uErr := eh.Store.ListUniversalServices(r.Context(), filterOwnerID, ownerName); uErr == nil && len(univ) > 0 {
+		existingProdIDs := make(map[uuid.UUID]bool)
+		for _, it := range items {
+			if it.ProductID != nil {
+				existingProdIDs[*it.ProductID] = true
+			}
+		}
+		for _, u := range univ {
+			if u.ProductID != nil && !existingProdIDs[*u.ProductID] {
+				items = append(items, u)
+			}
+		}
+	}
+
 	eh.localizeStoreItems(r, items)
 	writeJSON(w, 200, items)
+}
+
+// listServicesCatalog devuelve todos los servicios aprobados del catalogo federado
+// para que cualquier miembro pueda elegir cuales servicios (intelectuales, tecnicos,
+// oficios) ofrece y agregarlos a su tienda personal.
+func (eh *ExternalHandler) listServicesCatalog(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := db.ResolveNodeDomain(r.Context(), eh.Pool, r.Header.Get("X-Node-Domain"), eh.NodeDomain)
+	lang, fallbackLang := resolveRequestLanguages(r, eh.Pool, nodeDomain)
+
+	rows, err := eh.Pool.Query(r.Context(), `
+		SELECT id, COALESCE(catalog_key,''), COALESCE(item_code,''), name, COALESCE(description,''),
+		       COALESCE(parent_category,'Servicios'), COALESCE(category,''), COALESCE(subcategory,''),
+		       COALESCE(unit,'hora'), price_per_unit, COALESCE(is_universal_service,false)
+		FROM products
+		WHERE node_domain = '__FEDERATION__'
+		  AND item_type = 'service'
+		  AND is_active = true
+		  AND is_approved = true
+		  AND COALESCE(is_allowed, true) = true
+		ORDER BY is_universal_service DESC, category, name`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	services := []map[string]interface{}{}
+	for rows.Next() {
+		var id, catalogKey, itemCode, name, desc, parentCat, cat, subcat, unit string
+		var price float64
+		var isUniversal bool
+		if err := rows.Scan(&id, &catalogKey, &itemCode, &name, &desc, &parentCat, &cat, &subcat, &unit, &price, &isUniversal); err != nil {
+			continue
+		}
+		services = append(services, map[string]interface{}{
+			"id":                   id,
+			"catalog_key":          catalogKey,
+			"item_code":            itemCode,
+			"name":                 name,
+			"description":          desc,
+			"parent_category":      parentCat,
+			"category":             cat,
+			"subcategory":          subcat,
+			"unit":                 unit,
+			"price_per_unit":       price,
+			"is_universal_service": isUniversal,
+		})
+	}
+	localizeEntityMaps(r.Context(), eh.Pool, services, "product", lang, fallbackLang, "name", "description", "unit")
+	writeJSON(w, 200, services)
 }
 
 // listAllStores devuelve todos los items de todas las tiendas para busqueda publico

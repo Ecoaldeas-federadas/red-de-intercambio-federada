@@ -36,9 +36,84 @@ data class UserMeResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class PosCartItemDto(
+    @Json(name = "store_item_id") val storeItemId: String? = null,
+    @Json(name = "product_id") val productId: String? = null,
+    @Json(name = "item_code") val itemCode: String? = null,
+    @Json(name = "item_name") val itemName: String,
+    @Json(name = "unit") val unit: String = "unidad",
+    @Json(name = "quantity") val quantity: Double = 1.0,
+    @Json(name = "unit_price_cents") val unitPriceCents: Long = 0L,
+    @Json(name = "subtotal_cents") val subtotalCents: Long = 0L,
+    @Json(name = "is_service") val isService: Boolean = false
+)
+
+@JsonClass(generateAdapter = true)
+data class VendorCatalogCompactItemDto(
+    @Json(name = "id") val id: String,
+    @Json(name = "pid") val productId: String? = null,
+    @Json(name = "code") val code: String = "",
+    @Json(name = "name") val name: String,
+    @Json(name = "cat") val category: String? = null,
+    @Json(name = "u") val unit: String = "unidad",
+    @Json(name = "p") val priceCents: Long = 0L,
+    @Json(name = "s") val stock: Long = 0L,
+    @Json(name = "svc") val isService: Boolean = false,
+    @Json(name = "univ") val isUniversal: Boolean = false,
+    @Json(name = "ic") val iconUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class VendorCatalogResponseDto(
+    @Json(name = "v") val versionEtag: String? = null,
+    @Json(name = "seller_id") val sellerId: String? = null,
+    @Json(name = "seller_username") val sellerUsername: String? = null,
+    @Json(name = "seller_name") val sellerName: String? = null,
+    @Json(name = "items") val items: List<VendorCatalogCompactItemDto> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class ParsePosCodeRequest(
+    @Json(name = "code") val code: String,
+    @Json(name = "seller_id") val sellerId: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ParsePosCodeResponse(
+    @Json(name = "kind") val kind: String? = null,
+    @Json(name = "seller_id") val sellerId: String? = null,
+    @Json(name = "seller_name") val sellerName: String? = null,
+    @Json(name = "items") val items: List<PosCartItemDto>? = emptyList(),
+    @Json(name = "total_cents") val totalCents: Long? = 0L,
+    @Json(name = "summary") val summary: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class GeneratePosCodeRequest(
+    @Json(name = "seller_id") val sellerId: String? = null,
+    @Json(name = "include_seller") val includeSeller: Boolean = true,
+    @Json(name = "item_code") val itemCode: String? = null,
+    @Json(name = "quantity") val quantity: Double = 1.0,
+    @Json(name = "items") val items: List<PosCartItemDto>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class GeneratePosCodeResponse(
+    @Json(name = "kind") val kind: String? = null,
+    @Json(name = "item_code") val itemCode: String? = null,
+    @Json(name = "quantity") val quantity: Double? = null,
+    @Json(name = "barcode_ean13") val barcodeEan13: String? = null,
+    @Json(name = "qr_payload") val qrPayload: String? = null,
+    @Json(name = "nfc_payload") val nfcPayload: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class CreateChargeRequest(
     @Json(name = "amount") val amount: Long,
-    @Json(name = "description") val description: String? = null
+    @Json(name = "description") val description: String? = null,
+    @Json(name = "seller_id") val sellerId: String? = null,
+    @Json(name = "items") val items: List<PosCartItemDto> = emptyList()
 )
 
 @JsonClass(generateAdapter = true)
@@ -235,12 +310,14 @@ data class SinglePaymentDecryptedPayload(
     @Json(name = "timestamp") val timestamp: Long,
     @Json(name = "nonce") val nonce: String,
     @Json(name = "id_document_type") val idDocumentType: String? = null,
-    @Json(name = "id_document_number") val idDocumentNumber: String? = null
+    @Json(name = "id_document_number") val idDocumentNumber: String? = null,
+    @Json(name = "items") val items: List<PosCartItemDto> = emptyList()
 )
 
 @JsonClass(generateAdapter = true)
 data class CommunityPaymentDecryptedPayload(
     @Json(name = "seller_card_uid") val sellerCardUid: String,
+    @Json(name = "seller_user_id") val sellerUserId: String? = null,
     @Json(name = "seller_crypto_token") val sellerCryptoToken: String,
     @Json(name = "seller_pin") val sellerPin: String,
     @Json(name = "buyer_card_uid") val buyerCardUid: String,
@@ -250,7 +327,8 @@ data class CommunityPaymentDecryptedPayload(
     @Json(name = "timestamp") val timestamp: Long,
     @Json(name = "nonce") val nonce: String,
     @Json(name = "buyer_id_document_type") val buyerIdDocumentType: String? = null,
-    @Json(name = "buyer_id_document_number") val buyerIdDocumentNumber: String? = null
+    @Json(name = "buyer_id_document_number") val buyerIdDocumentNumber: String? = null,
+    @Json(name = "items") val items: List<PosCartItemDto> = emptyList()
 )
 
 @JsonClass(generateAdapter = true)

@@ -1,0 +1,6 @@
+{
+  "name": "Punto de Venta POS",
+  "description": "Terminal POS de punto de venta nativo para la Red de Trueque Federada con cobro por QR, NFC cifrado, Multi-Vendedor y Multi-Firma.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

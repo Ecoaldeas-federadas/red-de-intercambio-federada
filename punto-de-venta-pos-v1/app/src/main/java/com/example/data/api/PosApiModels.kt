@@ -1,0 +1,816 @@
+package com.example.data.api
+
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = true)
+data class LoginRequest(
+    @Json(name = "username") val username: String,
+    @Json(name = "password") val password: String
+)
+
+@JsonClass(generateAdapter = true)
+data class LoginResponse(
+    @Json(name = "token") val token: String? = null,
+    @Json(name = "username") val username: String? = null,
+    @Json(name = "node") val node: String? = null,
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "error") val error: String? = null,
+    // Presente solo si el backend auto-renovo las claves del terminal durante el login
+    @Json(name = "keys_renewed") val keysRenewed: Boolean? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class UserMeResponse(
+    @Json(name = "id") val id: String? = null,
+    @Json(name = "username") val username: String? = null,
+    @Json(name = "display_name") val displayName: String? = null,
+    @Json(name = "node_domain") val nodeDomain: String? = null,
+    @Json(name = "account_type") val accountType: String? = "individual",
+    @Json(name = "balance") val balance: Long? = 0L,
+    @Json(name = "national_id") val nationalId: String? = null,
+    @Json(name = "national_id_type") val nationalIdType: String? = null,
+    @Json(name = "required_signatures") val requiredSignatures: Int? = 1,
+    @Json(name = "permissions") val permissions: List<String>? = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateChargeRequest(
+    @Json(name = "amount") val amount: Long,
+    @Json(name = "description") val description: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class QrSignatureInfo(
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "username") val username: String? = null,
+    @Json(name = "signer_name") val signerName: String? = null,
+    @Json(name = "signed_at") val signedAt: String? = null,
+    @Json(name = "status") val status: String? = "signed"
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateChargeResponse(
+    @Json(name = "charge_id") val chargeId: String? = null,
+    @Json(name = "charge_token") val chargeToken: String? = null,
+    @Json(name = "amount") val amount: Long? = 0L,
+    @Json(name = "status") val status: String? = "pending",
+    @Json(name = "expires_at") val expiresAt: String? = null,
+    @Json(name = "expires_in") val expiresIn: Int? = 180,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ChargeStatusResponse(
+    @Json(name = "charge_id") val chargeId: String? = null,
+    @Json(name = "amount") val amount: Long? = 0L,
+    @Json(name = "status") val status: String? = "pending",
+    @Json(name = "payment_method") val paymentMethod: String? = null,
+    @Json(name = "paid_at") val paidAt: String? = null,
+    @Json(name = "description") val description: String? = null,
+    @Json(name = "merchant_name") val merchantName: String? = null,
+    @Json(name = "expires_at") val expiresAt: String? = null,
+    @Json(name = "expires_in") val expiresIn: Int? = null,
+    @Json(name = "remaining_seconds") val remainingSeconds: Long? = null,
+    @Json(name = "payer_id") val payerId: String? = null,
+    @Json(name = "payer_name") val payerName: String? = null,
+    @Json(name = "required_signatures") val requiredSignatures: Int? = 1,
+    @Json(name = "collected_signatures") val collectedSignatures: Int? = 0,
+    @Json(name = "signatures_count") val signaturesCount: Int? = null,
+    @Json(name = "signatures") val signatures: List<QrSignatureInfo>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class GenericStatusResponse(
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "message") val message: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class HeartbeatResponse(
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "active") val active: Boolean? = null,
+    @Json(name = "registered") val registered: Boolean? = null,
+    @Json(name = "not_found") val notFound: Boolean? = null,
+    @Json(name = "key_matches") val keyMatches: Boolean? = null,
+    @Json(name = "signature") val signature: String? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ServerPubKeyResponse(
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "node_domain") val nodeDomain: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RegisterTerminalApiRequest(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "label") val label: String,
+    @Json(name = "terminal_type") val terminalType: String = "keypad",
+    @Json(name = "location") val location: String = "POS Móvil",
+    @Json(name = "wifi_ssid") val wifiSsid: String = "",
+    @Json(name = "device_fingerprint") val deviceFingerprint: String
+)
+
+@JsonClass(generateAdapter = true)
+data class RegisterTerminalApiResponse(
+    @Json(name = "terminal") val terminal: TerminalItem? = null,
+    @Json(name = "registration_token") val registrationToken: String? = null,
+    @Json(name = "server_url") val serverUrl: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CompleteRegistrationRequest(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "registration_token") val registrationToken: String,
+    @Json(name = "terminal_public_key") val terminalPublicKey: String,
+    @Json(name = "device_fingerprint") val deviceFingerprint: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CompleteRegistrationResponse(
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class TerminalAuthRequest(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "signature") val signature: String,
+    @Json(name = "nonce") val nonce: String,
+    @Json(name = "device_fingerprint") val deviceFingerprint: String
+)
+
+@JsonClass(generateAdapter = true)
+data class FormatSettings(
+    @Json(name = "locale") val locale: String? = null,
+    @Json(name = "number_locale") val numberLocale: String? = null,
+    @Json(name = "date_format") val dateFormat: String? = null,
+    @Json(name = "time_format") val timeFormat: String? = null,
+    @Json(name = "first_day_of_week") val firstDayOfWeek: Int? = null,
+    @Json(name = "timezone") val timezone: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class TerminalAuthResponse(
+    @Json(name = "session_token") val sessionToken: String? = null,
+    @Json(name = "signature") val signature: String? = null,
+    @Json(name = "format_settings") val formatSettings: FormatSettings? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateTerminalSessionRequest(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "merchant_user_id") val merchantUserId: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class TerminalSessionResponse(
+    @Json(name = "id") val id: String? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "session_token") val sessionToken: String? = null,
+    @Json(name = "merchant_user_id") val merchantUserId: String? = null,
+    @Json(name = "current_amount") val currentAmount: Long? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "expires_at") val expiresAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SetSessionAmountRequest(
+    @Json(name = "session_token") val sessionToken: String,
+    @Json(name = "amount") val amount: Long
+)
+
+@JsonClass(generateAdapter = true)
+data class EphemeralHandshakeModel(
+    @Json(name = "ephemeral_public_key") val ephemeralPublicKey: String,
+    @Json(name = "identity_signature") val identitySignature: String,
+    @Json(name = "nonce") val nonce: String
+)
+
+@JsonClass(generateAdapter = true)
+data class EphemeralMessageModel(
+    @Json(name = "handshake") val handshake: EphemeralHandshakeModel,
+    @Json(name = "nonce") val nonce: String,
+    @Json(name = "ciphertext") val ciphertext: String,
+    @Json(name = "signature") val signature: String
+)
+
+@JsonClass(generateAdapter = true)
+data class EncryptedPayloadModel(
+    @Json(name = "nonce") val nonce: String,
+    @Json(name = "ciphertext") val ciphertext: String,
+    @Json(name = "signature") val signature: String
+)
+
+@JsonClass(generateAdapter = true)
+data class EncryptedPaymentRequest(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "encrypted_payload") val encryptedPayload: EphemeralMessageModel
+)
+
+@JsonClass(generateAdapter = true)
+data class EncryptedPaymentResponse(
+    @Json(name = "nonce") val nonce: String? = null,
+    @Json(name = "ciphertext") val ciphertext: String? = null,
+    @Json(name = "signature") val signature: String? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "message") val message: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+// Decrypted Payloads (internal to cryptography layer)
+@JsonClass(generateAdapter = true)
+data class SinglePaymentDecryptedPayload(
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "crypto_token") val cryptoToken: String,
+    @Json(name = "pin") val pin: String,
+    @Json(name = "amount") val amount: Long,
+    @Json(name = "timestamp") val timestamp: Long,
+    @Json(name = "nonce") val nonce: String,
+    @Json(name = "id_document_type") val idDocumentType: String? = null,
+    @Json(name = "id_document_number") val idDocumentNumber: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CommunityPaymentDecryptedPayload(
+    @Json(name = "seller_card_uid") val sellerCardUid: String,
+    @Json(name = "seller_crypto_token") val sellerCryptoToken: String,
+    @Json(name = "seller_pin") val sellerPin: String,
+    @Json(name = "buyer_card_uid") val buyerCardUid: String,
+    @Json(name = "buyer_crypto_token") val buyerCryptoToken: String,
+    @Json(name = "buyer_pin") val buyerPin: String,
+    @Json(name = "amount") val amount: Long,
+    @Json(name = "timestamp") val timestamp: Long,
+    @Json(name = "nonce") val nonce: String,
+    @Json(name = "buyer_id_document_type") val buyerIdDocumentType: String? = null,
+    @Json(name = "buyer_id_document_number") val buyerIdDocumentNumber: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class MultisigSignDecryptedPayload(
+    @Json(name = "pending_payment_id") val pendingPaymentId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "pin") val pin: String,
+    @Json(name = "timestamp") val timestamp: Long,
+    @Json(name = "nonce") val nonce: String,
+    @Json(name = "id_document_type") val idDocumentType: String? = null,
+    @Json(name = "id_document_number") val idDocumentNumber: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PaymentResultDecrypted(
+    @Json(name = "status") val status: String? = null, // "approved", "rejected", "pending_multisig"
+    @Json(name = "transaction_id") val transactionId: String? = null,
+    @Json(name = "pending_id") val pendingId: String? = null,
+    @Json(name = "message") val message: String? = null,
+    @Json(name = "user_balance") val userBalance: Long? = null,
+    @Json(name = "required_sigs") val requiredSigs: Int? = null,
+    @Json(name = "collected_sigs") val collectedSigs: Int? = null,
+    @Json(name = "remaining_sigs") val remainingSigs: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class MultisigStatusResponse(
+    @Json(name = "id") val id: String? = null,
+    @Json(name = "status") val status: String? = null, // "pending", "executed", "expired", "cancelled"
+    @Json(name = "amount") val amount: Long? = null,
+    @Json(name = "payment_type") val paymentType: String? = null,
+    @Json(name = "from_account") val fromAccount: String? = null,
+    @Json(name = "to_account") val toAccount: String? = null,
+    @Json(name = "required_signatures") val requiredSignatures: Int? = null,
+    @Json(name = "collected_count") val collectedCount: Int? = null,
+    @Json(name = "remaining_sigs") val remainingSigs: Int? = null,
+    @Json(name = "expires_at") val expiresAt: String? = null,
+    @Json(name = "remaining_seconds") val remainingSeconds: Long? = null,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeConfigResponse(
+    @Json(name = "node_domain") val nodeDomain: String? = null,
+    @Json(name = "card_type_mode") val cardTypeMode: String? = "dual", // "uid_only", "desfire", "dual"
+    @Json(name = "require_crypto") val requireCrypto: Boolean? = false,
+    @Json(name = "auto_rotate_key") val autoRotateKey: Boolean? = false,
+    @Json(name = "max_write_fails") val maxWriteFails: Int? = 3,
+    @Json(name = "require_id_document_for_uid_only") val requireIdDocumentForUidOnly: Boolean? = false,
+    @Json(name = "uid_only_message") val uidOnlyMessage: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class TerminalItem(
+    @Json(name = "id") val id: String? = null,
+    @Json(name = "node_domain") val nodeDomain: String? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "label") val label: String? = null,
+    @Json(name = "terminal_type") val terminalType: String? = "keypad",
+    @Json(name = "location") val location: String? = null,
+    @Json(name = "is_active") val isActive: Boolean? = true,
+    @Json(name = "is_registered") val isRegistered: Boolean? = false,
+    @Json(name = "last_seen") val lastSeen: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ActiveShiftResponse(
+    @Json(name = "active") val active: Boolean? = false,
+    @Json(name = "shift_id") val shiftId: String? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "opened_at") val openedAt: String? = null,
+    @Json(name = "opening_amount") val openingAmount: Long? = 0L,
+    @Json(name = "total_sales") val totalSales: Long? = 0L,
+    @Json(name = "transactions_count") val transactionsCount: Int? = 0,
+    @Json(name = "expected_close") val expectedClose: Long? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ShiftResponse(
+    @Json(name = "id") val id: String? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "status") val status: String? = "open",
+    @Json(name = "opened_at") val openedAt: String? = null,
+    @Json(name = "closed_at") val closedAt: String? = null,
+    @Json(name = "opening_amount") val openingAmount: Long? = 0L,
+    @Json(name = "closing_amount") val closingAmount: Long? = 0L,
+    @Json(name = "total_sales") val totalSales: Long? = 0L,
+    @Json(name = "transactions_count") val transactionsCount: Int? = 0,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class OpenShiftRequest(
+    @Json(name = "opening_amount") val openingAmount: Long = 0L,
+    @Json(name = "notes") val notes: String? = null,
+    @Json(name = "pin") val pin: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class CloseShiftRequest(
+    @Json(name = "closing_amount") val closingAmount: Long? = null,
+    @Json(name = "notes") val notes: String? = null,
+    @Json(name = "pin") val pin: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class VerifyShiftPinRequest(
+    @Json(name = "pin") val pin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class VerifyShiftPinResponse(
+    @Json(name = "valid") val valid: Boolean = false,
+    @Json(name = "configured") val configured: Boolean = false,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ShiftPinConfiguredResponse(
+    @Json(name = "configured") val configured: Boolean = false
+)
+
+@JsonClass(generateAdapter = true)
+data class ShiftHistoryItem(
+    @Json(name = "id") val id: String,
+    @Json(name = "user_name") val userName: String? = null,
+    @Json(name = "status") val status: String,
+    @Json(name = "opened_at") val openedAt: String,
+    @Json(name = "closed_at") val closedAt: String? = null,
+    @Json(name = "opening_amount") val openingAmount: Long = 0L,
+    @Json(name = "closing_amount") val closingAmount: Long? = null,
+    @Json(name = "total_sales") val totalSales: Long = 0L,
+    @Json(name = "transactions_count") val transactionsCount: Int = 0,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardItem(
+    @Json(name = "id") val id: String? = null,
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "is_active") val isActive: Boolean? = true,
+    @Json(name = "card_type") val cardType: String? = "uid_only",
+    @Json(name = "crypto_enabled") val cryptoEnabled: Boolean? = false,
+    @Json(name = "issued_at") val issuedAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class IssueCardRequest(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "card_type") val cardType: String = "uid_only",
+    @Json(name = "initial_pin") val initialPin: String = "1234"
+)
+
+@JsonClass(generateAdapter = true)
+data class ChangePinRequest(
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "old_pin") val oldPin: String,
+    @Json(name = "new_pin") val newPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ResetPinRequest(
+    @Json(name = "new_pin") val newPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class TransactionApiItem(
+    @Json(name = "id") val id: String? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "amount") val amount: Long? = 0L,
+    @Json(name = "status") val status: String? = "approved",
+    @Json(name = "transaction_type") val transactionType: String? = "single",
+    @Json(name = "error_message") val errorMessage: String? = null,
+    @Json(name = "created_at") val createdAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DocumentTypeItem(
+    val code: String,
+    val spanishName: String
+)
+
+val DEFAULT_DOCUMENT_TYPES = listOf(
+    DocumentTypeItem("cedula_v", "Cédula de identidad (V - Nacional)"),
+    DocumentTypeItem("cedula_e", "Cédula de identidad (E - Extranjero)"),
+    DocumentTypeItem("cedula", "Cédula de identidad"),
+    DocumentTypeItem("dni", "Documento Nacional de Identidad (DNI)"),
+    DocumentTypeItem("pasaporte", "Pasaporte"),
+    DocumentTypeItem("rut", "Registro Único Tributario (RUT)"),
+    DocumentTypeItem("curp", "CURP"),
+    DocumentTypeItem("carnet_conducir", "Carnet de Conducir"),
+    DocumentTypeItem("cedula_juridica", "Cédula Jurídica"),
+    DocumentTypeItem("residencia", "Permiso de Residencia"),
+    DocumentTypeItem("otro", "Otro Documento")
+)
+
+// ============================================
+// MIFARE Classic Dynamic Certificates
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class UserLookupDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "username") val username: String
+)
+
+@JsonClass(generateAdapter = true)
+data class AutoRenewRequest(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "terminal_public_key") val terminalPublicKey: String,
+    @Json(name = "device_fingerprint") val deviceFingerprint: String
+)
+
+@JsonClass(generateAdapter = true)
+data class AutoRenewResponse(
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class UserLookupResponse(
+    @Json(name = "found") val found: Boolean = false,
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "card_type") val cardType: String? = null,
+    @Json(name = "requires_document") val requiresDocument: Boolean = false,
+    @Json(name = "required_doc_type") val requiredDocType: String? = null,
+    @Json(name = "document_types") val documentTypes: List<String>? = null,
+    @Json(name = "display_name") val displayName: String? = null,
+    @Json(name = "is_remote") val isRemote: Boolean = false,
+    @Json(name = "remote_node") val remoteNode: String? = null,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ClassicPreAuthDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "username") val username: String,
+    @Json(name = "pin") val pin: String,
+    @Json(name = "amount") val amount: Long
+)
+
+@JsonClass(generateAdapter = true)
+data class ClassicPreAuthWithDocumentDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "username") val username: String,
+    @Json(name = "doc_type") val docType: String,
+    @Json(name = "doc_number") val docNumber: String,
+    @Json(name = "pin") val pin: String,
+    @Json(name = "amount") val amount: Long
+)
+
+@JsonClass(generateAdapter = true)
+data class ClassicPreAuthResponse(
+    @Json(name = "pre_approved") val preApproved: Boolean = false,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "card_type") val cardType: String? = null, // "classic", "uid_only", "desfire"
+    @Json(name = "read_sector") val readSector: Int = 0,
+    @Json(name = "read_key_a") val readKeyA: String? = null,
+    @Json(name = "expected_certificate") val expectedCertificate: String? = null,
+    @Json(name = "write_sector") val writeSector: Int = 0,
+    @Json(name = "write_key_b") val writeKeyB: String? = null,
+    @Json(name = "new_certificate") val newCertificate: String? = null,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ClassicConfirmDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "read_ok") val readOk: Boolean = true,
+    @Json(name = "write_ok") val writeOk: Boolean = true,
+    @Json(name = "written_blocks") val writtenBlocks: Int = 3
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionClassicRequest(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "initial_pin") val initialPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionClassicResponse(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "sectors") val sectors: List<SectorData> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class SectorData(
+    @Json(name = "sector_number") val sectorNumber: Int = 0,
+    @Json(name = "key_a") val keyA: String = "",
+    @Json(name = "key_b") val keyB: String = "",
+    @Json(name = "access_bits") val accessBits: String = "",
+    @Json(name = "certificate") val certificate: String = "",
+    @Json(name = "is_active") val isActive: Boolean = false
+)
+
+// ============================================
+// Card Initialization (Grabado de tarjetas)
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class PendingCardResponse(
+    @Json(name = "pending_cards") val pendingCards: List<PendingCard> = emptyList(),
+    @Json(name = "count") val count: Int = 0
+)
+
+@JsonClass(generateAdapter = true)
+data class PendingCard(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "card_type") val cardType: String = "classic",
+    @Json(name = "user_id") val userId: String = "",
+    @Json(name = "username") val username: String = "",
+    @Json(name = "display_name") val displayName: String = "",
+    @Json(name = "has_dynamic_certs") val hasDynamicCerts: Boolean = false,
+    @Json(name = "issued_at") val issuedAt: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class ConfirmInitResponse(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "initialized") val initialized: Boolean = false,
+    @Json(name = "message") val message: String = ""
+)
+
+// ============================================
+// Terminal Pairing by Short Code
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class PairingInitiateRequest(
+    @Json(name = "terminal_public_key") val terminalPublicKey: String,
+    @Json(name = "device_fingerprint") val deviceFingerprint: String,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "terminal_label") val terminalLabel: String? = null,
+    @Json(name = "chip_id") val chipId: String? = null,
+    @Json(name = "device_model") val deviceModel: String? = null,
+    @Json(name = "device_manufacturer") val deviceManufacturer: String? = null,
+    @Json(name = "android_version") val androidVersion: String? = null,
+    @Json(name = "terminal_type") val terminalType: String = "android_pos"
+)
+
+@JsonClass(generateAdapter = true)
+data class PairingInitiateResponse(
+    @Json(name = "pairing_code") val pairingCode: String? = null,
+    @Json(name = "expires_in") val expiresIn: Int? = 60,
+    @Json(name = "message") val message: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PairingStatusResponse(
+    @Json(name = "status") val status: String? = null, // "pending", "approved", "expired", "rejected"
+    @Json(name = "remaining_seconds") val remainingSeconds: Int? = 0,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PairingOptionsResponse(
+    @Json(name = "options") val options: List<String> = emptyList(),
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PairingApproveRequest(
+    @Json(name = "selected_code") val selectedCode: String
+)
+
+@JsonClass(generateAdapter = true)
+data class TerminalLookupRequest(
+    @Json(name = "terminal_public_key") val terminalPublicKey: String
+)
+
+@JsonClass(generateAdapter = true)
+data class TerminalLookupResponse(
+    @Json(name = "registered") val registered: Boolean = false,
+    @Json(name = "active") val active: Boolean? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "message") val message: String? = null
+)
+
+// ============================================
+// NTAG215 Dynamic Certificates
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class NTAG215PreAuthResponse(
+    @Json(name = "pre_approved") val preApproved: Boolean = false,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "card_type") val cardType: String? = null,
+    @Json(name = "pwd") val pwd: String? = null, // hex 4 bytes
+    @Json(name = "read_slot") val readSlot: Int = 0,
+    @Json(name = "expected_certificate") val expectedCertificate: String? = null, // hex 16 bytes
+    @Json(name = "write_slot") val writeSlot: Int = 0,
+    @Json(name = "backup_slot") val backupSlot: Int = 0,
+    @Json(name = "new_certificate") val newCertificate: String? = null, // hex 16 bytes
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class NTAG215ConfirmDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "read_ok") val readOk: Boolean = true,
+    @Json(name = "write_ok") val writeOk: Boolean = true,
+    @Json(name = "written_pages") val writtenPages: Int = 4
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionNTAG215Request(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "initial_pin") val initialPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionNTAG215Response(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "card_type") val cardType: String = "ntag215",
+    @Json(name = "pwd") val pwd: String = "", // hex 4 bytes
+    @Json(name = "pack") val pack: String = "", // hex 2 bytes
+    @Json(name = "custom_card_id") val customCardId: String = "", // hex 8 bytes
+    @Json(name = "auth0") val auth0: Int = 10,
+    @Json(name = "slots") val slots: List<NTAG215SlotData> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class NTAG215SlotData(
+    @Json(name = "slot_number") val slotNumber: Int = 0,
+    @Json(name = "certificate") val certificate: String = "", // hex 16 bytes
+    @Json(name = "is_active") val isActive: Boolean = false,
+    @Json(name = "is_backup") val isBackup: Boolean = false,
+    @Json(name = "backup_of_slot") val backupOfSlot: Int? = null
+)
+
+// ============================================
+// Ultralight C Dynamic Certificates
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class UltralightCPreAuthResponse(
+    @Json(name = "pre_approved") val preApproved: Boolean = false,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "card_type") val cardType: String? = null,
+    @Json(name = "des_key") val desKey: String? = null, // hex 16 bytes
+    @Json(name = "read_slot") val readSlot: Int = 0,
+    @Json(name = "expected_certificate") val expectedCertificate: String? = null, // hex 16 bytes
+    @Json(name = "write_slot") val writeSlot: Int = 0,
+    @Json(name = "backup_slot") val backupSlot: Int = 0,
+    @Json(name = "new_certificate") val newCertificate: String? = null, // hex 16 bytes
+    @Json(name = "message") val message: String? = null
+)
+
+// ===== NFC Driver (auto-instalable .nfcpkg) =====
+
+@JsonClass(generateAdapter = true)
+data class CardDriverInfo(
+    @Json(name = "type") val type: String = "",
+    @Json(name = "display_name") val displayName: String = "",
+    @Json(name = "version") val version: String = "",
+    @Json(name = "reader_json") val readerJson: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class UltralightCConfirmDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "read_ok") val readOk: Boolean = true,
+    @Json(name = "write_ok") val writeOk: Boolean = true,
+    @Json(name = "written_pages") val writtenPages: Int = 4
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionUltralightCRequest(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "initial_pin") val initialPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionUltralightCResponse(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "card_type") val cardType: String = "ultralight_c",
+    @Json(name = "des_key") val desKey: String = "", // hex 16 bytes
+    @Json(name = "custom_card_id") val customCardId: String = "", // hex 8 bytes
+    @Json(name = "slots") val slots: List<UltralightCSlotData> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class UltralightCSlotData(
+    @Json(name = "slot_number") val slotNumber: Int = 0,
+    @Json(name = "certificate") val certificate: String = "", // hex 16 bytes
+    @Json(name = "is_active") val isActive: Boolean = false,
+    @Json(name = "is_backup") val isBackup: Boolean = false,
+    @Json(name = "backup_of_slot") val backupOfSlot: Int? = null
+)
+
+// ============================================
+// Card Types Registry (sistema modular)
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class CardTypeManifest(
+    @Json(name = "type") val type: String = "",
+    @Json(name = "display_name") val displayName: String = "",
+    @Json(name = "description") val description: String = "",
+    @Json(name = "manufacturer") val manufacturer: String = "",
+    @Json(name = "capacity") val capacity: String = "full", // "full", "low"
+    @Json(name = "security") val security: CardTypeSecurity? = null,
+    @Json(name = "compatibility") val compatibility: CardTypeCompatibility? = null,
+    @Json(name = "protocol") val protocol: CardTypeProtocol? = null,
+    @Json(name = "availability") val availability: CardTypeAvailability? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeSecurity(
+    @Json(name = "level") val level: String = "",
+    @Json(name = "algorithm") val algorithm: String = "",
+    @Json(name = "key_length_bits") val keyLengthBits: Int = 0,
+    @Json(name = "mutual_auth") val mutualAuth: Boolean = false,
+    @Json(name = "secure_messaging") val secureMessaging: Boolean = false,
+    @Json(name = "originality_signature") val originalitySignature: Boolean = false,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeCompatibility(
+    @Json(name = "android") val android: String = "",
+    @Json(name = "ios") val ios: String = "",
+    @Json(name = "esp32_pn532") val esp32Pn532: String = "",
+    @Json(name = "phone_reader") val phoneReader: Boolean = false,
+    @Json(name = "nfc_forum_type") val nfcForumType: Int = 2,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeProtocol(
+    @Json(name = "slots") val slots: Int = 0,
+    @Json(name = "active_slots") val activeSlots: Int = 0,
+    @Json(name = "backup_slots") val backupSlots: Int = 0,
+    @Json(name = "certificate_size") val certificateSize: Int = 16,
+    @Json(name = "auth_method") val authMethod: String = "",
+    @Json(name = "rotation") val rotation: String = "",
+    @Json(name = "pre_auth_ttl_seconds") val preAuthTtlSeconds: Int = 30
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeAvailability(
+    @Json(name = "venezuela") val venezuela: Boolean = false,
+    @Json(name = "price_usd") val priceUsd: Double = 0.0,
+    @Json(name = "notes") val notes: String? = null
+)
+

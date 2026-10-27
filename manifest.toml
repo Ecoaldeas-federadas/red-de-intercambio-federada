@@ -7,7 +7,7 @@ name = "Red de Intercambio"
 description.en = "Decentralized zero-sum mutual credit accounting and federated barter network node"
 description.es = "Nodo de contabilidad descentralizada, crédito mutuo de suma cero y trueque federado"
 
-version = "1.0.0~ynh1"
+version = "2.0.0~ynh1"
 
 maintainers = ["discapacidad5"]
 

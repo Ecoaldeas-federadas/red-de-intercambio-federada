@@ -13,6 +13,7 @@ import (
 	"federated-credit-node/internal/payments/cards"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -580,14 +581,15 @@ func (nt *NFCTerminals) SetTerminalAmount(ctx context.Context, sessionToken stri
 }
 
 type NFCPaymentPayload struct {
-	CardUID          string `json:"card_uid"`
-	CryptoToken      string `json:"crypto_token"`
-	PIN              string `json:"pin"`
-	Amount           int64  `json:"amount"`
-	Timestamp        int64  `json:"timestamp"`
-	Nonce            string `json:"nonce"`
-	IDDocumentType   string `json:"id_document_type,omitempty"`
-	IDDocumentNumber string `json:"id_document_number,omitempty"`
+	CardUID          string             `json:"card_uid"`
+	CryptoToken      string             `json:"crypto_token"`
+	PIN              string             `json:"pin"`
+	Amount           int64              `json:"amount"`
+	Timestamp        int64              `json:"timestamp"`
+	Nonce            string             `json:"nonce"`
+	IDDocumentType   string             `json:"id_document_type,omitempty"`
+	IDDocumentNumber string             `json:"id_document_number,omitempty"`
+	Items            []POSCartItemInput `json:"items,omitempty"`
 }
 
 type NFCPaymentResult struct {
@@ -663,6 +665,18 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 		return &NFCPaymentResult{Status: "rejected", Message: "no puedes pagarte a ti mismo"}, nil
 	}
 
+	// Validar obligatoriamente la canasta de productos/servicios reales
+	sellerUUID := uuid.Nil
+	if merchantUserID != nil {
+		sellerUUID = *merchantUserID
+	}
+	resolvedItems, calcTotal, _, cartErr := ValidateAndResolveCart(ctx, nt.Pool, sellerUUID, payload.Items)
+	if cartErr != nil {
+		nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", cartErr.Error())
+		return &NFCPaymentResult{Status: "rejected", Message: cartErr.Error()}, nil
+	}
+	payload.Amount = calcTotal
+
 	var balance, creditLimit int64
 	err = nt.Pool.QueryRow(ctx, `SELECT balance, credit_limit FROM users WHERE id = $1`, card.UserID).Scan(&balance, &creditLimit)
 	if err != nil {
@@ -723,9 +737,18 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 	if err != nil {
 		return nil, fmt.Errorf("debiting user: %w", err)
 	}
+	if merchantUserID != nil && *merchantUserID != uuid.Nil {
+		_, _ = nt.Pool.Exec(ctx, `
+			UPDATE users SET balance = balance + $2, updated_at = NOW() WHERE id = $1`,
+			*merchantUserID, payload.Amount,
+		)
+	}
 
 	newBalance := balance - payload.Amount
 	nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "approved", payload.CryptoToken, true, "single", "", "")
+	if sellerUUID != uuid.Nil {
+		CommitCartStockAndItems(ctx, nt.Pool, nt.NodeDomain, nil, nil, sellerUUID, card.UserID, resolvedItems)
+	}
 
 	return &NFCPaymentResult{
 		Status:        "approved",
@@ -736,17 +759,19 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 }
 
 type CommunityPaymentPayload struct {
-	SellerCardUID         string `json:"seller_card_uid"`
-	SellerCryptoToken     string `json:"seller_crypto_token"`
-	SellerPIN             string `json:"seller_pin"`
-	BuyerCardUID          string `json:"buyer_card_uid"`
-	BuyerCryptoToken      string `json:"buyer_crypto_token"`
-	BuyerPIN              string `json:"buyer_pin"`
-	Amount                int64  `json:"amount"`
-	Timestamp             int64  `json:"timestamp"`
-	Nonce                 string `json:"nonce"`
-	BuyerIDDocumentType   string `json:"buyer_id_document_type,omitempty"`
-	BuyerIDDocumentNumber string `json:"buyer_id_document_number,omitempty"`
+	SellerCardUID         string             `json:"seller_card_uid"`
+	SellerUserID          string             `json:"seller_user_id,omitempty"`
+	SellerCryptoToken     string             `json:"seller_crypto_token"`
+	SellerPIN             string             `json:"seller_pin"`
+	BuyerCardUID          string             `json:"buyer_card_uid"`
+	BuyerCryptoToken      string             `json:"buyer_crypto_token"`
+	BuyerPIN              string             `json:"buyer_pin"`
+	Amount                int64              `json:"amount"`
+	Timestamp             int64              `json:"timestamp"`
+	Nonce                 string             `json:"nonce"`
+	BuyerIDDocumentType   string             `json:"buyer_id_document_type,omitempty"`
+	BuyerIDDocumentNumber string             `json:"buyer_id_document_number,omitempty"`
+	Items                 []POSCartItemInput `json:"items,omitempty"`
 }
 
 func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID string, payload CommunityPaymentPayload) (*NFCPaymentResult, error) {
@@ -759,9 +784,33 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 		return nil, fmt.Errorf("terminal not found or inactive")
 	}
 
-	sellerCard, err := nt.lookupCard(ctx, payload.SellerCardUID)
-	if err != nil {
-		return &NFCPaymentResult{Status: "rejected", Message: "tarjeta vendedora no encontrada"}, nil
+	var sellerUserID uuid.UUID
+	// El vendedor puede identificarse con su tarjeta NFC O venir grabado en la etiqueta NFC/QR del producto/canasta
+	if strings.TrimSpace(payload.SellerCardUID) != "" {
+		sellerCard, sErr := nt.lookupCard(ctx, payload.SellerCardUID)
+		if sErr != nil {
+			return &NFCPaymentResult{Status: "rejected", Message: "tarjeta vendedora no encontrada"}, nil
+		}
+		if sellerCard.PinHash != nil && payload.SellerPIN != "" {
+			if err := bcrypt.CompareHashAndPassword([]byte(*sellerCard.PinHash), []byte(payload.SellerPIN)); err != nil {
+				nt.logTransaction(ctx, termDBID, payload.SellerCardUID, &sellerCard.UserID, payload.Amount, "rejected", payload.SellerCryptoToken, false, "community", "", "seller PIN invalid")
+				return &NFCPaymentResult{Status: "rejected", Message: "PIN del vendedor incorrecto"}, nil
+			}
+		}
+		sellerUserID = sellerCard.UserID
+	} else if strings.TrimSpace(payload.SellerUserID) != "" {
+		parsedSeller, pErr := uuid.Parse(strings.TrimSpace(payload.SellerUserID))
+		if pErr != nil {
+			return &NFCPaymentResult{Status: "rejected", Message: "identificador de vendedor en etiqueta invalido"}, nil
+		}
+		var exists bool
+		_ = nt.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND membership_status = 'active')`, parsedSeller).Scan(&exists)
+		if !exists {
+			return &NFCPaymentResult{Status: "rejected", Message: "vendedor de la etiqueta no encontrado o inactivo"}, nil
+		}
+		sellerUserID = parsedSeller
+	} else {
+		return &NFCPaymentResult{Status: "rejected", Message: "se requiere identificar al vendedor (por tarjeta o por etiqueta de producto/canasta)"}, nil
 	}
 
 	buyerCard, err := nt.lookupCard(ctx, payload.BuyerCardUID)
@@ -769,16 +818,17 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 		return &NFCPaymentResult{Status: "rejected", Message: "tarjeta compradora no encontrada"}, nil
 	}
 
-	if sellerCard.UserID == buyerCard.UserID {
+	if sellerUserID == buyerCard.UserID {
 		return &NFCPaymentResult{Status: "rejected", Message: "vendedor y comprador son la misma persona"}, nil
 	}
 
-	if sellerCard.PinHash != nil {
-		if err := bcrypt.CompareHashAndPassword([]byte(*sellerCard.PinHash), []byte(payload.SellerPIN)); err != nil {
-			nt.logTransaction(ctx, termDBID, payload.SellerCardUID, &sellerCard.UserID, payload.Amount, "rejected", payload.SellerCryptoToken, false, "community", "", "seller PIN invalid")
-			return &NFCPaymentResult{Status: "rejected", Message: "PIN del vendedor incorrecto"}, nil
-		}
+	// Validar obligatoriamente la canasta de productos/servicios reales del vendedor
+	resolvedItems, calcTotal, _, cartErr := ValidateAndResolveCart(ctx, nt.Pool, sellerUserID, payload.Items)
+	if cartErr != nil {
+		nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, false, "community", "", cartErr.Error())
+		return &NFCPaymentResult{Status: "rejected", Message: cartErr.Error()}, nil
 	}
+	payload.Amount = calcTotal
 
 	if buyerCard.PinHash != nil {
 		blocked, _ := nt.checkCardBlocked(ctx, payload.BuyerCardUID)
@@ -830,7 +880,7 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 		pending, err := msig.CreatePendingPayment(ctx, CreatePendingPaymentParams{
 			PaymentType:   "nfc_community",
 			FromAccount:   buyerCard.UserID,
-			ToAccount:     sellerCard.UserID,
+			ToAccount:     sellerUserID,
 			Amount:        payload.Amount,
 			PaymentMethod: "nfc_community",
 			TerminalID:    &termDBID,
@@ -859,7 +909,7 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 		return nil, fmt.Errorf("debiting buyer: %w", err)
 	}
 
-	_, err = nt.Pool.Exec(ctx, `UPDATE users SET balance = balance + $2 WHERE id = $1`, sellerCard.UserID, payload.Amount)
+	_, err = nt.Pool.Exec(ctx, `UPDATE users SET balance = balance + $2 WHERE id = $1`, sellerUserID, payload.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("crediting seller: %w", err)
 	}
@@ -867,6 +917,7 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 	newBalance := buyerBalance - payload.Amount
 	txID := uuid.New()
 	nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "approved", payload.BuyerCryptoToken, true, "community", "", "")
+	CommitCartStockAndItems(ctx, nt.Pool, nt.NodeDomain, nil, nil, sellerUserID, buyerCard.UserID, resolvedItems)
 
 	return &NFCPaymentResult{
 		Status:        "approved",

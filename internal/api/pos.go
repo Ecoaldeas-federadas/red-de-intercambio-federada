@@ -2,10 +2,14 @@ package api
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"federated-credit-node/internal/db"
@@ -36,6 +40,19 @@ func (h *POSHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/pos/charge/{id}/status", h.getChargeStatus)
 	r.With(am.RequireAuth).Post("/api/pos/charge/{id}/cancel", h.cancelCharge)
 
+	// Catalogo ultraligero del vendedor para POS (soporta ?seller_id=, ?seller_card_uid=, ?v=etag)
+	// No exige JWT cuando se consulta por seller_card_uid desde un terminal multi-vendedor autenticado
+	r.Get("/api/pos/vendor-catalog", h.getVendorCatalog)
+
+	// Decodificar/generar codigos de barra con peso (EAN-13) y etiquetas QR/NFC (tq1:...)
+	r.Post("/api/pos/code/parse", h.parsePOSCode)
+	r.Post("/api/pos/code/generate", h.generatePOSCode)
+
+	// Canastas pre-armadas para etiquetas NFC / codigos de barra
+	r.With(am.RequireAuth).Post("/api/pos/baskets", h.createPresetBasket)
+	r.With(am.RequireAuth).Get("/api/pos/baskets", h.listPresetBaskets)
+	r.Get("/api/pos/baskets/{code}", h.getPresetBasketByCode)
+
 	// Ruta publica para que el cliente consulte el cargo antes de pagar
 	// No requiere auth - el cliente ve el monto primero, luego inicia sesion
 	r.Get("/api/pos/charge/{token}/info", h.getChargeInfo)
@@ -51,16 +68,20 @@ func (h *POSHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 // --- Create Charge ---
 
 type CreateChargeRequest struct {
-	Amount      int64  `json:"amount"`
-	Description string `json:"description"`
+	Amount      int64                       `json:"amount"`
+	Description string                      `json:"description"`
+	SellerID    string                      `json:"seller_id,omitempty"`
+	Items       []payments.POSCartItemInput `json:"items"`
 }
 
 type ChargeResponse struct {
-	ChargeID    string `json:"charge_id"`
-	ChargeToken string `json:"charge_token"`
-	Amount      int64  `json:"amount"`
-	Status      string `json:"status"`
-	ExpiresAt   string `json:"expires_at"`
+	ChargeID    string                      `json:"charge_id"`
+	ChargeToken string                      `json:"charge_token"`
+	Amount      int64                       `json:"amount"`
+	Status      string                      `json:"status"`
+	Description string                      `json:"description,omitempty"`
+	Items       []payments.POSCartItemInput `json:"items,omitempty"`
+	ExpiresAt   string                      `json:"expires_at"`
 }
 
 func (h *POSHandler) createCharge(w http.ResponseWriter, r *http.Request) {
@@ -75,10 +96,25 @@ func (h *POSHandler) createCharge(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid request body")
 		return
 	}
-	if req.Amount <= 0 {
-		writeError(w, 400, "amount must be positive")
+
+	merchantID := userID
+	if strings.TrimSpace(req.SellerID) != "" {
+		if parsedSeller, sErr := uuid.Parse(strings.TrimSpace(req.SellerID)); sErr == nil {
+			merchantID = parsedSeller
+		}
+	}
+
+	// Validar obligatoriamente la canasta de productos y servicios reales
+	resolvedItems, calcTotal, autoSummary, cartErr := payments.ValidateAndResolveCart(r.Context(), h.Pool, merchantID, req.Items)
+	if cartErr != nil {
+		writeError(w, 400, cartErr.Error())
 		return
 	}
+	req.Amount = calcTotal
+	if strings.TrimSpace(req.Description) == "" {
+		req.Description = autoSummary
+	}
+	itemsJSON := payments.MarshalCartItemsJSON(resolvedItems)
 
 	// Buscar el terminal web_pos del merchant
 	// El terminal_id se envia en el header X-Terminal-ID
@@ -102,10 +138,10 @@ func (h *POSHandler) createCharge(w http.ResponseWriter, r *http.Request) {
 
 	var chargeID string
 	err = h.Pool.QueryRow(r.Context(), `
-		INSERT INTO pos_charges (node_domain, terminal_id, merchant_id, charge_token, amount, status, description, expires_at)
-		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
+		INSERT INTO pos_charges (node_domain, terminal_id, merchant_id, charge_token, amount, status, description, items_json, expires_at)
+		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)
 		RETURNING id::text`,
-		db.LOCAL_NODE_DOMAIN, termDBID, userID, chargeToken, req.Amount, req.Description, expiresAt,
+		db.LOCAL_NODE_DOMAIN, termDBID, merchantID, chargeToken, req.Amount, req.Description, itemsJSON, expiresAt,
 	).Scan(&chargeID)
 	if err != nil {
 		writeError(w, 500, "failed to create charge: "+err.Error())
@@ -117,6 +153,8 @@ func (h *POSHandler) createCharge(w http.ResponseWriter, r *http.Request) {
 		ChargeToken: chargeToken,
 		Amount:      req.Amount,
 		Status:      "pending",
+		Description: req.Description,
+		Items:       resolvedItems,
 		ExpiresAt:   expiresAt.Format(time.RFC3339),
 	})
 }
@@ -166,15 +204,16 @@ func (h *POSHandler) getChargeInfo(w http.ResponseWriter, r *http.Request) {
 
 	var amount int64
 	var status, description, merchantName string
+	var itemsRaw []byte
 	var expiresAt time.Time
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT c.amount, c.status, c.description, c.expires_at,
-		       u.display_name
+		SELECT c.amount, c.status, COALESCE(c.description,''), COALESCE(c.items_json, '[]'::jsonb), c.expires_at,
+		       COALESCE(u.display_name, u.username, '')
 		FROM pos_charges c
 		JOIN users u ON u.id = c.merchant_id
 		WHERE c.charge_token = $1`,
 		token,
-	).Scan(&amount, &status, &description, &expiresAt, &merchantName)
+	).Scan(&amount, &status, &description, &itemsRaw, &expiresAt, &merchantName)
 	if err != nil {
 		writeError(w, 404, "charge not found or expired")
 		return
@@ -189,10 +228,14 @@ func (h *POSHandler) getChargeInfo(w http.ResponseWriter, r *http.Request) {
 		status = "expired"
 	}
 
+	var items []payments.POSCartItemInput
+	_ = json.Unmarshal(itemsRaw, &items)
+
 	writeJSON(w, 200, map[string]interface{}{
 		"amount":        amount,
 		"status":        status,
 		"description":   description,
+		"items":         items,
 		"merchant_name": merchantName,
 		"expires_at":    expiresAt.Format(time.RFC3339),
 	})
@@ -237,14 +280,15 @@ func (h *POSHandler) payCharge(w http.ResponseWriter, r *http.Request) {
 	var merchantID uuid.UUID
 	var amount int64
 	var status string
+	var itemsRaw []byte
 	var expiresAt time.Time
 	err = tx.QueryRow(r.Context(), `
-		SELECT id, merchant_id, amount, status, expires_at
+		SELECT id, merchant_id, amount, status, COALESCE(items_json, '[]'::jsonb), expires_at
 		FROM pos_charges
 		WHERE charge_token = $1
 		FOR UPDATE`,
 		token,
-	).Scan(&chargeID, &merchantID, &amount, &status, &expiresAt)
+	).Scan(&chargeID, &merchantID, &amount, &status, &itemsRaw, &expiresAt)
 	if err != nil {
 		writeError(w, 404, "charge not found")
 		return
@@ -382,6 +426,12 @@ func (h *POSHandler) payCharge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Descontar stock y registrar lineas en pos_transaction_items
+	var chargeItems []payments.POSCartItemInput
+	if json.Unmarshal(itemsRaw, &chargeItems) == nil && len(chargeItems) > 0 {
+		payments.CommitCartStockAndItems(r.Context(), h.Pool, db.LOCAL_NODE_DOMAIN, &chargeID, nil, merchantID, payerID, chargeItems)
+	}
+
 	// Obtener nuevo balance del pagador
 	var newBalance int64
 	_ = h.Pool.QueryRow(r.Context(), `SELECT balance FROM users WHERE id = $1`, payerID).Scan(&newBalance)
@@ -451,6 +501,486 @@ func (h *POSHandler) cancelChargeByToken(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, 200, map[string]interface{}{
 		"status":  "cancelled",
 		"message": "Cargo cancelado por el cliente",
+	})
+}
+
+// ============================================================================
+// Catalogo ultraligero del vendedor para POS + Codigos de Barra/QR/NFC + Canastas
+// ============================================================================
+
+// VendorCatalogCompactItem es un item compacto de la tienda del vendedor
+// optimizado para enlaces muy lentos (LoRa / punto a punto).
+type VendorCatalogCompactItem struct {
+	ID          string `json:"id"`
+	ProductID   string `json:"pid,omitempty"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Category    string `json:"cat,omitempty"`
+	Unit        string `json:"u"`
+	PriceCents  int64  `json:"p"`
+	Stock       int64  `json:"s"`
+	IsService   bool   `json:"svc,omitempty"`
+	IsUniversal bool   `json:"univ,omitempty"`
+	IconURL     string `json:"ic,omitempty"`
+}
+
+// getVendorCatalog devuelve el catalogo ultraligero de la tienda de un vendedor
+// (sus store_items activos + sus servicios + los servicios universales del nodo).
+// Soporta:
+//   - ?seller_id=<uuid>
+//   - ?seller_card_uid=<card_uid> (para terminales multi-vendedor al escanear tarjeta del vendedor)
+//   - Si no se envia ninguno, usa el usuario autenticado por JWT o merchant_user_id del X-Terminal-ID
+//   - ?v=<etag> -> responde 304 Not Modified si la tienda no cambio (0 bytes en enlaces lentos)
+//   - ?no_icons=1 -> omite icon_url para modo texto puro ultraligero
+func (h *POSHandler) getVendorCatalog(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var sellerID uuid.UUID
+	var sellerUsername, sellerDisplay string
+
+	sellerIDParam := strings.TrimSpace(r.URL.Query().Get("seller_id"))
+	sellerCardUID := strings.TrimSpace(r.URL.Query().Get("seller_card_uid"))
+	noIcons := r.URL.Query().Get("no_icons") == "1"
+
+	if sellerIDParam != "" {
+		if parsed, err := uuid.Parse(sellerIDParam); err == nil {
+			sellerID = parsed
+		}
+	}
+	if sellerID == uuid.Nil && sellerCardUID != "" {
+		_ = h.Pool.QueryRow(ctx, `
+			SELECT user_id FROM nfc_cards WHERE card_uid = $1 AND is_active = true LIMIT 1`,
+			sellerCardUID,
+		).Scan(&sellerID)
+	}
+	if sellerID == uuid.Nil {
+		if uid, err := getUserID(r); err == nil && uid != uuid.Nil {
+			sellerID = uid
+		}
+	}
+	if sellerID == uuid.Nil {
+		termHeader := strings.TrimSpace(r.Header.Get("X-Terminal-ID"))
+		if termHeader != "" {
+			_ = h.Pool.QueryRow(ctx, `
+				SELECT merchant_user_id FROM nfc_terminals WHERE terminal_id = $1 AND is_active = true LIMIT 1`,
+				termHeader,
+			).Scan(&sellerID)
+		}
+	}
+
+	if sellerID != uuid.Nil {
+		_ = h.Pool.QueryRow(ctx, `
+			SELECT username, COALESCE(display_name, username, '')
+			FROM users WHERE id = $1`, sellerID,
+		).Scan(&sellerUsername, &sellerDisplay)
+	}
+
+	items := make([]VendorCatalogCompactItem, 0, 32)
+	existingProdIDs := make(map[string]bool)
+
+	// 1. Items propios de la tienda del vendedor (store_items)
+	if sellerID != uuid.Nil {
+		rows, err := h.Pool.Query(ctx, `
+			SELECT si.id::text, COALESCE(si.product_id::text, ''), COALESCE(si.item_code, ''),
+			       si.product_name, COALESCE(si.category, ''), COALESCE(si.unit, 'unidad'),
+			       COALESCE(si.final_price, 0), COALESCE(si.price_trueque, 0),
+			       si.stock, COALESCE(si.is_service, false),
+			       COALESCE(NULLIF(si.image_icon_url, ''), COALESCE(p.image_icon_url, ''), COALESCE(p.image_thumb_url, ''))
+			FROM store_items si
+			LEFT JOIN products p ON p.id = si.product_id
+			WHERE si.owner_id = $1
+			  AND si.is_active = true
+			  AND (p.id IS NULL OR (p.is_approved = true AND COALESCE(p.is_allowed, true) = true))
+			ORDER BY si.is_service ASC, si.product_name ASC`, sellerID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id, pid, code, name, cat, unit, iconURL string
+				var finalPrice, priceTrueque float64
+				var stock int64
+				var isSvc bool
+				if err := rows.Scan(&id, &pid, &code, &name, &cat, &unit, &finalPrice, &priceTrueque, &stock, &isSvc, &iconURL); err != nil {
+					continue
+				}
+				p := finalPrice
+				if p <= 0 {
+					p = priceTrueque
+				}
+				priceCents := int64(p)
+				if p > 0 && (p != float64(int64(p)) || p < 50) {
+					priceCents = int64(p*100 + 0.5)
+				}
+				if noIcons {
+					iconURL = ""
+				}
+				if pid != "" {
+					existingProdIDs[pid] = true
+				}
+				items = append(items, VendorCatalogCompactItem{
+					ID:         id,
+					ProductID:  pid,
+					Code:       code,
+					Name:       name,
+					Category:   cat,
+					Unit:       unit,
+					PriceCents: priceCents,
+					Stock:      stock,
+					IsService:  isSvc,
+					IconURL:    iconURL,
+				})
+			}
+		}
+	}
+
+	// 2. Servicios universales del nodo (ej: Trabajo en el Conuco / Mano Vuelta)
+	uRows, uErr := h.Pool.Query(ctx, `
+		SELECT id::text, COALESCE(item_code, '90001'), name, COALESCE(category, 'Servicios'),
+		       COALESCE(unit, 'hora'), price_per_unit,
+		       COALESCE(NULLIF(image_icon_url, ''), COALESCE(image_thumb_url, ''))
+		FROM products
+		WHERE node_domain = '__FEDERATION__'
+		  AND is_active = true
+		  AND is_approved = true
+		  AND COALESCE(is_allowed, true) = true
+		  AND COALESCE(is_universal_service, false) = true
+		ORDER BY name ASC`)
+	if uErr == nil {
+		defer uRows.Close()
+		for uRows.Next() {
+			var pid, code, name, cat, unit, iconURL string
+			var price float64
+			if err := uRows.Scan(&pid, &code, &name, &cat, &unit, &price, &iconURL); err != nil {
+				continue
+			}
+			if existingProdIDs[pid] {
+				continue
+			}
+			priceCents := int64(price)
+			if price > 0 && (price != float64(int64(price)) || price < 50) {
+				priceCents = int64(price*100 + 0.5)
+			}
+			if noIcons {
+				iconURL = ""
+			}
+			items = append(items, VendorCatalogCompactItem{
+				ID:          pid,
+				ProductID:   pid,
+				Code:        code,
+				Name:        name,
+				Category:    cat,
+				Unit:        unit,
+				PriceCents:  priceCents,
+				Stock:       -1,
+				IsService:   true,
+				IsUniversal: true,
+				IconURL:     iconURL,
+			})
+		}
+	}
+
+	// Calcular hash/ETag ligero para evitar re-descargas innecesarias
+	rawBytes, _ := json.Marshal(items)
+	sum := sha256.Sum256(rawBytes)
+	etag := hex.EncodeToString(sum[:8])
+
+	if clientVer := strings.TrimSpace(r.URL.Query().Get("v")); clientVer != "" && clientVer == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	var sellerIDOut string
+	if sellerID != uuid.Nil {
+		sellerIDOut = sellerID.String()
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"v":               etag,
+		"seller_id":       sellerIDOut,
+		"seller_username": sellerUsername,
+		"seller_name":     sellerDisplay,
+		"items":           items,
+	})
+}
+
+// parsePOSCode decodifica un codigo de barras (EAN-13 con peso/cantidad), QR o etiqueta NFC (tq1:...)
+// y resuelve los productos/servicios contra la tienda del vendedor.
+func (h *POSHandler) parsePOSCode(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Code     string `json:"code"`
+		SellerID string `json:"seller_id,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	parsed, err := payments.ParsePOSCode(req.Code)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	// Si es una referencia a una canasta pre-armada (tq1:r:... o EAN-13 28...), cargarla de BD
+	if parsed.Kind == "basket_ref" {
+		var sellerUUID uuid.UUID
+		var label string
+		var itemsRaw []byte
+		err := h.Pool.QueryRow(r.Context(), `
+			SELECT seller_id, COALESCE(label,''), items_json
+			FROM pos_preset_baskets
+			WHERE (short_code = $1 OR barcode_ean13 = $1) AND is_active = true
+			LIMIT 1`, parsed.BasketShortCode,
+		).Scan(&sellerUUID, &label, &itemsRaw)
+		if err != nil {
+			writeError(w, 404, "canasta pre-armada no encontrada: "+parsed.BasketShortCode)
+			return
+		}
+		parsed.SellerID = sellerUUID.String()
+		_ = json.Unmarshal(itemsRaw, &parsed.Items)
+	}
+
+	// Determinar el sellerID efectivo (el que venia en la etiqueta tiene prioridad)
+	effectiveSellerStr := parsed.SellerID
+	if effectiveSellerStr == "" {
+		effectiveSellerStr = strings.TrimSpace(req.SellerID)
+	}
+	var effectiveSellerID uuid.UUID
+	if effectiveSellerStr != "" {
+		if u, uErr := uuid.Parse(effectiveSellerStr); uErr == nil {
+			effectiveSellerID = u
+		}
+	}
+	if effectiveSellerID == uuid.Nil {
+		if uid, uErr := getUserID(r); uErr == nil {
+			effectiveSellerID = uid
+		}
+	}
+
+	resolvedItems, totalCents, summary, vErr := payments.ValidateAndResolveCart(r.Context(), h.Pool, effectiveSellerID, parsed.Items)
+	if vErr != nil {
+		writeError(w, 400, vErr.Error())
+		return
+	}
+
+	var sellerName string
+	if effectiveSellerID != uuid.Nil {
+		_ = h.Pool.QueryRow(r.Context(), `SELECT COALESCE(display_name, username, '') FROM users WHERE id = $1`, effectiveSellerID).Scan(&sellerName)
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"kind":        parsed.Kind,
+		"seller_id":   effectiveSellerID.String(),
+		"seller_name": sellerName,
+		"items":       resolvedItems,
+		"total_cents": totalCents,
+		"summary":     summary,
+	})
+}
+
+// generatePOSCode genera el codigo de barras EAN-13 con peso/cantidad incrustada
+// y el payload compacto tq1:... para QR y etiquetas NFC (de un producto o de una canasta).
+func (h *POSHandler) generatePOSCode(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SellerID      string                      `json:"seller_id,omitempty"`
+		IncludeSeller bool                        `json:"include_seller"`
+		ItemCode      string                      `json:"item_code,omitempty"`
+		Quantity      float64                     `json:"quantity,omitempty"`
+		Items         []payments.POSCartItemInput `json:"items,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	sellerID := strings.TrimSpace(req.SellerID)
+	if sellerID == "" && req.IncludeSeller {
+		if uid, err := getUserID(r); err == nil && uid != uuid.Nil {
+			sellerID = uid.String()
+		}
+	}
+	if !req.IncludeSeller {
+		sellerID = ""
+	}
+
+	if len(req.Items) > 1 {
+		tagPayload := payments.FormatBasketTagPayload(sellerID, req.Items)
+		writeJSON(w, 200, map[string]interface{}{
+			"kind":        "basket_inline",
+			"qr_payload":  tagPayload,
+			"nfc_payload": tagPayload,
+		})
+		return
+	}
+
+	code := strings.TrimSpace(req.ItemCode)
+	qty := req.Quantity
+	if code == "" && len(req.Items) == 1 {
+		code = req.Items[0].ItemCode
+		if code == "" {
+			code = req.Items[0].StoreItemID
+		}
+		qty = req.Items[0].Quantity
+	}
+	if qty <= 0 {
+		qty = 1
+	}
+
+	ean13, _ := payments.GenerateWeightedEAN13(code, qty)
+	tagPayload := payments.FormatProductTagPayload(sellerID, code, qty)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"kind":          "product",
+		"item_code":     code,
+		"quantity":      qty,
+		"barcode_ean13": ean13,
+		"qr_payload":    tagPayload,
+		"nfc_payload":   tagPayload,
+	})
+}
+
+func (h *POSHandler) createPresetBasket(w http.ResponseWriter, r *http.Request) {
+	sellerID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var req struct {
+		Label      string                      `json:"label"`
+		IsReusable *bool                       `json:"is_reusable"`
+		Items      []payments.POSCartItemInput `json:"items"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	resolvedItems, totalCents, summary, vErr := payments.ValidateAndResolveCart(r.Context(), h.Pool, sellerID, req.Items)
+	if vErr != nil {
+		writeError(w, 400, vErr.Error())
+		return
+	}
+	if strings.TrimSpace(req.Label) == "" {
+		req.Label = summary
+	}
+	reusable := true
+	if req.IsReusable != nil {
+		reusable = *req.IsReusable
+	}
+
+	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	b := make([]byte, 6)
+	for i := range b {
+		b[i] = chars[rand.Intn(len(chars))]
+	}
+	shortCode := string(b)
+	tenDigits := fmt.Sprintf("%010d", time.Now().UnixNano()%10000000000)
+	barcodeEAN13, _ := payments.GenerateBasketEAN13(tenDigits)
+	itemsJSON := payments.MarshalCartItemsJSON(resolvedItems)
+
+	var basketID string
+	err = h.Pool.QueryRow(r.Context(), `
+		INSERT INTO pos_preset_baskets (node_domain, short_code, barcode_ean13, seller_id, label, items_json, total_cents, is_reusable, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+		RETURNING id::text`,
+		db.LOCAL_NODE_DOMAIN, shortCode, barcodeEAN13, sellerID, req.Label, itemsJSON, totalCents, reusable,
+	).Scan(&basketID)
+	if err != nil {
+		writeError(w, 500, "error guardando canasta: "+err.Error())
+		return
+	}
+
+	refPayload := "tq1:r:" + shortCode
+	inlinePayload := payments.FormatBasketTagPayload(sellerID.String(), resolvedItems)
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":                 basketID,
+		"short_code":         shortCode,
+		"barcode_ean13":      barcodeEAN13,
+		"qr_payload":         inlinePayload,
+		"nfc_payload":        refPayload,
+		"nfc_inline_payload": inlinePayload,
+		"label":              req.Label,
+		"items":              resolvedItems,
+		"total_cents":        totalCents,
+	})
+}
+
+func (h *POSHandler) listPresetBaskets(w http.ResponseWriter, r *http.Request) {
+	sellerID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id::text, short_code, COALESCE(barcode_ean13,''), COALESCE(label,''), items_json, total_cents, is_reusable, created_at
+		FROM pos_preset_baskets
+		WHERE seller_id = $1 AND is_active = true
+		ORDER BY created_at DESC LIMIT 100`, sellerID)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	list := []map[string]interface{}{}
+	for rows.Next() {
+		var id, shortCode, barcode, label string
+		var itemsRaw []byte
+		var totalCents int64
+		var reusable bool
+		var createdAt time.Time
+		if err := rows.Scan(&id, &shortCode, &barcode, &label, &itemsRaw, &totalCents, &reusable, &createdAt); err != nil {
+			continue
+		}
+		var items []payments.POSCartItemInput
+		_ = json.Unmarshal(itemsRaw, &items)
+		list = append(list, map[string]interface{}{
+			"id":            id,
+			"short_code":    shortCode,
+			"barcode_ean13": barcode,
+			"nfc_payload":   "tq1:r:" + shortCode,
+			"qr_payload":    payments.FormatBasketTagPayload(sellerID.String(), items),
+			"label":         label,
+			"items":         items,
+			"total_cents":   totalCents,
+			"is_reusable":   reusable,
+			"created_at":    createdAt,
+		})
+	}
+	writeJSON(w, 200, list)
+}
+
+func (h *POSHandler) getPresetBasketByCode(w http.ResponseWriter, r *http.Request) {
+	code := strings.TrimSpace(chi.URLParam(r, "code"))
+	if code == "" {
+		writeError(w, 400, "code is required")
+		return
+	}
+	var id, shortCode, barcode, label string
+	var sellerID uuid.UUID
+	var itemsRaw []byte
+	var totalCents int64
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT id::text, short_code, COALESCE(barcode_ean13,''), seller_id, COALESCE(label,''), items_json, total_cents
+		FROM pos_preset_baskets
+		WHERE (short_code = $1 OR barcode_ean13 = $1) AND is_active = true
+		LIMIT 1`, code,
+	).Scan(&id, &shortCode, &barcode, &sellerID, &label, &itemsRaw, &totalCents)
+	if err != nil {
+		writeError(w, 404, "canasta no encontrada")
+		return
+	}
+	var items []payments.POSCartItemInput
+	_ = json.Unmarshal(itemsRaw, &items)
+	writeJSON(w, 200, map[string]interface{}{
+		"id":            id,
+		"short_code":    shortCode,
+		"barcode_ean13": barcode,
+		"seller_id":     sellerID.String(),
+		"label":         label,
+		"items":         items,
+		"total_cents":   totalCents,
 	})
 }
 

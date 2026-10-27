@@ -16,6 +16,7 @@ export type Screen = 'url' | 'login' | 'session_request' | 'keypad' | 'confirm' 
 export function App() {
   const [screen, setScreen] = useState<Screen>('url')
   const [amount, setAmount] = useState(0)
+  const [cartItems, setCartItems] = useState<any[]>([])
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [terminalID, setTerminalID] = useState<string | null>(storage.get('terminalID'))
   const [merchantUser, setMerchantUser] = useState<any>(null)
@@ -156,6 +157,7 @@ export function App() {
 
   const handlePaymentDone = () => {
     setAmount(0)
+    setCartItems([])
     setQrToken(null)
     setScreen('keypad')
   }
@@ -196,6 +198,8 @@ export function App() {
         <KeypadScreen
           amount={amount}
           onAmountChange={handleAmountSet}
+          cartItems={cartItems}
+          onCartChange={setCartItems}
           onShowQR={handleShowQR}
           onShowNFC={handleShowNFC}
           onShowConfirm={handleShowConfirm}
@@ -210,6 +214,7 @@ export function App() {
       {screen === 'confirm' && (
         <ConfirmAmountScreen
           amount={amount}
+          cartItems={cartItems}
           onBack={() => setScreen('keypad')}
           onShowQR={handleShowQR}
           onShowNFC={handleShowNFC}
@@ -231,6 +236,7 @@ export function App() {
       {screen === 'nfc' && (
         <NFCScreen
           amount={amount}
+          cartItems={cartItems}
           onBack={() => setScreen('keypad')}
           onPaid={handlePaymentDone}
           api={api}

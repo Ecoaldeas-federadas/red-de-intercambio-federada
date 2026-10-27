@@ -251,14 +251,29 @@ export class API {
     return this.request(`/api/nfc/terminal/${terminalID}/session`)
   }
 
-  // ===== POS CHARGE (create QR payment) =====
-  // Crea un cargo registrado en el backend. El QR contiene un token unico
-  // que el backend conoce. Cuando el cliente paga, el backend marca el cargo
-  // como pagado y el POS lo detecta via polling.
-  async createCharge(amount: number, description?: string): Promise<any> {
+  // ===== POS CHARGE (create QR payment with mandatory cart items) =====
+  // Crea un cargo registrado en el backend adjuntando la canasta de productos/servicios.
+  async createCharge(amount: number, description?: string, items?: any[], sellerID?: string): Promise<any> {
     return this.request('/api/pos/charge', {
       method: 'POST',
-      body: JSON.stringify({ amount, description }),
+      body: JSON.stringify({ amount, description, items: items || [], seller_id: sellerID }),
+    })
+  }
+
+  // ===== VENDOR LIGHTWEIGHT CATALOG & BARCODE/QR/NFC PARSER =====
+  async getVendorCatalog(params?: { sellerID?: string; sellerCardUID?: string; etag?: string; noIcons?: boolean }): Promise<any> {
+    const qs = new URLSearchParams()
+    if (params?.sellerID) qs.set('seller_id', params.sellerID)
+    if (params?.sellerCardUID) qs.set('seller_card_uid', params.sellerCardUID)
+    if (params?.noIcons) qs.set('no_icons', '1')
+    const query = qs.toString()
+    return this.request('/api/pos/vendor-catalog' + (query ? `?${query}` : ''))
+  }
+
+  async parsePOSCode(code: string, sellerID?: string): Promise<any> {
+    return this.request('/api/pos/code/parse', {
+      method: 'POST',
+      body: JSON.stringify({ code, seller_id: sellerID || '' }),
     })
   }
 

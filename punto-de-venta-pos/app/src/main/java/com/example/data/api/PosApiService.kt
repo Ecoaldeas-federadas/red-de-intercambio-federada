@@ -18,9 +18,23 @@ interface PosApiService {
     @GET("auth/me")
     suspend fun getMe(): Response<UserMeResponse>
 
-    // --- POS QR Charges ---
+    // --- POS QR Charges & Vendor Lightweight Catalog ---
     @POST("pos/charge")
     suspend fun createCharge(@Body request: CreateChargeRequest): Response<CreateChargeResponse>
+
+    @GET("pos/vendor-catalog")
+    suspend fun getVendorCatalog(
+        @Query("seller_id") sellerId: String? = null,
+        @Query("seller_card_uid") sellerCardUid: String? = null,
+        @Query("v") etag: String? = null,
+        @Query("no_icons") noIcons: Int? = null
+    ): Response<VendorCatalogResponseDto>
+
+    @POST("pos/code/parse")
+    suspend fun parsePosCode(@Body request: ParsePosCodeRequest): Response<ParsePosCodeResponse>
+
+    @POST("pos/code/generate")
+    suspend fun generatePosCode(@Body request: GeneratePosCodeRequest): Response<GeneratePosCodeResponse>
 
     @GET("pos/charge/{id}/status")
     suspend fun getChargeStatus(@Path("id") chargeId: String): Response<ChargeStatusResponse>

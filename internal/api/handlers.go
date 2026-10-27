@@ -66,6 +66,7 @@ func (h *Handler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/accounts/{id}/history", h.getTransactionHistory)
 
 	r.Post("/api/transfer", h.transfer)
+	r.With(am.RequireAuth).Post("/api/ledger/transfer", h.transfer)
 
 	r.Post("/api/admission/apply", h.applyAdmission)
 	r.Get("/api/admission/requests", h.listAdmissionRequests)
@@ -179,7 +180,9 @@ func (h *Handler) getTransactionHistory(w http.ResponseWriter, r *http.Request) 
 
 type TransferRequest struct {
 	ReceiverID string `json:"receiver_id"`
+	ToUser     string `json:"to_user"`
 	Amount     int64  `json:"amount"`
+	Reference  string `json:"reference"`
 }
 
 func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
@@ -188,19 +191,62 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid request body")
 		return
 	}
-	receiverID, err := uuid.Parse(req.ReceiverID)
-	if err != nil {
-		writeError(w, 400, "invalid receiver_id")
-		return
-	}
 	if req.Amount <= 0 {
 		writeError(w, 400, "amount must be positive")
 		return
 	}
-	senderIDStr := r.Header.Get("X-User-ID")
-	senderID, err := uuid.Parse(senderIDStr)
+
+	// El motivo es obligatorio (prestamo/aporte a la Asamblea General)
+	reason := req.Reference
+	if len(reason) < 3 {
+		writeError(w, 400, "Debe indicar el motivo del aporte o prestamo a la Asamblea General")
+		return
+	}
+
+	senderID, err := getUserID(r)
 	if err != nil {
-		writeError(w, 401, "authentication required")
+		senderIDStr := r.Header.Get("X-User-ID")
+		senderID, err = uuid.Parse(senderIDStr)
+		if err != nil {
+			writeError(w, 401, "authentication required")
+			return
+		}
+	}
+
+	if h.Pool == nil {
+		writeError(w, 500, "database pool not available")
+		return
+	}
+
+	// REGLA ESTRICTA DEL SISTEMA TQ:
+	// Ninguna persona ni organizacion puede transferir saldo libremente a otra persona
+	// ni a otra organizacion privada (todo intercambio debe anclarse a productos o
+	// servicios reales de la tienda).
+	// La UNICA transferencia directa permitida por esta via es hacia la Asamblea General
+	// (ej. prestamo o aporte voluntario al Fondo Comunitario con motivo registrado).
+	var receiverID uuid.UUID
+	var receiverUsername string
+	if req.ReceiverID != "" {
+		parsedID, pErr := uuid.Parse(req.ReceiverID)
+		if pErr != nil {
+			writeError(w, 400, "invalid receiver_id")
+			return
+		}
+		_ = h.Pool.QueryRow(r.Context(), `SELECT id, username FROM users WHERE id = $1`, parsedID).Scan(&receiverID, &receiverUsername)
+	} else {
+		// Resolver la cuenta de la Asamblea General del nodo
+		_ = h.Pool.QueryRow(r.Context(), `
+			SELECT id, username FROM users
+			WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, h.nodeDomain).Scan(&receiverID, &receiverUsername)
+	}
+
+	if receiverID == uuid.Nil || receiverUsername != "asamblea" {
+		writeError(w, 403, "Las transferencias directas de saldo libre entre miembros u organizaciones estan prohibidas. Todo intercambio debe realizarse mediante canasta de productos o servicios de la tienda. Solo se permiten aportes o prestamos directos a la Asamblea General.")
+		return
+	}
+
+	if senderID == receiverID {
+		writeError(w, 400, "no puedes transferirte a ti mismo")
 		return
 	}
 

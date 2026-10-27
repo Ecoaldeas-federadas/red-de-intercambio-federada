@@ -4533,22 +4533,39 @@ func (h *SystemHandler) uploadImage(w http.ResponseWriter, r *http.Request) {
 	thumbSize := getFileSize(thumbPath)
 	thumbURL := "/uploads/" + thumbFilename
 
+	// 3. Crear micro-icono ultraligero (max 48px, JPEG calidad 50, ~1-2 KB)
+	// pensado para sincronizar la tienda al POS en enlaces lentos (LoRa / punto a punto)
+	maxIcon := 48
+	iconImg := resizeIfNeeded(srcImg, maxIcon)
+	iconFilename := fmt.Sprintf("icon_%d_%s.jpg", time.Now().UnixNano(), randomString(6))
+	iconPath := filepath.Join(uploadDir, iconFilename)
+	iconURL := ""
+	var iconSize int64
+	if iconFile, iErr := os.Create(iconPath); iErr == nil {
+		_ = jpeg.Encode(iconFile, iconImg, &jpeg.Options{Quality: 50})
+		iconFile.Close()
+		iconSize = getFileSize(iconPath)
+		iconURL = "/uploads/" + iconFilename
+	}
+
 	// Save metadata in DB
 	userID, _ := h.Auth.GetUserID(r)
 	bounds := origImg.Bounds()
 	_, _ = h.Pool.Exec(r.Context(), `
-		INSERT INTO uploaded_images (id, filename, original_name, mime_type, file_size, url, thumb_url, width, height, uploaded_by, created_at)
-		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-		origFilename, header.Filename, "image/jpeg", origSize, origURL, thumbURL,
+		INSERT INTO uploaded_images (id, filename, original_name, mime_type, file_size, url, thumb_url, icon_url, width, height, uploaded_by, created_at)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+		origFilename, header.Filename, "image/jpeg", origSize, origURL, thumbURL, iconURL,
 		bounds.Dx(), bounds.Dy(), userID)
 
 	writeJSON(w, 201, map[string]interface{}{
 		"url":        origURL,
 		"thumb_url":  thumbURL,
+		"icon_url":   iconURL,
 		"filename":   origFilename,
 		"original":   header.Filename,
 		"size":       origSize,
 		"thumb_size": thumbSize,
+		"icon_size":  iconSize,
 		"mime_type":  "image/jpeg",
 		"width":      bounds.Dx(),
 		"height":     bounds.Dy(),

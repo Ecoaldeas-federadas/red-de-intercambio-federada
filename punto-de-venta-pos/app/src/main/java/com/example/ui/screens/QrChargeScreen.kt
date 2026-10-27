@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.KioskAmountDisplay
 import com.example.ui.components.KioskNumericKeypad
+import com.example.ui.components.PosCartBuilderSection
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
 import com.example.ui.util.FeedbackHelper
@@ -142,32 +143,18 @@ fun QrChargeScreen(
             }
 
             if (!isChargeGenerated) {
-                // --- STEP 1: AMOUNT INPUT KEYPAD ---
-                KioskAmountDisplay(
-                    amountInput = uiState.amountInput,
-                    label = "Monto del Cobro QR"
-                )
-
-                OutlinedTextField(
-                    value = uiState.chargeDescription,
-                    onValueChange = { viewModel.setChargeDescription(it) },
-                    label = { Text("Concepto o Descripción (opcional)") },
-                    placeholder = { Text("Ej. Compra en feria") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("qr_desc_input"),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = PosSlate100,
-                        unfocusedTextColor = PosSlate100,
-                        focusedBorderColor = PosPrimaryLight,
-                        unfocusedBorderColor = PosSlate700
-                    )
-                )
-
-                KioskNumericKeypad(
-                    currentInput = uiState.amountInput,
-                    onInputChange = { viewModel.setAmountInput(it) }
+                // --- STEP 1: CANASTA DE PRODUCTOS Y SERVICIOS (SIN MONTO LIBRE) ---
+                PosCartBuilderSection(
+                    catalog = uiState.vendorCatalog,
+                    cartItems = uiState.cartItems,
+                    pendingWriteNfcPayload = uiState.pendingWriteNfcPayload,
+                    onAddCatalogItem = { item, qty -> viewModel.addCatalogItemToCart(item, qty) },
+                    onRemoveCartItem = { idx -> viewModel.removeCartItem(idx) },
+                    onClearCart = { viewModel.clearCart() },
+                    onScanOrCode = { code -> viewModel.scanOrParsePosCode(code) },
+                    onPrepareWriteNfcTag = { viewModel.prepareWriteNfcTagForCurrentCart() },
+                    onCancelWriteNfcTag = { viewModel.cancelPendingWriteNfcTag() },
+                    onReloadCatalog = { viewModel.loadVendorCatalog() }
                 )
 
                 Button(
@@ -184,7 +171,7 @@ fun QrChargeScreen(
                         containerColor = PosPrimaryBlue,
                         contentColor = PosWhite
                     ),
-                    enabled = !uiState.isLoading && uiState.amountInput.isNotBlank() && uiState.amountInput != "0"
+                    enabled = !uiState.isLoading && uiState.cartItems.isNotEmpty()
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(color = PosWhite, modifier = Modifier.size(24.dp))
@@ -192,7 +179,7 @@ fun QrChargeScreen(
                         Icon(imageVector = Icons.Default.QrCode, contentDescription = null)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Generar Código QR (3 Min)",
+                            text = "Generar Código QR de Canasta (3 Min)",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )

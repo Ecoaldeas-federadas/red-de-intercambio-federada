@@ -705,7 +705,7 @@ fun MultiVendorScreen(
                             NfcWaveAnimation()
 
                             Text(
-                                text = "Acerque la Tarjeta del VENDEDOR",
+                                text = "Acerque la Tarjeta del VENDEDOR o una Etiqueta NFC de Producto/Canasta",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = PosGoldLight,
                                 fontWeight = FontWeight.Bold,
@@ -713,7 +713,7 @@ fun MultiVendorScreen(
                             )
 
                             Text(
-                                text = "La persona dueña del puesto o producto que recibirá el pago debe pasar primero su tarjeta.",
+                                text = "Si pasa la tarjeta del vendedor, se descargará su tienda ligera para armar la canasta. Si acerca una Etiqueta NFC o código que ya tiene grabado al vendedor y los productos, irá directo al pago del comprador.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = PosSlate300,
                                 textAlign = TextAlign.Center
@@ -739,7 +739,7 @@ fun MultiVendorScreen(
                 }
 
                 2 -> {
-                    // --- PASO 2: VENDOR ENTERS AMOUNT ---
+                    // --- PASO 2: VENDOR STORE BASKET BUILDER (SIN MONTO LIBRE) ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = PosSlate800),
@@ -754,20 +754,23 @@ fun MultiVendorScreen(
                             Icon(imageVector = Icons.Default.Storefront, contentDescription = null, tint = PosGoldLight)
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
-                                Text("Vendedor identificado:", style = MaterialTheme.typography.labelSmall, color = PosSlate300)
+                                Text("Tienda del Vendedor sincronizada:", style = MaterialTheme.typography.labelSmall, color = PosSlate300)
                                 Text(uiState.sellerName ?: "Vendedor", style = MaterialTheme.typography.titleMedium, color = PosSlate100, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
 
-                    KioskAmountDisplay(
-                        amountInput = uiState.amountInput,
-                        label = "Monto a cobrar al cliente"
-                    )
-
-                    KioskNumericKeypad(
-                        currentInput = uiState.amountInput,
-                        onInputChange = { viewModel.setAmountInput(it) }
+                    PosCartBuilderSection(
+                        catalog = uiState.vendorCatalog,
+                        cartItems = uiState.cartItems,
+                        pendingWriteNfcPayload = uiState.pendingWriteNfcPayload,
+                        onAddCatalogItem = { item, qty -> viewModel.addCatalogItemToCart(item, qty) },
+                        onRemoveCartItem = { idx -> viewModel.removeCartItem(idx) },
+                        onClearCart = { viewModel.clearCart() },
+                        onScanOrCode = { code -> viewModel.scanOrParsePosCode(code) },
+                        onPrepareWriteNfcTag = { viewModel.prepareWriteNfcTagForCurrentCart() },
+                        onCancelWriteNfcTag = { viewModel.cancelPendingWriteNfcTag() },
+                        onReloadCatalog = { viewModel.loadVendorCatalog(sellerCardUid = uiState.sellerCardUid) }
                     )
 
                     Button(
@@ -781,9 +784,9 @@ fun MultiVendorScreen(
                             .testTag("mv_amount_confirm_btn"),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
-                        enabled = uiState.amountInput.isNotBlank() && uiState.amountInput != "0"
+                        enabled = uiState.cartItems.isNotEmpty()
                     ) {
-                        Text("Confirmar Monto y Continuar a Documento", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Confirmar Canasta y Continuar al Comprador", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
                 }
 

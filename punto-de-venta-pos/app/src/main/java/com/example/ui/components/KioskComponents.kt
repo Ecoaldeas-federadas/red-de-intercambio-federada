@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.api.DEFAULT_DOCUMENT_TYPES
 import com.example.data.api.DocumentTypeItem
+import com.example.data.api.PosCartItemDto
+import com.example.data.api.VendorCatalogCompactItemDto
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
 import com.example.ui.util.FeedbackHelper
@@ -1213,4 +1215,424 @@ fun KioskDocumentKeypad(
         }
     }
 }
+
+/**
+ * Constructor de Canasta tipo Supermercado para el POS Android.
+ * Reemplaza la entrada de monto libre: todo cobro se arma seleccionando productos o
+ * servicios de la tienda sincronizada del vendedor, escaneando codigo de barras (EAN-13 con peso),
+ * QR, acercando una etiqueta NFC (tq1:...) o ingresando el codigo corto (#10001).
+ */
+@Composable
+fun PosCartBuilderSection(
+    catalog: List<VendorCatalogCompactItemDto>,
+    cartItems: List<PosCartItemDto>,
+    pendingWriteNfcPayload: String?,
+    onAddCatalogItem: (VendorCatalogCompactItemDto, Double) -> Unit,
+    onRemoveCartItem: (Int) -> Unit,
+    onClearCart: () -> Unit,
+    onScanOrCode: (String) -> Unit,
+    onPrepareWriteNfcTag: () -> Unit,
+    onCancelWriteNfcTag: () -> Unit,
+    onReloadCatalog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var searchQuery by remember { mutableStateOf("") }
+    var codeInput by remember { mutableStateOf("") }
+    var selectedItemForQty by remember { mutableStateOf<VendorCatalogCompactItemDto?>(null) }
+    var qtyText by remember { mutableStateOf("1") }
+
+    val totalCents = cartItems.sumOf { it.subtotalCents }
+    val filteredCatalog = remember(catalog, searchQuery) {
+        if (searchQuery.isBlank()) catalog
+        else {
+            val q = searchQuery.trim().lowercase()
+            catalog.filter {
+                it.name.lowercase().contains(q) ||
+                    it.code.lowercase().contains(q) ||
+                    (it.category?.lowercase()?.contains(q) == true)
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // 1. Entrada de código de barras (con peso EAN-13), QR, etiqueta NFC o código corto (#10001)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = PosSlate900),
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, PosSlate700)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ESCANEAR BARRA (CON PESO) / QR / ETIQUETA NFC / #CÓDIGO",
+                        color = PosPrimaryLight,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    TextButton(
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            onReloadCatalog()
+                        },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("Sincronizar Tienda (${catalog.size})", color = PosGoldLight, fontSize = 11.sp)
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = codeInput,
+                        onValueChange = { codeInput = it },
+                        placeholder = { Text("Ej: 10001, 211000102500X o tq1:...", fontSize = 12.sp) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f).testTag("pos_code_input"),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = PosSlate100,
+                            unfocusedTextColor = PosSlate100,
+                            focusedBorderColor = PosPrimaryLight,
+                            unfocusedBorderColor = PosSlate700
+                        )
+                    )
+                    Button(
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            if (codeInput.isNotBlank()) {
+                                onScanOrCode(codeInput)
+                                codeInput = ""
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                    ) {
+                        Text("+ Código", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        // 2. Selector rápido de peso / cantidad / horas cuando se toca un producto del catálogo
+        if (selectedItemForQty != null) {
+            val item = selectedItemForQty!!
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(2.dp, PosGold)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "[#${item.code}] ${item.name}",
+                                color = PosGoldLight,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "${CurrencyHelper.formatCentavos(item.priceCents)} por ${item.unit}",
+                                color = PosSlate300,
+                                fontSize = 12.sp
+                            )
+                        }
+                        IconButton(onClick = { selectedItemForQty = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = PosSlate300)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = qtyText,
+                            onValueChange = { qtyText = it },
+                            label = { Text("Cantidad / Peso en ${item.unit}") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = PosSlate100,
+                                unfocusedTextColor = PosSlate100,
+                                focusedBorderColor = PosGold,
+                                unfocusedBorderColor = PosSlate700
+                            )
+                        )
+                        Button(
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                val q = qtyText.replace(',', '.').toDoubleOrNull() ?: 1.0
+                                if (q > 0) {
+                                    onAddCatalogItem(item, q)
+                                    selectedItemForQty = null
+                                    qtyText = "1"
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PosSuccessGreen),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Agregar", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Buscador sobre la tienda sincronizada del vendedor (productos + servicios + trabajo en conuco)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = PosSlate900),
+            shape = RoundedCornerShape(14.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, PosSlate800)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Buscar en mi tienda por nombre o código...", fontSize = 12.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("pos_catalog_search"),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = PosSlate100,
+                        unfocusedTextColor = PosSlate100,
+                        focusedBorderColor = PosPrimaryLight,
+                        unfocusedBorderColor = PosSlate700
+                    )
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    filteredCatalog.take(8).forEach { item ->
+                        Surface(
+                            onClick = {
+                                FeedbackHelper.playKeyClick(context)
+                                selectedItemForQty = item
+                                qtyText = "1"
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            color = PosSlate800,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, PosSlate700),
+                            modifier = Modifier.fillMaxWidth().testTag("catalog_item_${item.code}")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "#${item.code} • ${item.name}",
+                                        color = PosSlate100,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp
+                                    )
+                                    Text(
+                                        text = when {
+                                            item.isUniversal -> "Servicio Universal (Conuco / Mano Vuelta)"
+                                            item.isService -> "Servicio"
+                                            else -> "Producto • Stock: ${item.stock}"
+                                        },
+                                        color = if (item.isUniversal) PosGoldLight else PosSlate400,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = CurrencyHelper.formatCentavos(item.priceCents),
+                                        color = PosPrimaryLight,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                    Text(
+                                        text = "/ ${item.unit}",
+                                        color = PosSlate400,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Resumen de la Canasta Actual + Botón para Grabar en Etiqueta NFC
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = PosSlate800),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, PosPrimaryLight.copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "CANASTA (${cartItems.size} ${if (cartItems.size == 1) "ítem" else "ítems"})",
+                        color = PosSlate200,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    if (cartItems.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    onPrepareWriteNfcTag()
+                                },
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Default.Nfc, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Grabar en Etiqueta NFC", color = PosGoldLight, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    onClearCart()
+                                },
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text("Vaciar", color = PosErrorRedLight, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+
+                if (pendingWriteNfcPayload != null) {
+                    Surface(
+                        color = PosGold.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PosGold),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "MODO GRABAR ETIQUETA NFC ACTIVO",
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = "Acerque una etiqueta NFC (NTAG213/215) al teléfono para guardar esta canasta con su usuario vendedor.",
+                                    color = PosSlate200,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            TextButton(onClick = onCancelWriteNfcTag) {
+                                Text("Cancelar", color = PosErrorRedLight, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+
+                if (cartItems.isEmpty()) {
+                    Text(
+                        text = "Toque un producto/servicio arriba o escanee su código de barras / etiqueta NFC para armar la canasta.",
+                        color = PosSlate400,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    )
+                } else {
+                    cartItems.forEachIndexed { idx, line ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "${line.itemName} × ${line.quantity} ${line.unit}",
+                                    color = PosSlate100,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = CurrencyHelper.formatCentavos(line.subtotalCents),
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                IconButton(
+                                    onClick = {
+                                        FeedbackHelper.playKeyClick(context)
+                                        onRemoveCartItem(idx)
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Quitar", tint = PosErrorRedLight, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = PosSlate700)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "TOTAL CANASTA",
+                        color = PosSlate200,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = CurrencyHelper.formatCentavos(totalCents),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = PosPrimaryLight,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+        }
+    }
+}
+
 
